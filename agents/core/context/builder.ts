@@ -87,10 +87,18 @@ export class AgentContextBuilder {
             .sort((a, b) => b.score - a.score)[0];
           lead = best ? await CrmService.getLeadById(workspaceId, best.id) : null;
         }
-        if (!lead) return { summary: "No active lead with contactable email found", data: { lead: null } };
+        if (!lead) return { summary: "No active lead found in the workspace", data: { lead: null } };
         const contactName = lead.contact ? `${lead.contact.firstName ?? ""} ${lead.contact.lastName ?? ""}`.trim() : null;
+        const email = lead.contact?.email ?? null;
+        const phone = lead.contact?.phone ?? null;
+        if (!email && !phone) {
+          return {
+            summary: `Lead ${lead.company?.name ?? ""} has no contact channel on file — enrich the record before outreach`,
+            data: { lead: { id: lead.id, company: lead.company?.name ?? null, contactable: false } },
+          };
+        }
         return {
-          summary: `Loaded lead context for ${lead.company?.name ?? "prospect"}${contactName ? ` (${contactName})` : ""}`,
+          summary: `Loaded lead context for ${lead.company?.name ?? "prospect"} (channel: ${email ? "email" : "phone/WhatsApp"})`,
           data: {
             lead: {
               // Real ids/values — the planner copies these verbatim; the
@@ -100,7 +108,10 @@ export class AgentContextBuilder {
               industry: lead.company?.industry ?? null,
               location: lead.company?.location ?? null,
               contact: contactName,
-              email: lead.contact?.email ?? null,
+              email,
+              phone,
+              hasEmail: Boolean(email),
+              hasPhone: Boolean(phone),
               status: lead.status,
               score: lead.score,
               notes: (lead.notes ?? "").slice(0, 300),

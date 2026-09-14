@@ -93,6 +93,13 @@ export const TOOL_SCHEMAS = {
     leadId: uuidSchema.optional(),
     purpose: z.string().max(200).default("outreach"),
   }),
+  prepare_message: z.object({
+    toPhone: z.string().regex(/^\+?[0-9][0-9 ()-]{6,18}$/, "must be a real phone number"),
+    channel: z.enum(["WHATSAPP", "SMS"]).default("WHATSAPP"),
+    body: z.string().min(10).max(2000),
+    leadId: uuidSchema.optional(),
+    purpose: z.string().max(200).default("initial_outreach"),
+  }),
   send_email: z.object({
     approvalId: uuidSchema,
   }),
@@ -540,6 +547,27 @@ export const AGENT_TOOLS: Record<string, AgentToolDefinition> = Object.fromEntri
       execute: async (args) => {
         const parsed = TOOL_SCHEMAS.prepare_email.parse(args);
         return { prepared: true, draft: parsed, note: "Draft stored — sending requires an approved send_email call." };
+      },
+    }),
+    tool({
+      id: "communication.prepare_message",
+      name: "Prepare Message",
+      description:
+        "Prepare a WhatsApp/SMS first-touch message DRAFT for a lead. Draft-only: nothing is sent. Produces an approval request; a human reviews and finalizes the sanctioned text in the Approval Center.",
+      category: "communication",
+      riskLevel: "MEDIUM",
+      requiresApproval: true,
+      supportsDryRun: true,
+      requiredPermission: "tools.communication.prepare",
+      defaultDailyLimit: 40,
+      inputSchema: TOOL_SCHEMAS.prepare_message,
+      execute: async (args) => {
+        const parsed = TOOL_SCHEMAS.prepare_message.parse(args);
+        return {
+          prepared: true,
+          draft: parsed,
+          note: "Draft stored for human review — this system never auto-sends WhatsApp/SMS; delivery is a separate, explicitly approved future integration.",
+        };
       },
     }),
     tool({

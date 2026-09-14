@@ -325,8 +325,9 @@ export class AgentRuntime {
 
         // Execute the tool — but first re-ground identity arguments against
         // the loaded context. The model must never be the source of entity
-        // identity: prepare_email's recipient/lead are overwritten with the
-        // real context values, so a hallucinated address cannot execute.
+        // identity: prepare_email / prepare_message recipients and lead ids
+        // are overwritten with the real context values, so a hallucinated
+        // address, phone, or id cannot execute.
         let toolArgs = (action.toolArguments ?? {}) as Record<string, unknown>;
         if (action.toolId === "communication.prepare_email") {
           const ctxLead = (context.data.lead ?? null) as { id?: string; email?: string | null } | null;
@@ -337,6 +338,15 @@ export class AgentRuntime {
             continue;
           }
           toolArgs = { ...toolArgs, toEmail: ctxLead.email, leadId: ctxLead.id };
+        } else if (action.toolId === "communication.prepare_message") {
+          const ctxLead = (context.data.lead ?? null) as { id?: string; phone?: string | null } | null;
+          if (!ctxLead?.id || !ctxLead.phone) {
+            const reason = "No phone on the context lead — prepare_message refused (identity must come from real data)";
+            await trace({ runId: run.id, stepNumber: step, type: "policy", summary: `BLOCKED: ${reason}`, toolName: action.toolId, input: toolArgs, status: "BLOCKED_BY_POLICY", error: reason });
+            actionResults.push({ step: action.step, description: action.description, status: "BLOCKED_BY_POLICY", reason });
+            continue;
+          }
+          toolArgs = { ...toolArgs, toPhone: ctxLead.phone, leadId: ctxLead.id };
         }
         const toolStart = Date.now();
         try {

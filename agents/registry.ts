@@ -58,10 +58,19 @@ Rules:
 - Mutating tools (update/create/move/send) must set requiresApproval=true.
 - Never invent companies, leads, deals, numbers, or capabilities. Data lives only in PROVIDED CONTEXT.
 - 2-5 actions max. Confidence reflects evidence quality in the context.
-Respond with JSON: {"summary":"...","actions":[{"step":1,"description":"...","toolId":"...|null","toolArguments":{}}],"confidence":"LOW|MEDIUM|HIGH","confidenceEvidence":["..."]}`;
+Respond with JSON: {"summary":"...","actions":[{"step":1,"description":"...","toolId":"an allowed tool id or null","toolArguments":{}}],"confidence":"LOW|MEDIUM|HIGH","confidenceEvidence":["..."]}`;
 
 export function planFromModel(raw: unknown): AgentPlan {
   const parsed = PlanOutputSchema.parse(raw);
+  // Normalize tool ids: small models occasionally emit garbage like
+  // "communication.prepare_message|null" (copying placeholder text) or stray
+  // whitespace. Trim and take the segment before any pipe so a known-good id
+  // still executes; anything genuinely unknown is downgraded to analysis-only.
+  const normalizeToolId = (id: string | null): string | null => {
+    if (!id) return null;
+    const cleaned = id.trim().split("|")[0].trim();
+    return cleaned.length > 0 ? cleaned : null;
+  };
   return {
     summary: parsed.summary.slice(0, 500),
     actions: parsed.actions.slice(0, 8).map((a, i) => {
@@ -69,11 +78,12 @@ export function planFromModel(raw: unknown): AgentPlan {
       // exist in the registry. Rather than guaranteeing a FAILED tool call,
       // downgrade the step to pure analysis (the description still carries
       // the finding); the policy engine re-checks every real tool call.
-      const known = a.toolId ? Boolean(getTool(a.toolId)) : true;
+      const toolId = normalizeToolId(a.toolId);
+      const known = toolId ? Boolean(getTool(toolId)) : true;
       return {
         step: a.step || i + 1,
-        description: known ? a.description.slice(0, 300) : `${a.description.slice(0, 240)} (analysis only — model referenced unavailable tool "${a.toolId}")`,
-        toolId: known ? a.toolId : null,
+        description: known ? a.description.slice(0, 300) : `${a.description.slice(0, 240)} (analysis only — model referenced unavailable tool "${toolId}")`,
+        toolId: known ? toolId : null,
         toolArguments: known ? a.toolArguments : null,
         riskLevel: a.riskLevel ?? "LOW",
         requiresApproval: known ? (a.requiresApproval ?? false) : false,
@@ -155,47 +165,92 @@ export const AGENT_DEFINITIONS: AgentDefinition[] = [
     defaultMaxTokensPerRun: 20000,
     defaultDailyBudgetMicroUsd: 2_000_000,
     planner: (objective, ctx) => {
-      const lead = (ctx.data.lead ?? null) as { id?: string; email?: string | null; contact?: string | null; company?: string | null } | null;
-      const target = lead?.email && lead?.id
-        ? `The target lead is in PROVIDED CONTEXT as "lead". Use lead.email ("${lead.email}") for toEmail and lead.id ("${lead.id}") for leadId EXACTLY — copy the characters verbatim, never invent an address or id.${lead.contact ? ` Address the body to ${lead.contact}.` : ""}`
-        : `No contactable lead exists in the context. Produce an analysis-only plan with toolId=null explaining what data is missing. Do NOT call prepare_email.`;
+      const lead = (ctx.data.lead ?? null) as {
+        id?: string;
+        email?: string | null;
+        phone?: string | null;
+        hasEmail?: boolean;
+        hasPhone?: boolean;
+        contact?: string | null;
+        company?: string | null;
+      } | null;
+      let target: string;
+      if (lead?.id && lead?.email) {
+        target = `The target lead is in PROVIDED CONTEXT as "lead". It has a real email. Use lead.email ("${lead.email}") for toEmail and lead.id ("${lead.id}") for leadId EXACTLY — copy the characters verbatim, never invent an address or id. Call communication.prepare_email once.${lead.contact ? ` Address the body to ${lead.contact}.` : ""}`;
+      } else if (lead?.id && lead?.phone) {
+        target = `The target lead is in PROVIDED CONTEXT as "lead". It has NO email on file but has phone "${lead.phone}". Call communication.prepare_message ONCE with toPhone set to lead.phone ("${lead.phone}") and leadId set to lead.id ("${lead.id}") EXACTLY — copy verbatim, never invent. channel: "WHATSAPP" (Indian SMB default). The body is a SHORT first-touch WhatsApp message (2-4 sentences, no subject field). Ground every claim in PROVIDED CONTEXT only.${lead.contact ? ` Address it to ${lead.contact}.` : ""}`;
+      } else {
+        target = `No contactable lead exists in the context. Produce an analysis-only plan with toolId=null explaining what data is missing. Do NOT call prepare_email or prepare_message.`;
+      }
       return {
-        system: PLAN_INSTRUCTIONS + "\nNEVER fabricate company facts, names, case studies, emails, or previous conversations. Ground every claim in PROVIDED CONTEXT.",
-        user: `AGENT: Outreach Agent\nOBJECTIVE: ${objective}\nALLOWED TOOLS: ${["communication.prepare_email", "communication.send_email"].join(", ")}\nPROVIDED CONTEXT: ${JSON.stringify(ctx.data).slice(0, 3000)}\n${target}\nProduce the plan JSON. The prepare_email toolArguments must include toEmail, subject, body, leadId copied from the context lead.`,
+        system: PLAN_INSTRUCTIONS + "\nNEVER fabricate company facts, names, case studies, emails, phone numbers, or previous conversations. Ground every claim in PROVIDED CONTEXT.",
+        user: `AGENT: Outreach Agent\nOBJECTIVE: ${objective}\nALLOWED TOOLS: communication.prepare_email, communication.prepare_message, communication.send_email\nPROVIDED CONTEXT: ${JSON.stringify(ctx.data).slice(0, 3000)}\n${target}\nProduce the plan JSON with exactly ONE draft action (no duplicate sends).`,
       };
     },
     fallbackPlan: (_o, ctx) => {
-      const lead = (ctx.data.lead ?? null) as { id?: string; company?: string | null; email?: string | null; contact?: string | null } | null;
+      const lead = (ctx.data.lead ?? null) as {
+        id?: string;
+        company?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        contact?: string | null;
+        industry?: string | null;
+        location?: string | null;
+      } | null;
       // No real target → analysis-only plan. Never draft to a fabricated address.
-      if (!lead?.id || !lead.email) {
+      if (!lead?.id || (!lead.email && !lead.phone)) {
         return {
           summary: "No contactable lead found in the workspace — nothing to draft.",
-          actions: [{ step: 1, description: "No lead with a contact email exists; import or create one first.", toolId: null, toolArguments: null, riskLevel: "LOW", requiresApproval: false }],
+          actions: [{ step: 1, description: "No lead with an email or phone exists; enrich the lead record first.", toolId: null, toolArguments: null, riskLevel: "LOW", requiresApproval: false }],
           confidence: "HIGH",
           confidenceEvidence: ["context builder found zero contactable leads"],
           requiresApproval: false,
         };
       }
+      if (lead.email) {
+        return {
+          summary: `Deterministic outreach draft for ${lead.company ?? "prospect"} — generic template (LLM unavailable; edit before approving).`,
+          actions: [
+            {
+              step: 1,
+              description: `Prepare email draft for ${lead.email}`,
+              toolId: "communication.prepare_email",
+              toolArguments: {
+                toEmail: lead.email,
+                leadId: lead.id,
+                subject: `Quick question for ${lead.company ?? "your team"}`,
+                body: `Hi ${lead.contact ?? "there"},\n\nWe help teams like ${lead.company ?? "yours"} streamline operations. Open to a short call this week?\n\n— Aexyl`,
+                purpose: "initial_outreach",
+              },
+              riskLevel: "LOW",
+              requiresApproval: false,
+            },
+          ],
+          confidence: "LOW",
+          confidenceEvidence: ["deterministic template from real lead record"],
+          requiresApproval: false,
+        };
+      }
       return {
-        summary: `Deterministic outreach draft for ${lead.company ?? "prospect"} — generic template (LLM unavailable; edit before approving).`,
+        summary: `Deterministic WhatsApp draft for ${lead.company ?? "prospect"} — template from the real lead record (LLM unavailable; edit before approving).`,
         actions: [
           {
             step: 1,
-            description: `Prepare email draft for ${lead.email}`,
-            toolId: "communication.prepare_email",
+            description: `Prepare WhatsApp draft for ${lead.phone}`,
+            toolId: "communication.prepare_message",
             toolArguments: {
-              toEmail: lead.email,
+              toPhone: lead.phone,
+              channel: "WHATSAPP",
               leadId: lead.id,
-              subject: `Quick question for ${lead.company ?? "your team"}`,
-              body: `Hi ${lead.contact ?? "there"},\n\nWe help teams like ${lead.company ?? "yours"} streamline operations. Open to a short call this week?\n\n— Aexyl`,
+              body: `Hi${lead.contact ? ` ${lead.contact}` : " there"}, I'm reaching out from Aexyl — we help${lead.industry ? ` ${lead.industry.toLowerCase()}` : " local businesses"} like${lead.location ? ` those in ${lead.location}` : " yours"} manage leads and follow-ups so inquiries don't slip through. Would a quick look at how that works be useful?`,
               purpose: "initial_outreach",
             },
-            riskLevel: "LOW",
-            requiresApproval: false,
+            riskLevel: "MEDIUM",
+            requiresApproval: true,
           },
         ],
         confidence: "LOW",
-        confidenceEvidence: ["deterministic template from real lead record"],
+        confidenceEvidence: ["deterministic template from real lead record (phone-only contact)"],
         requiresApproval: false,
       };
     },
