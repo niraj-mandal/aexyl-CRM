@@ -1,9 +1,7 @@
-import { Display, PageTitle, Body } from "@/components/ui/typography";
+import { Display, Body } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
-import { DataTable } from "@/components/crm/DataTable";
 import { GlassCard } from "@/components/ui/glass-card";
-import { LeadForm } from "@/components/crm/LeadForm";
 
 // Columns for DataTable must match the data shape
 // Note: TanStack Table usually wants these in a client component, but we can pass them down or define them client-side.
@@ -12,7 +10,6 @@ import { LeadForm } from "@/components/crm/LeadForm";
 // Since we need to pass functions, let's just create a simple mapped table view here or use a dedicated Client component for the table.
 
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
 
 export default async function LeadsPage() {
   const { workspaceId } = await requireWorkspace();
