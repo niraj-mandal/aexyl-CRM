@@ -232,6 +232,24 @@ export class CrmService {
   // LEADS
   // ---------------------------------------------------------------------------
 
+  /** Real table-wide counts for the leads page stat cards (not the page slice). */
+  static async getLeadCounts(workspaceId: string) {
+    const rows = await db
+      .select({
+        status: leads.status,
+        temperature: leads.temperature,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(leads)
+      .where(eq(leads.workspaceId, workspaceId))
+      .groupBy(leads.status, leads.temperature);
+    return {
+      total: rows.reduce((acc, r) => acc + r.count, 0),
+      new: rows.filter((r) => r.status === "NEW").reduce((acc, r) => acc + r.count, 0),
+      hot: rows.filter((r) => r.temperature === "HOT").reduce((acc, r) => acc + r.count, 0),
+    };
+  }
+
   static async getLeads(workspaceId: string, limit = 50, offset = 0) {
     return db.query.leads.findMany({
       where: eq(leads.workspaceId, workspaceId),

@@ -16,12 +16,15 @@ import { formatDistanceToNow } from "date-fns";
 
 export default async function LeadsPage() {
   const { workspaceId } = await requireWorkspace();
-  const leads = await CrmService.getLeads(workspaceId);
+  const [leads, leadCounts] = await Promise.all([
+    CrmService.getLeads(workspaceId, 500),
+    CrmService.getLeadCounts(workspaceId),
+  ]);
 
-  // Metrics calculation
-  const total = leads.length;
-  const newLeads = leads.filter(l => l.status === "NEW").length;
-  const hotLeads = leads.filter(l => l.temperature === "HOT").length;
+  // Metrics come from real SQL counts across the whole table — not the page slice.
+  const total = leadCounts.total;
+  const newLeads = leadCounts.new;
+  const hotLeads = leadCounts.hot;
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
