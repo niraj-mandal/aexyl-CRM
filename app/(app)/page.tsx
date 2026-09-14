@@ -235,22 +235,12 @@ export default function CommandCenter() {
               <PageTitle className="text-base text-primary">Aexyl Intelligence</PageTitle>
             </div>
 
-            <div className="mt-4 space-y-4">
-              <div className="rounded-lg bg-surface-low/80 p-3.5 border border-border-subtle">
-                <Badge variant="primary" className="mb-2 font-mono-code text-[9px]">INSIGHT #01</Badge>
-                <h4 className="text-xs font-medium text-text-primary">Pipeline Staleness Monitor</h4>
-                <p className="mt-1 text-[11px] text-text-secondary leading-relaxed">
-                  {(stats?.pipelineHealth ?? "0%")} of open deals have activity within 14 days. Anything below 80% warrants follow-up sweeps.
-                </p>
-              </div>
-
-              <div className="rounded-lg bg-surface-low/80 p-3.5 border border-border-subtle">
-                <Badge variant="tertiary" className="mb-2 font-mono-code text-[9px]">SLO ATTENTION</Badge>
-                <h4 className="text-xs font-medium text-text-primary">Conversion Snapshot</h4>
-                <p className="mt-1 text-[11px] text-text-secondary leading-relaxed">
-                  Win rate is {stats?.winRate ?? "—"} across all recorded deals. Target 30%.
-                </p>
-              </div>
+            <div className="mt-4 space-y-3">
+              <Body className="text-[11px] text-text-secondary leading-relaxed">
+                The brief above runs a full strategic audit on live workspace data — stalled-deal risk, staleness
+                index, win conversion, and lead engagement. Deeper analysis, plus the AI Copilot and lead
+                discovery engine, live in the Intelligence section.
+              </Body>
             </div>
 
             <Link href="/intelligence" className="mt-5 block w-full rounded-lg bg-primary/10 border border-primary/30 p-2.5 text-center text-xs font-medium text-primary hover:bg-primary/20 transition-colors">
