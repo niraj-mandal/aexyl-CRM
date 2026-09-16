@@ -1,78 +1,87 @@
 import { LlmService } from "./llm.service";
 
 /**
- * Local Lead Discovery — Google Places API (New) Text Search pipeline.
+ * Local Lead Discovery — OpenStreetMap (Nominatim + Overpass) pipeline.
  *
  * Sibling of lead-discovery.service.ts (generic B2B web prospecting) built for
- * a different ICP: LOCAL businesses (gyms, cafes, clinics…) whose core
- * qualification signal is what they DON'T have — no website, no phone —
- * plus public traction (rating / review count). Generic site scraping can't
- * see that signal; Google Places can.
+ * a different ICP: LOCAL businesses (gyms, cafes, clinics…) in specific
+ * cities, qualified on what they DON'T have — no website, ideally no phone.
+ * OSM has no ratings/review counts, so the qualification signal is the
+ * missing-web-presence fields themselves.
  *
- * Pipeline: Places Text Search → per-result tiering (Hot/Warm/Cold from the
- * MISSING-WEBSITE signal) → optional LLM "hook" enrichment from review
- * snippets → results shaped like `DiscoveredLead` so the existing import path
- * (ImportLeadCandidate → importDiscoveredLeadAction) can consume them.
+ * Pipeline: Nominatim geocode (city → bbox) → Overpass QL query (category tag
+ * within bbox) → tag parsing (nulls stay null) → website/phone tiering →
+ * optional LLM `suggestedHook` (a labeled SUGGESTION, never merged into the
+ * factual fields) → results shaped like `DiscoveredLead` so the existing
+ * import path (ImportLeadCandidate → importDiscoveredLeadAction) consumes them.
  *
  * Conventions mirrored from lead-discovery.service.ts:
  *  - never throws — returns { success: false, notes: [...] } on failure
  *  - every network call is timeout-bounded
- *  - batched requests with bounded concurrency (Places API rate limits)
- *  - no fabricated data: absent fields stay null; the only LLM-generated
- *    content is an explicitly labeled `hook`, kept separate from factual
- *    fields sourced from the API.
+ *  - sequential requests with delays (Nominatim ~1 rps, Overpass fair use)
+ *
+ * FREE + KEYLESS by design: no API key, no billing, no quota — these are
+ * shared public OSM services, so usage stays polite (descriptive User-Agent,
+ * 1 req/s geocoding queue, small Overpass delays).
  */
 
 // ---------------------------------------------------------------------------
 // Tunable qualification thresholds — the exact Hot/Warm/Cold rules. Adjust here.
 // ---------------------------------------------------------------------------
 
-/** Reviews below this = low public traction → stronger "missing web presence" signal. */
-export const HOT_MAX_REVIEWS = 20;
-/** Reviews at/above this = very large/established → Cold regardless of website. */
-export const COLD_MIN_REVIEWS = 200;
-/** Average rating at/above this counts as strong public traction. */
-export const STRONG_RATING = 4.5;
-
 export type LocalPriority = "Hot" | "Warm" | "Cold";
 
+/**
+ * LLM outreach-angle suggestions per batch (one call, not per-lead).
+ * 0 disables the pass entirely.
+ */
+const HOOK_MAX_LEADS = 20;
+/** Delay between successive Nominatim requests (usage policy: ~1 req/s). */
+const NOMINATIM_MIN_INTERVAL_MS = 1_100;
+/** Polite pause between Overpass requests (fair use; queries are rate-limited). */
+const OVERPASS_MIN_INTERVAL_MS = 700;
+/** Overpass QL's own server-side timeout — kept modest for fair use. */
+const OVERPASS_QL_TIMEOUT_S = 25;
+
+// --- OSM usage-policy identity (required by Nominatim; describe your app) ---
+const USER_AGENT = "Aexyl-CRM/1.0 (local business lead discovery; contact: operator@aexyl.local)";
+
 export interface LocalDiscoveredLead {
-  /** Google Places display name. */
-  companyName: string;
-  /** websiteUri from Places — null when the business has NO listed website (the key signal). */
+  /** OSM name tag (null when the element is unnamed — rare for businesses). */
+  companyName: string | null;
+  /** website or contact:website tag — null when the business has NO listed website (the key signal). */
   website: string | null;
   /** Requested category, e.g. "gym". */
   industry: string | null;
-  /** formattedAddress from Places. */
+  /** Address assembled ONLY from addr:* tags actually present (null when none). */
   location: string | null;
-  /** Human-readable size/establishment signal derived ONLY from real review counts. */
+  /** The OSM tag that matched (e.g. "leisure=fitness_centre") — provenance, not inference. */
   size: string | null;
-  /** Real Google rating (null when the API returns none — never guessed). */
-  rating: number | null;
-  /** userRatingCount (null when absent). */
-  reviewCount: number | null;
-  /** nationalPhoneNumber (null when the business lists no phone). */
+  /** phone or contact:phone tag (null when absent). */
   phone: string | null;
-  /** Google place_id — stable identifier for dedupe. */
-  placeId: string;
-  /** lat/lng when the API returns them. */
+  /** opening_hours tag (null when absent). */
+  openingHours: string | null;
+  /** Element latitude (null when absent). */
   lat: number | null;
+  /** Element longitude (null when absent). */
   lng: number | null;
+  /** Stable OSM identity: "node/123", "way/456", "relation/789". */
+  osmId: string;
   /** Qualification tier from the missing-web-presence signal (see constants above). */
   priority: LocalPriority;
   /** Why this tier, citing the exact factual signals used. */
   priorityReason: string;
   /**
-   * LLM-generated one-line outreach hook from review snippets — clearly labeled
-   * as model-generated, distinct from the factual fields above, and null when
-   * no LLM is configured or no reviews exist. Never invented.
+   * LLM-drafted one-line outreach angle — a SUGGESTION clearly labeled as
+   * model-generated, kept permanently separate from the factual OSM fields
+   * above. Null when no LLM is configured. Never invented facts.
    */
-  hook: string | null;
-  /** Original search text ("category city"). */
+  suggestedHook: string | null;
+  /** Original query ("category city"). */
   sourceQuery: string;
-  /** Google Maps link for this place (places API `googleMapsUri` when returned). */
+  /** OSM browse link for this element. */
   sourceUrl: string | null;
-  /** 0-100 blend of the real signals (rating, reviews, missing-website tier). */
+  /** 0-100 heuristic from the real signals (tier + reachability + opening hours). */
   fitScore: number;
   contactHint: string | null;
 }
@@ -85,62 +94,65 @@ export interface LocalDiscoveryResult {
   notes: string[];
 }
 
-const PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
-const FETCH_TIMEOUT = 15_000;
-/** Places Text Search max pageSize per request. */
-const PAGE_SIZE = 20;
-/**
- * Rate-limiting note: unlike scrapeAll() in lead-discovery.service.ts (which
- * fans out and bounds concurrency), Places Text Search pagination is strictly
- * sequential — each page's nextPageToken is only issued with the prior
- * response — so this pipeline never exceeds one in-flight Places request.
- */
-/** Review snippets requested for the LLM hook pass, per place. */
-const REVIEW_SNIPPETS_PER_PLACE = 3;
+// --- Category → Overpass tag mapping (top-of-file, easy to adjust) -----------
 
-// ---------------------------------------------------------------------------
-// Google Places API (New) field masks. Only fields we pay for and use.
-// ---------------------------------------------------------------------------
+const CATEGORY_TAG_MAP: Record<string, string[]> = {
+  gym: ["leisure=fitness_centre", "leisure=sports_centre", "amenity=gym"],
+  fitness: ["leisure=fitness_centre", "leisure=sports_centre"],
+  cafe: ["amenity=cafe"],
+  coffee: ["amenity=cafe"],
+  restaurant: ["amenity=restaurant"],
+  clinic: ["amenity=clinic", "amenity=doctors"],
+  dental: ["amenity=dentist"],
+  salon: ["shop=hairdresser", "shop=beauty"],
+  spa: ["leisure=spa", "shop=beauty"],
+  hotel: ["tourism=hotel"],
+  bakery: ["shop=bakery"],
+  bar: ["amenity=bar", "amenity=pub"],
+  pharmacy: ["amenity=pharmacy"],
+  supermarket: ["shop=supermarket"],
+};
 
-const FIELD_MASK_BASIC = [
-  "places.id",
-  "places.displayName",
-  "places.formattedAddress",
-  "places.rating",
-  "places.userRatingCount",
-  "places.nationalPhoneNumber",
-  "places.internationalPhoneNumber",
-  "places.websiteUri",
-  "places.location",
-  "places.googleMapsUri",
-].join(",");
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+const FETCH_TIMEOUT = 30_000;
+const GEOFETCH_TIMEOUT = 12_000;
 
-/** Adds reviews for the LLM hook pass (higher SKU — requested only when the LLM is available). */
-const FIELD_MASK_WITH_REVIEWS = `${FIELD_MASK_BASIC},places.reviews`;
-
-interface PlaceResult {
-  id?: string;
-  displayName?: { text?: string };
-  formattedAddress?: string;
-  rating?: number;
-  userRatingCount?: number;
-  nationalPhoneNumber?: string;
-  internationalPhoneNumber?: string;
-  websiteUri?: string;
-  location?: { latitude?: number; longitude?: number };
-  googleMapsUri?: string;
-  reviews?: { text?: { text?: string }; originalText?: { text?: string }; rating?: number }[];
+interface NominatimResult {
+  boundingbox?: string[];
+  lat?: string;
+  lon?: string;
+  display_name?: string;
 }
 
-interface PlacesTextSearchResponse {
-  places?: PlaceResult[];
-  error?: { message?: string };
+interface OverpassElement {
+  type?: string;
+  id?: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat?: number; lon?: number };
+  tags?: Record<string, string>;
+}
+
+/** Serialize Nominatim calls — the usage policy allows ~1 request/second. */
+let lastNominatimAt = 0;
+async function nominatimGate(): Promise<void> {
+  const wait = NOMINATIM_MIN_INTERVAL_MS - (Date.now() - lastNominatimAt);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastNominatimAt = Date.now();
+}
+/** Serialize Overpass calls — polite pause between fair-use queries. */
+let lastOverpassAt = 0;
+async function overpassGate(): Promise<void> {
+  const wait = OVERPASS_MIN_INTERVAL_MS - (Date.now() - lastOverpassAt);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastOverpassAt = Date.now();
 }
 
 export class LocalLeadDiscoveryService {
   /**
-   * Full pipeline: Places Text Search for "category city" → tiered,
-   * hook-enriched local leads ready for CRM import.
+   * Full pipeline: geocode city → Overpass category query → tiered leads.
+   * Free, keyless, and fail-soft end to end.
    */
   static async discover(request: {
     category: string;
@@ -151,7 +163,7 @@ export class LocalLeadDiscoveryService {
     const city = request.city.trim();
     const query = `${category} ${city}`.trim();
     const notes: string[] = [];
-    const maxResults = Math.min(Math.max(request.maxResults ?? 10, 1), 20);
+    const maxResults = Math.min(Math.max(request.maxResults ?? 10, 1), 30);
 
     if (category.length < 2 || city.length < 2) {
       return {
@@ -163,224 +175,260 @@ export class LocalLeadDiscoveryService {
       };
     }
 
-    if (!process.env.GOOGLE_PLACES_API_KEY?.trim()) {
-      return {
-        success: false,
-        query,
-        leads: [],
-        llmUsed: false,
-        notes: ["GOOGLE_PLACES_API_KEY is not configured — local discovery via Google Places is unavailable."],
-      };
-    }
-
-    // 1+2. Places Text Search (paged when needed), bounded concurrency.
-    const useReviews = LlmService.getStatus().available;
-    const places = await LocalLeadDiscoveryService.textSearch(query, maxResults, useReviews, notes);
-    if (places.length === 0) {
-      notes.push("Google Places returned no businesses for this category/city.");
+    // 1. Geocode the city to a bounding box (Nominatim, queued at ~1 rps).
+    const bbox = await LocalLeadDiscoveryService.geocodeCity(city, notes);
+    if (!bbox) {
+      notes.push(`Could not geocode "${city}" — check the city name or try \"City, Region\".`);
       return { success: false, query, leads: [], llmUsed: false, notes };
     }
-    notes.push(`Google Places returned ${places.length} businesses.`);
+    notes.push(`Located ${city} via OpenStreetMap geocoding.`);
 
-    // 3. Tier each result from the real missing-web-presence signals.
-    const leads = places.map((p) => LocalLeadDiscoveryService.toLocalLead(p, request));
-    notes.push(
-      `${leads.filter((l) => l.priority === "Hot").length} Hot (no website), ` +
-        `${leads.filter((l) => l.priority === "Warm").length} Warm, ` +
-        `${leads.filter((l) => l.priority === "Cold").length} Cold.`
-    );
-
-    // 4. Optional LLM hook pass from review snippets.
-    let llmUsed = false;
-    if (useReviews && leads.some((l) => l.reviewCount !== null && l.reviewCount > 0)) {
-      const hooks = await LocalLeadDiscoveryService.enrichHooks(
-        places,
-        leads.map((l) => l.placeId)
+    // 2. Overpass query per mapped tag, sequential (fair-use pacing).
+    const tags = LocalLeadDiscoveryService.tagsForCategory(category);
+    if (tags.length === 0) {
+      notes.push(
+        `No OSM tag mapping for "${category}" — add one to CATEGORY_TAG_MAP (e.g. shop=clothes). Falling back to a name search.`
       );
+    }
+
+    const elements = await LocalLeadDiscoveryService.overpassQuery(bbox, tags, category, notes);
+    if (elements.length === 0) {
+      notes.push("Overpass returned no matching businesses in this area.");
+      return { success: false, query, leads: [], llmUsed: false, notes };
+    }
+    notes.push(`OpenStreetMap returned ${elements.length} matching elements.`);
+
+    // 3. Parse tags → clean shape (nulls stay null), dedupe by osmId.
+    const seen = new Set<string>();
+    let leads: LocalDiscoveredLead[] = [];
+    for (const el of elements) {
+      const lead = LocalLeadDiscoveryService.toLocalLead(el, request);
+      if (!lead || seen.has(lead.osmId)) continue;
+      seen.add(lead.osmId);
+      leads.push(lead);
+      if (leads.length >= maxResults) break;
+    }
+    if (leads.length === 0) {
+      notes.push("No named businesses found in the OSM results.");
+      return { success: false, query, leads: [], llmUsed: false, notes };
+    }
+
+    const hot = leads.filter((l) => l.priority === "Hot").length;
+    notes.push(`${hot} Hot (no website, no phone), ${leads.filter((l) => l.priority === "Warm").length} Warm (no website, has phone), ${leads.filter((l) => l.priority === "Cold").length} Cold (has website).`);
+
+    // 4. Optional LLM suggestedHook pass (labeled suggestions, fail-soft).
+    let llmUsed = false;
+    if (LlmService.getStatus().available) {
+      const hooks = await LocalLeadDiscoveryService.suggestHooks(leads.slice(0, HOOK_MAX_LEADS), category);
       if (hooks) {
         llmUsed = true;
-        notes.push("Outreach hooks generated by LLM from review snippets.");
-        for (const [placeId, hook] of hooks) {
-          const idx = leads.findIndex((l) => l.placeId === placeId);
-          if (idx >= 0) leads[idx] = { ...leads[idx], hook };
+        notes.push("Outreach angles drafted by LLM (suggestions only — verify before use).");
+        for (const [osmId, hook] of hooks) {
+          const idx = leads.findIndex((l) => l.osmId === osmId);
+          if (idx >= 0) leads[idx] = { ...leads[idx], suggestedHook: hook };
         }
       } else {
-        notes.push("LLM hook enrichment unavailable — hooks omitted (factual fields unaffected).");
+        notes.push("LLM unavailable — outreach-angle suggestions omitted (factual fields unaffected).");
       }
-    } else if (!useReviews) {
-      notes.push("No LLM provider configured — review snippets not requested, hooks omitted.");
     }
 
     // 5. Rank: tier first, then fit score.
     const tierRank: Record<LocalPriority, number> = { Hot: 0, Warm: 1, Cold: 2 };
-    leads.sort(
-      (a, b) => tierRank[a.priority] - tierRank[b.priority] || b.fitScore - a.fitScore
-    );
+    leads = leads
+      .sort((a, b) => tierRank[a.priority] - tierRank[b.priority] || b.fitScore - a.fitScore)
+      .slice(0, maxResults);
 
-    return { success: true, query, leads: leads.slice(0, maxResults), llmUsed, notes };
+    return { success: true, query, leads, llmUsed, notes };
   }
 
-  // --- Places Text Search (paged, bounded concurrency) -----------------------
+  // --- Step 1: Nominatim geocoding (queued at ~1 rps) -------------------------
 
-  private static async textSearch(
-    query: string,
-    maxResults: number,
-    withReviews: boolean,
+  private static async geocodeCity(city: string, notes: string[]): Promise<string | null> {
+    await nominatimGate();
+    try {
+      const url = `${NOMINATIM_URL}?q=${encodeURIComponent(city)}&format=json&limit=1`;
+      const res = await fetch(url, {
+        headers: { "User-Agent": USER_AGENT, "Accept-Language": "en" },
+        signal: AbortSignal.timeout(GEOFETCH_TIMEOUT),
+      });
+      if (!res.ok) {
+        notes.push(`Nominatim HTTP ${res.status}.`);
+        return null;
+      }
+      const json = (await res.json()) as NominatimResult[];
+      const hit = json[0];
+      if (!hit?.boundingbox || hit.boundingbox.length !== 4) {
+        return null;
+      }
+      // Nominatim bbox order: south, north, west, east → Overpass order:
+      // south, west, north, east (consumed via the global [bbox:…] setting).
+      const [south, north, west, east] = hit.boundingbox;
+      return `${south},${west},${north},${east}`;
+    } catch (error) {
+      notes.push(`Geocoding failed: ${error instanceof Error ? error.message : "network error"}`);
+      return null;
+    }
+  }
+
+  // --- Step 2: Overpass QL (sequential, QL-level timeout) ----------------------
+
+  private static tagsForCategory(category: string): string[] {
+    const key = category.toLowerCase().trim();
+    for (const [name, tags] of Object.entries(CATEGORY_TAG_MAP)) {
+      if (key.includes(name)) return tags;
+    }
+    return [];
+  }
+
+  private static async overpassQuery(
+    bbox: string,
+    tags: string[],
+    category: string,
     notes: string[]
-  ): Promise<PlaceResult[]> {
-    const places: PlaceResult[] = [];
-    // Simple pagination: sequential page tokens (each must be fetched serially —
-    // the token is only valid ~seconds after the prior response). Concurrency
-    // bound applies to the initial fan-out when we split large queries.
-    let pageToken: string | undefined;
-    for (let page = 0; page < Math.ceil(maxResults / PAGE_SIZE) && places.length < maxResults; page++) {
+  ): Promise<OverpassElement[]> {
+    // Global [bbox:…] bounds every selector; mapped categories query each tag,
+    // unknown categories fall back to a name search.
+    const selectors =
+      tags.length > 0
+        ? tags.map((t) => `nwr[${t}];`).join("")
+        : `nwr["name"~"${category.replace(/[^\p{L}\p{N}\s-]/gu, "").trim()}",i];`;
+
+    const ql = `[out:json][timeout:${OVERPASS_QL_TIMEOUT_S}][bbox:${bbox}];(${selectors});out center tags ${Math.max(1, OVERPASS_MAX_ELEMENTS)};`;
+
+    await overpassGate();
+    // One polite retry: the public endpoint intermittently answers 504 under
+    // load; a short backoff usually clears it without hammering.
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await fetch(PLACES_TEXT_SEARCH_URL, {
+        const res = await fetch(OVERPASS_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY!.trim(),
-            "X-Goog-FieldMask": withReviews ? FIELD_MASK_WITH_REVIEWS : FIELD_MASK_BASIC,
-          },
-          body: JSON.stringify({ textQuery: query, pageSize: Math.min(maxResults, PAGE_SIZE), pageToken }),
+          headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": USER_AGENT },
+          body: `data=${encodeURIComponent(ql)}`,
           signal: AbortSignal.timeout(FETCH_TIMEOUT),
         });
         if (!res.ok) {
           const body = await res.text().catch(() => "");
-          notes.push(`Places API HTTP ${res.status}: ${body.slice(0, 200)}`);
-          break;
+          if (res.status >= 500 && attempt === 0) {
+            await new Promise((r) => setTimeout(r, 2_000));
+            continue;
+          }
+          notes.push(`Overpass HTTP ${res.status}: ${body.slice(0, 160)}`);
+          return [];
         }
-        const json = (await res.json()) as PlacesTextSearchResponse;
-        if (json.error?.message) {
-          notes.push(`Places API error: ${json.error.message.slice(0, 200)}`);
-          break;
-        }
-        for (const p of json.places ?? []) {
-          if (p.id) places.push(p);
-        }
-        pageToken = (json as { nextPageToken?: string }).nextPageToken;
-        if (!pageToken) break;
+        const json = (await res.json()) as { elements?: OverpassElement[] };
+        return json.elements ?? [];
       } catch (error) {
-        notes.push(
-          `Places request failed: ${error instanceof Error ? error.message : "network error"}`
-        );
-        break;
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 2_000));
+          continue;
+        }
+        notes.push(`Overpass query failed: ${error instanceof Error ? error.message : "network error"}`);
+        return [];
       }
     }
-    return places;
+    return [];
   }
 
-  // --- Tiering + shaping -------------------------------------------------------
+  // --- Step 3: tag parsing ------------------------------------------------------
 
-  private static toLocalLead(
-    place: PlaceResult,
-    request: { category: string }
-  ): LocalDiscoveredLead {
-    const name = place.displayName?.text?.trim() || "Unknown business";
-    const website = place.websiteUri?.trim() || null;
-    const rating = typeof place.rating === "number" ? place.rating : null;
-    const reviewCount = typeof place.userRatingCount === "number" ? place.userRatingCount : null;
-    const phone = place.nationalPhoneNumber?.trim() || place.internationalPhoneNumber?.trim() || null;
+  private static toLocalLead(el: OverpassElement, request: { category: string; city: string }): LocalDiscoveredLead | null {
+    if (!el.type || typeof el.id !== "number") return null;
+    const tags = el.tags ?? {};
+    const name = tags.name?.trim() || null;
 
-    // The core qualification signal: no listed website = digital gap = opportunity.
-    const priority = LocalLeadDiscoveryService.tier(website, reviewCount);
-    const priorityReason = LocalLeadDiscoveryService.explainTier(priority, website, rating, reviewCount);
-    const fitScore = LocalLeadDiscoveryService.score(priority, rating, reviewCount, phone);
-    const size =
-      reviewCount === null
-        ? null
-        : reviewCount >= COLD_MIN_REVIEWS
-          ? `established (${reviewCount} Google reviews)`
-          : `small local business (${reviewCount} Google reviews)`;
+    const lat = typeof el.lat === "number" ? el.lat : (typeof el.center?.lat === "number" ? el.center.lat : null);
+    const lng = typeof el.lon === "number" ? el.lon : (typeof el.center?.lon === "number" ? el.center.lon : null);
+
+    // Address assembled ONLY from addr:* tags that actually exist.
+    const street = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ").trim();
+    const cityPart = tags["addr:city"]?.trim() || null;
+    const postcode = tags["addr:postcode"]?.trim() || null;
+    const state = tags["addr:state"]?.trim() || null;
+    const addressParts = [street || null, cityPart, state, postcode].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(", ") : null;
+
+    const phone = tags.phone?.trim() || tags["contact:phone"]?.trim() || null;
+    const website = tags.website?.trim() || tags["contact:website"]?.trim() || null;
+    const openingHours = tags.opening_hours?.trim() || null;
+
+    const matchedTag = LocalLeadDiscoveryService.matchedTag(tags) ?? `name~${request.category}`;
+    const priority = LocalLeadDiscoveryService.tier(website, phone);
+    const priorityReason = LocalLeadDiscoveryService.explainTier(priority, website, phone, openingHours);
 
     return {
-      companyName: name.slice(0, 160),
+      companyName: name,
       website,
       industry: request.category.trim() || null,
-      location: place.formattedAddress?.trim() || null,
-      size,
-      rating,
-      reviewCount,
+      location: address,
+      size: matchedTag,
       phone,
-      placeId: place.id!,
-      lat: typeof place.location?.latitude === "number" ? place.location.latitude : null,
-      lng: typeof place.location?.longitude === "number" ? place.location.longitude : null,
+      openingHours,
+      lat,
+      lng,
+      osmId: `${el.type}/${el.id}`,
       priority,
       priorityReason,
-      hook: null,
-      sourceQuery: request.category,
-      sourceUrl: place.googleMapsUri?.trim() || null,
-      fitScore,
+      suggestedHook: null,
+      sourceQuery: `${request.category} ${request.city ?? ""}`.trim(),
+      sourceUrl: `https://www.openstreetmap.org/${el.type}/${el.id}`,
+      fitScore: LocalLeadDiscoveryService.score(priority, phone, openingHours),
       contactHint: phone,
     };
   }
 
-  /** Hot/Warm/Cold from the missing-web-presence signal. See constants at top of file. */
-  private static tier(website: string | null, reviewCount: number | null): LocalPriority {
+  private static matchedTag(tags: Record<string, string>): string | null {
+    for (const candidates of Object.values(CATEGORY_TAG_MAP)) {
+      for (const tag of candidates) {
+        const [k, v] = tag.split("=");
+        if (tags[k] === v) return tag;
+      }
+    }
+    return null;
+  }
+
+  /** Hot/Warm/Cold from what OSM actually provides. See constants at top of file. */
+  private static tier(website: string | null, phone: string | null): LocalPriority {
     if (website) return "Cold"; // has a website — lower-priority for this ICP
-    if (reviewCount === null) return "Warm"; // unknown traction, still no web presence
-    if (reviewCount < HOT_MAX_REVIEWS) return "Hot"; // low traction AND no website
-    if (reviewCount >= COLD_MIN_REVIEWS) return "Cold"; // very established, no website
-    return "Warm"; // no website but more established
+    if (phone) return "Warm"; // no website but reachable by phone
+    return "Hot"; // no website AND no phone — the core qualification signal
   }
 
   private static explainTier(
     priority: LocalPriority,
     website: string | null,
-    rating: number | null,
-    reviewCount: number | null
+    phone: string | null,
+    openingHours: string | null
   ): string {
     const noSite = "no website listed";
-    if (priority === "Hot") return `${noSite}, low review count (${reviewCount ?? 0})`;
-    if (priority === "Warm") {
-      return reviewCount === null
-        ? `${noSite}, traction unknown`
-        : `${noSite} but established (${reviewCount} reviews, ${rating ?? "?"}★)`;
-    }
-    return website ? "has a website" : `very established (${reviewCount ?? 0} reviews)`;
+    if (priority === "Hot") return `${noSite}, no phone listed${openingHours ? " — likely walk-in/word-of-mouth business" : ""}`;
+    if (priority === "Warm") return `${noSite}, reachable by phone`;
+    return "has a listed website";
   }
 
   /** Heuristic 0-100 fit from the real signals only. */
-  private static score(
-    priority: LocalPriority,
-    rating: number | null,
-    reviewCount: number | null,
-    phone: string | null
-  ): number {
-    let s = priority === "Hot" ? 75 : priority === "Warm" ? 55 : 25;
-    if (rating !== null) s += Math.round((rating - 3.5) * 10); // strong ratings convert
+  private static score(priority: LocalPriority, phone: string | null, openingHours: string | null): number {
+    let s = priority === "Hot" ? 78 : priority === "Warm" ? 60 : 25;
     if (phone) s += 5; // reachable without enrichment
-    if (reviewCount !== null && reviewCount >= 5 && reviewCount < HOT_MAX_REVIEWS) s += 5;
+    if (openingHours) s += 4; // established/curated listing
     return Math.max(0, Math.min(s, 96));
   }
 
-  // --- LLM hook pass ------------------------------------------------------------
+  // --- LLM suggestedHook pass -----------------------------------------------------
 
   /**
-   * One-line outreach hooks from review snippets, exactly like enrichBatch in
-   * lead-discovery.service.ts: one LLM call, fail-soft to null hooks. Hooks are
-   * labeled model-generated and live ONLY in `hook` — factual fields untouched.
+   * One LLM call per batch drafting generic outreach ANGLES from name+category
+   * alone — explicitly suggestions, never presented as facts about the
+   * business. Fail-soft to null, same pattern as enrichBatch in the sibling.
    */
-  private static async enrichHooks(
-    places: PlaceResult[],
-    placeIds: string[]
+  private static async suggestHooks(
+    leads: LocalDiscoveredLead[],
+    category: string
   ): Promise<Map<string, string> | null> {
-    const withReviews = places.filter(
-      (p) => p.id && placeIds.includes(p.id) && (p.reviews?.length ?? 0) > 0
-    );
-    if (withReviews.length === 0) return null;
-
+    if (leads.length === 0) return null;
     const result = await LlmService.completeJson(
-      `You are an outreach assistant. For each business, read its Google review snippets and write ONE specific, real detail an outreach message could reference (a concrete observation, not a greeting). Only use details actually present in the snippets; if nothing specific is available, use exactly "no specific hook found". Respond with JSON: {"places":[{"id":"...","hook":"..."}]}`,
-      places
-        .map((p, i) => {
-          const snippets = (p.reviews ?? [])
-            .slice(0, REVIEW_SNIPPETS_PER_PLACE)
-            .map((r) => r.text?.text ?? r.originalText?.text ?? "")
-            .filter(Boolean)
-            .join(" | ");
-          return `[${i}] id=${p.id ?? "?"} | ${p.displayName?.text ?? "?"} | reviews: ${snippets || "none"}`;
-        })
+      `You are an outreach assistant for a web-design agency. For each ${category}, draft ONE short outreach angle (max 140 chars) that a first message could use — e.g. "no website listed — likely relying on walk-in/word-of-mouth". These are educated SUGGESTIONS based only on the given data, never stated as facts. Respond with JSON: {"places":[{"osmId":"...","hook":"..."}]}`,
+      leads
+        .map((l) => `${l.osmId} | ${l.companyName ?? "unnamed"} | ${category} | website: ${l.website ?? "none"} | phone: ${l.phone ?? "none"}`)
         .join("\n")
     );
     if (!result.ok || !result.text) return null;
@@ -388,13 +436,16 @@ export class LocalLeadDiscoveryService {
     if (!parsed || !Array.isArray(parsed.places)) return null;
 
     const hooks = new Map<string, string>();
-    for (const entry of parsed.places as { id?: string; hook?: string }[]) {
-      if (typeof entry.id !== "string" || typeof entry.hook !== "string") continue;
+    const ids = new Set(leads.map((l) => l.osmId));
+    for (const entry of parsed.places as { osmId?: string; hook?: string }[]) {
+      if (typeof entry.osmId !== "string" || typeof entry.hook !== "string") continue;
       const text = entry.hook.trim();
-      if (text.length === 0 || text === "no specific hook found") continue;
-      if (!placeIds.includes(entry.id)) continue;
-      hooks.set(entry.id, text.slice(0, 160));
+      if (text.length === 0 || !ids.has(entry.osmId)) continue;
+      hooks.set(entry.osmId, text.slice(0, 160));
     }
     return hooks.size > 0 ? hooks : null;
   }
 }
+
+/** Hard cap on elements per Overpass response (fair use + prompt hygiene). */
+const OVERPASS_MAX_ELEMENTS = 60;

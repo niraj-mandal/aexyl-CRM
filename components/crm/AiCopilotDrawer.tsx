@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Sparkles, Bot, Send, X, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo, MapPin, Star, SquareCheck, Square, Flame } from "lucide-react";
+import { Sparkles, Bot, Send, X, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo, MapPin, SquareCheck, Square, Flame } from "lucide-react";
 import {
   sendCopilotPromptAction,
   discoverLeadsAction,
@@ -31,23 +31,25 @@ interface DiscoveryLead {
   fitReason: string;
 }
 
-/** Local (Google Places) discovery result — distinct shape from web-search leads. */
+/** Local (OpenStreetMap) discovery result — distinct shape from web-search leads. */
 interface LocalDiscoveryLead {
-  companyName: string;
+  companyName: string | null;
   website: string | null;
   industry: string | null;
   location: string | null;
   size: string | null;
-  rating: number | null;
-  reviewCount: number | null;
   phone: string | null;
-  placeId: string;
+  openingHours: string | null;
+  lat: number | null;
+  lng: number | null;
+  osmId: string;
   priority: "Hot" | "Warm" | "Cold";
   priorityReason: string;
-  hook: string | null;
+  suggestedHook: string | null;
   sourceQuery: string;
   sourceUrl: string | null;
   fitScore: number;
+  contactHint: string | null;
 }
 
 interface ChatMessage {
@@ -179,7 +181,7 @@ export function AiCopilotDrawer() {
     setDiscovering(true);
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", text: "Querying Google Places and tiering businesses by missing-web-presence signals. This takes a few seconds…", ephemeral: true },
+      { role: "assistant", text: "Geocoding the city and querying OpenStreetMap (free, keyless). This takes 5–20 seconds…", ephemeral: true },
     ]);
 
     try {
@@ -200,7 +202,7 @@ export function AiCopilotDrawer() {
         ...prev,
         {
           role: "assistant",
-          text: `Found ${res.leads.length} local business${res.leads.length === 1 ? "" : "es"} — ${hot} Hot (no website). Select all or pick individual leads to import; duplicates are blocked automatically.`,
+          text: `Found ${res.leads.length} local business${res.leads.length === 1 ? "" : "es"} from OpenStreetMap — ${hot} Hot (no website, no phone). Select all or pick individual leads to import; duplicates are blocked automatically.`,
           localLeads: res.leads,
           notes: res.notes,
         },
@@ -216,7 +218,7 @@ export function AiCopilotDrawer() {
   };
 
   const localToCandidate = (l: LocalDiscoveryLead): ImportLeadCandidate => ({
-    companyName: l.companyName,
+    companyName: l.companyName ?? "Unnamed business",
     website: l.website,
     industry: l.industry,
     location: l.location,
@@ -228,16 +230,16 @@ export function AiCopilotDrawer() {
     fitScore: l.fitScore,
     sourceQuery: `${l.industry ?? "local business"} ${l.location ?? ""}`.trim(),
     sourceUrl: l.sourceUrl,
-    placeId: l.placeId,
-    rating: l.rating,
-    reviewCount: l.reviewCount,
+    placeId: l.osmId,
+    rating: null,
+    reviewCount: null,
     priority: l.priority,
     priorityReason: l.priorityReason,
-    hook: l.hook,
+    hook: l.suggestedHook,
   });
 
   const handleImportLocal = async (lead: LocalDiscoveryLead) => {
-    const key = lead.placeId || lead.companyName;
+    const key = lead.osmId || lead.companyName || "unknown";
     if (importStates[key]?.state === "importing" || importStates[key]?.state === "imported") return;
     setImport(key, "importing");
     try {
@@ -255,21 +257,21 @@ export function AiCopilotDrawer() {
 
   const handleImportAllLocal = async (leads: LocalDiscoveryLead[]) => {
     const fresh = leads.filter((l) => {
-      const st = importStates[l.placeId || l.companyName]?.state;
+      const st = importStates[l.osmId || l.companyName || "unknown"]?.state;
       return st !== "imported" && st !== "importing" && st !== "error";
     });
     if (fresh.length === 0) return;
-    for (const l of fresh) setImport(l.placeId || l.companyName, "importing");
+    for (const l of fresh) setImport(l.osmId || l.companyName || "unknown", "importing");
     try {
       const res = await importDiscoveredLeadsAction(fresh.map(localToCandidate));
       res.results.forEach((r, i) => {
-        const key = fresh[i]?.placeId || fresh[i]?.companyName || r.companyName;
+        const key = fresh[i]?.osmId || fresh[i]?.companyName || r.companyName;
         if (r.ok) setImport(key, "imported", "In CRM");
         else setImport(key, "error", r.error ?? "Import failed");
       });
       if (res.imported > 0) router.refresh();
     } catch {
-      for (const l of fresh) setImport(l.placeId || l.companyName, "error", "Import failed");
+      for (const l of fresh) setImport(l.osmId || l.companyName || "unknown", "error", "Import failed");
     }
   };
 
@@ -569,7 +571,7 @@ export function AiCopilotDrawer() {
                       </div>
                     )}
 
-                    {/* Local (Google Places) discovery cards — tiered, with batch import */}
+                    {/* Local (OpenStreetMap) discovery cards — tiered, with batch import */}
                     {m.localLeads && m.localLeads.length > 0 && (
                       <LocalLeadsBlock
                         leads={m.localLeads}
@@ -715,9 +717,10 @@ const TIER_STYLE: Record<LocalDiscoveryLead["priority"], string> = {
 };
 
 /**
- * Batch-import block for Google Places local leads: select-all + per-card
- * import, showing the Hot/Warm/Cold tier, real Google rating/review data,
- * phone, and the labeled LLM hook (model-generated — reviewers verify).
+ * Batch-import block for OpenStreetMap local leads: select-all + per-card
+ * import, showing the Hot/Warm/Cold tier, factual OSM fields (phone, opening
+ * hours, no-website signal), and the labeled LLM suggestedHook — a clearly
+ * marked suggestion reviewers verify, never merged with the factual data.
  */
 function LocalLeadsBlock({
   leads,
@@ -730,15 +733,15 @@ function LocalLeadsBlock({
   onImport: (lead: LocalDiscoveryLead) => void;
   onImportAll: (leads: LocalDiscoveryLead[]) => void;
 }) {
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(leads.map((l) => l.placeId)));
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(leads.map((l) => l.osmId)));
   const [bulkState, setBulkState] = useState<"idle" | "importing" | "done">("idle");
 
   const importable = leads.filter((l) => {
-    const st = importStates[l.placeId]?.state;
+    const st = importStates[l.osmId]?.state;
     return st !== "imported" && st !== "importing";
   });
-  const selectedFresh = leads.filter((l) => selected.has(l.placeId) && importStates[l.placeId]?.state !== "imported");
-  const importedCount = leads.filter((l) => importStates[l.placeId]?.state === "imported").length;
+  const selectedFresh = leads.filter((l) => selected.has(l.osmId) && importStates[l.osmId]?.state !== "imported");
+  const importedCount = leads.filter((l) => importStates[l.osmId]?.state === "imported").length;
   const allDone = importedCount === leads.length;
 
   const toggle = (id: string) => {
@@ -761,7 +764,7 @@ function LocalLeadsBlock({
     <div className="mt-3 rounded-lg border border-tertiary/30 bg-tertiary/5 p-2">
       <div className="flex items-center justify-between px-1 pb-2">
         <button
-          onClick={() => setSelected(allDone ? new Set() : new Set(importable.map((l) => l.placeId)))}
+          onClick={() => setSelected(allDone ? new Set() : new Set(importable.map((l) => l.osmId)))}
           disabled={allDone || importable.length === 0}
           className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
         >
@@ -780,7 +783,7 @@ function LocalLeadsBlock({
 
       <div className="space-y-1.5">
         {leads.map((lead) => {
-          const key = lead.placeId;
+          const key = lead.osmId;
           const st = importStates[key]?.state ?? "idle";
           const isSelected = selected.has(key) && st !== "imported" && st !== "importing";
           return (
@@ -798,20 +801,15 @@ function LocalLeadsBlock({
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold text-text-primary truncate">{lead.companyName}</p>
+                    <p className="text-[11px] font-bold text-text-primary truncate">{lead.companyName ?? "Unnamed business"}</p>
                     <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold font-mono-code ${TIER_STYLE[lead.priority]}`}>
                       {lead.priority === "Hot" ? <Flame className="mr-0.5 inline h-2.5 w-2.5" /> : null}{lead.priority.toUpperCase()}
                     </span>
                   </div>
                   <p className="text-[10px] text-text-muted truncate">{lead.location ?? "—"}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
-                    {lead.rating !== null && (
-                      <span className="inline-flex items-center gap-0.5">
-                        <Star className="h-2.5 w-2.5 text-tertiary" /> {lead.rating}
-                        {lead.reviewCount !== null ? ` (${lead.reviewCount})` : ""}
-                      </span>
-                    )}
                     {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{lead.phone}</span>}
+                    {lead.openingHours && <span title={lead.openingHours}>🕒 {lead.openingHours.slice(0, 24)}</span>}
                     {lead.website ? (
                       <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
                         <Globe className="h-2.5 w-2.5" />site
@@ -821,14 +819,14 @@ function LocalLeadsBlock({
                     )}
                     {lead.sourceUrl && (
                       <a href={lead.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
-                        <MapPin className="h-2.5 w-2.5" />maps
+                        <MapPin className="h-2.5 w-2.5" />osm
                       </a>
                     )}
                   </div>
                   <p className="mt-1 text-[9px] text-text-muted/80">{lead.priorityReason}</p>
-                  {lead.hook && (
-                    <p className="mt-0.5 text-[10px] text-secondary italic" title="AI-generated from reviews — verify before use">
-                      Hook (AI): {lead.hook}
+                  {lead.suggestedHook && (
+                    <p className="mt-0.5 text-[10px] text-secondary italic" title="AI-suggested outreach angle — a guess, not a fact. Verify before use.">
+                      Suggested angle (AI): {lead.suggestedHook}
                     </p>
                   )}
                   {st === "error" && <p className="mt-0.5 text-[10px] text-red-400">{importStates[key]?.message}</p>}

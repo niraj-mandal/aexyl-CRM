@@ -8,7 +8,7 @@ export interface CopilotActionPayload {
   query?: string;
   industry?: string;
   location?: string;
-  /** Local (Google Places) discovery directives. */
+  /** Local (OpenStreetMap) discovery directives. */
   category?: string;
   city?: string;
   /** Write-action proposals — resolved BY NAME server-side after user confirmation. */
@@ -425,12 +425,12 @@ export class AiAgentService {
     // Lead-discovery intent is detected before the LLM so it works with or
     // without a provider — the drawer executes DISCOVER_LEADS either way.
     if (AiAgentService.isDiscoveryIntent(prompt)) {
-      // "find gyms in Jorhat" / "scrape cafes in Mumbai" → Google Places local
+      // "find gyms in Jorhat" / "scrape cafes in Mumbai" → OpenStreetMap local
       // pipeline (category + city shape) when the prompt parses cleanly.
       const local = AiAgentService.parseLocalDiscoveryIntent(prompt);
       if (local) {
         return {
-          answer: `Local discovery via Google Places: I'll pull "${local.category}" businesses in ${local.city} and tier them by the missing-web-presence signal — no website or no phone listed, plus Google rating/review traction. Hot/Warm/Cold ranked; you approve what enters the CRM${process.env.GOOGLE_PLACES_API_KEY?.trim() ? "" : " (set GOOGLE_PLACES_API_KEY to enable — the run will report honestly if missing)"}.`,
+          answer: `Local discovery via OpenStreetMap (free, no API key): I'll geocode ${local.city} and pull "${local.category}" businesses, then tier them by the missing-web-presence signal — no website AND no phone = Hot. You approve what enters the CRM.`,
           suggestedActions: [
             {
               label: `📍 Find local ${local.category} in ${local.city}`,
@@ -607,7 +607,7 @@ Rules:
   - NAVIGATE: {url} — one of /, /my-day, /leads, /pipeline, /companies, /contacts, /deals, /outreach, /clients, /projects, /intelligence, /attention, /settings
   - RUN_SWEEP: {} — schedules follow-ups for every stale lead
   - DISCOVER_LEADS: {query, industry?, location?} — launches web lead discovery; use when the operator wants NEW prospects found/scraped/sourced
-  - DISCOVER_LOCAL_LEADS: {category, city} — launches Google Places local-business discovery tiered Hot/Warm/Cold (no-website signal); use for "find gyms in Jorhat"-shaped asks naming a concrete business category and a city
+  - DISCOVER_LOCAL_LEADS: {category, city} — launches OpenStreetMap local-business discovery tiered Hot/Warm/Cold on the missing-website/missing-phone signal; use for "find gyms in Jorhat"-shaped asks naming a concrete business category and a city
   - UPDATE_DEAL_STAGE: {dealName, stage} — proposes moving a deal to QUALIFIED|CALL_BOOKED|PROPOSAL|NEGOTIATION|WON|LOST. dealName must exactly match a deal name from the snapshot.
   - LOG_ACTIVITY: {leadName OR dealNameForActivity, activityType, title, description?} — proposes logging NOTE|CALL|EMAIL|MEETING|OUTREACH|FOLLOW_UP on a lead or deal from the snapshot.
   - CREATE_TASK: {taskTitle, taskDescription?, priority?, dueInDays?, dealName?/leadName?} — proposes a task (priority LOW|MEDIUM|HIGH|URGENT, dueInDays 0-365).

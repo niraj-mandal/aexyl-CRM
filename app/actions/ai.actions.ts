@@ -143,9 +143,9 @@ export async function discoverLeadsAction(query: string, industry?: string, loca
 }
 
 /**
- * Local-business discovery via Google Places (Hot/Warm/Cold tiered on the
- * missing-web-presence signal). Fails soft — without GOOGLE_PLACES_API_KEY the
- * result carries an honest note instead of an error.
+ * Local-business discovery via OpenStreetMap (Nominatim + Overpass; free and
+ * keyless — Hot/Warm/Cold tiered on the missing-web-presence signal).
+ * Fails soft — geocoding/Overpass failures come back as honest notes.
  */
 export async function discoverLocalLeadsAction(category: string, city: string, maxResults?: number) {
   await requireWorkspace();
@@ -169,7 +169,7 @@ export interface ImportLeadCandidate {
   fitScore: number;
   sourceQuery: string;
   sourceUrl: string | null;
-  /** Local-discovery extras (Google Places). Optional so the web-search pipeline is unchanged. */
+  /** Local-discovery extras (OpenStreetMap). Optional so the web-search pipeline is unchanged. */
   placeId?: string;
   rating?: number | null;
   reviewCount?: number | null;
@@ -488,7 +488,14 @@ export async function importDiscoveredLeadAction(candidate: ImportLeadCandidate)
     status: "NEW",
     stage: "NEW",
     score,
-    temperature: candidate.fitScore >= 70 ? "WARM" : "COLD",
+    // Local leads carry their discovery tier through: a Hot local lead (no
+    // website, no phone) lands as a HOT lead, not merely WARM.
+    temperature:
+      candidate.priority === "Hot" || candidate.fitScore >= 70
+        ? "HOT"
+        : candidate.priority === "Warm"
+          ? "WARM"
+          : "COLD",
     notes: [
       candidate.description ? candidate.description.slice(0, 500) : "Discovered by Aexyl Lead Discovery.",
       `Fit: ${candidate.fitScore}/100.`,

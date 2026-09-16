@@ -542,7 +542,7 @@ export const AGENT_TOOLS: Record<string, AgentToolDefinition> = Object.fromEntri
       id: "research.discover_local_leads",
       name: "Discover Local Leads",
       description:
-        "Find local businesses by category + city via Google Places. Qualification signal: missing website/phone plus rating and review count (Hot/Warm/Cold tier).",
+        "Find local businesses by category + city via OpenStreetMap (free, keyless). Qualification signal: missing website and missing phone (Hot/Warm/Cold tier).",
       category: "research",
       riskLevel: "MEDIUM",
       requiresApproval: false,
@@ -558,18 +558,16 @@ export const AGENT_TOOLS: Record<string, AgentToolDefinition> = Object.fromEntri
           llmUsed: result.llmUsed,
           notes: result.notes,
           leads: result.leads.map((l) => ({
+            osmId: l.osmId,
             companyName: l.companyName,
             website: l.website,
-            industry: l.industry,
             location: l.location,
             phone: l.phone,
-            rating: l.rating,
-            reviewCount: l.reviewCount,
-            placeId: l.placeId,
+            openingHours: l.openingHours,
             priority: l.priority,
             priorityReason: l.priorityReason,
-            // Model-generated, labeled; distinct from the factual fields above.
-            hook: l.hook,
+            // Model-generated suggestion, labeled; distinct from factual fields.
+            suggestedHook: l.suggestedHook,
             fitScore: l.fitScore,
           })),
         };

@@ -16,7 +16,7 @@ Built with **Next.js (App Router) · React 19 · TypeScript · PostgreSQL + Driz
 | **Delivery** | Clients, projects, milestones, requirements, tasks with dependencies, workload view, project health |
 | **Intelligence** | Command Center with live telemetry, attention items, insights, recommendations, event-driven intelligence |
 | **AI Copilot** | Conversational assistant grounded in workspace data, with conversation memory and confirm-gated write actions |
-| **Lead discovery** | Two chat-driven prospecting pipelines that import straight into the CRM: (1) **Web-search discovery** — describe an ICP, the engine searches the web, scrapes candidate sites, extracts structured data, and LLM-scores fit for general B2B prospecting; (2) **Local discovery (Google Places)** — find local businesses by category + city and qualify them on the missing-web-presence signal (no website / no phone listed) plus Google rating and review count, tiered Hot/Warm/Cold, with optional LLM-generated outreach hooks from review snippets. The Scout agent can call both via its research tools |
+| **Lead discovery** | Two chat-driven prospecting pipelines that import straight into the CRM: (1) **Web-search discovery** — describe an ICP, the engine searches the web, scrapes candidate sites, extracts structured data, and LLM-scores fit for general B2B prospecting; (2) **Local discovery (OpenStreetMap)** — free and keyless: geocodes the city (Nominatim) and queries Overpass for businesses by category (gyms, cafes, clinics…), qualifying them on the missing-web-presence signal — no website AND no phone = Hot, no website = Warm, has website = Cold — with optional LLM-suggested outreach angles, clearly labeled as suggestions. The Scout agent can call both via its research tools |
 | **Agents** | Six autonomous agents (Scout, Sales, Outreach, Follow-up, Operations, Executive) running on a governed runtime — plans, typed tools, approval gates, traces, budgets |
 | **Operations** | Integrations registry with real connectors, feature flags, notifications, observability dashboard, incidents, health checks, rate limiting, backups |
 
@@ -141,11 +141,9 @@ Aexyl talks to model providers through one gateway (`lib/ai/gateway.ts` → `ser
 
 Override the model on any provider with `AEXYL_LLM_MODEL` (e.g. a larger OpenRouter model). With **no** key, the app still runs — the copilot falls back to deterministic data-driven answers and agents use their deterministic planners; the UI honestly shows the LLM as offline. Never expose any of these keys to the client.
 
-### Optional — Local lead discovery (Google Places)
+### Local lead discovery (OpenStreetMap — no key needed)
 
-| Variable | Description |
-|---|---|
-| `GOOGLE_PLACES_API_KEY` | Google Places API (New) key — enables the local-business discovery pipeline (category + city → Hot/Warm/Cold-tiered leads). Without it, local discovery is unavailable and web-search discovery still works |
+The local-business pipeline (`services/ai/local-lead-discovery.service.ts`) uses free public OpenStreetMap services — **no API key, no billing**: [Nominatim](https://nominatim.openstreetmap.org) geocodes the city and [Overpass](https://overpass-api.de) queries businesses by category tag. The service respects both services' usage policies (descriptive User-Agent, ~1 req/s geocoding queue, polite Overpass pacing, QL-level timeout). The Scout agent calls it via `research.discover_local_leads`.
 
 ### Optional — Email (team invites, notifications)
 
