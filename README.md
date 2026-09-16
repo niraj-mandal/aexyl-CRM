@@ -16,7 +16,7 @@ Built with **Next.js (App Router) · React 19 · TypeScript · PostgreSQL + Driz
 | **Delivery** | Clients, projects, milestones, requirements, tasks with dependencies, workload view, project health |
 | **Intelligence** | Command Center with live telemetry, attention items, insights, recommendations, event-driven intelligence |
 | **AI Copilot** | Conversational assistant grounded in workspace data, with conversation memory and confirm-gated write actions |
-| **Lead discovery** | Chat-driven lead generation: describe an ICP, the engine geocodes and queries OpenStreetMap (Overpass) for real businesses, scores them, and imports them as leads |
+| **Lead discovery** | Two chat-driven prospecting pipelines that import straight into the CRM: (1) **Web-search discovery** — describe an ICP, the engine searches the web, scrapes candidate sites, extracts structured data, and LLM-scores fit for general B2B prospecting; (2) **Local discovery (Google Places)** — find local businesses by category + city and qualify them on the missing-web-presence signal (no website / no phone listed) plus Google rating and review count, tiered Hot/Warm/Cold, with optional LLM-generated outreach hooks from review snippets. The Scout agent can call both via its research tools |
 | **Agents** | Six autonomous agents (Scout, Sales, Outreach, Follow-up, Operations, Executive) running on a governed runtime — plans, typed tools, approval gates, traces, budgets |
 | **Operations** | Integrations registry with real connectors, feature flags, notifications, observability dashboard, incidents, health checks, rate limiting, backups |
 
@@ -140,6 +140,12 @@ Aexyl talks to model providers through one gateway (`lib/ai/gateway.ts` → `ser
 | `OPENROUTER_API_KEY` | `meta-llama/llama-3.1-8b-instruct` |
 
 Override the model on any provider with `AEXYL_LLM_MODEL` (e.g. a larger OpenRouter model). With **no** key, the app still runs — the copilot falls back to deterministic data-driven answers and agents use their deterministic planners; the UI honestly shows the LLM as offline. Never expose any of these keys to the client.
+
+### Optional — Local lead discovery (Google Places)
+
+| Variable | Description |
+|---|---|
+| `GOOGLE_PLACES_API_KEY` | Google Places API (New) key — enables the local-business discovery pipeline (category + city → Hot/Warm/Cold-tiered leads). Without it, local discovery is unavailable and web-search discovery still works |
 
 ### Optional — Email (team invites, notifications)
 

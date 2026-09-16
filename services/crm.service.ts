@@ -80,6 +80,15 @@ export class CrmService {
   }
 
   /** Finds a company in the workspace by website domain (used for discovery dedupe). */
+  /** Exact (case-insensitive) name match — dedupe for website-less local businesses. */
+  static async findCompanyByName(workspaceId: string, name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    return db.query.companies.findFirst({
+      where: and(eq(companies.workspaceId, workspaceId), sql`lower(${companies.name}) = lower(${trimmed})`),
+    });
+  }
+
   static async findCompanyByWebsite(workspaceId: string, website: string) {
     const domain = website
       .replace(/^https?:\/\//, "")

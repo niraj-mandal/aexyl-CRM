@@ -154,6 +154,15 @@ export interface ImportLeadCandidate {
   fitScore: number;
   sourceQuery: string;
   sourceUrl: string | null;
+  /** Local-discovery extras (Google Places). Optional so the web-search pipeline is unchanged. */
+  placeId?: string;
+  rating?: number | null;
+  reviewCount?: number | null;
+  priority?: string;
+  /** Why this tier — cited factual signals (missing website, review count). */
+  priorityReason?: string | null;
+  /** LLM-generated outreach hook — labeled model-generated, stored in notes, never a factual field. */
+  hook?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +403,27 @@ export async function importDiscoveredLeadAction(candidate: ImportLeadCandidate)
     if (existing) {
       return { success: false as const, error: `Already in CRM as "${existing.name}".` };
     }
+  } else if (candidate.placeId) {
+    // Website-less local businesses have no domain to dedupe on — fall back to
+    // an exact company-name match within the workspace.
+    const existing = await CrmService.findCompanyByName(workspaceId, candidate.companyName);
+    if (existing) {
+      return { success: false as const, error: `Already in CRM as "${existing.name}".` };
+    }
   }
+
+  // Real, per-place details go in company notes verbatim (no inference): the
+  // Google rating/review count, Maps link, placeId, and the labeled LLM hook.
+  const localNotes = [
+    candidate.description,
+    typeof candidate.rating === "number" ? `Google rating: ${candidate.rating}★` : null,
+    typeof candidate.reviewCount === "number" ? `Google reviews: ${candidate.reviewCount}` : null,
+    candidate.sourceUrl ? `Maps: ${candidate.sourceUrl}` : null,
+    candidate.placeId ? `place_id: ${candidate.placeId}` : null,
+    candidate.hook ? `Suggested hook (AI-generated, verify before use): ${candidate.hook}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n") || null;
 
   const company = await CrmService.createCompany(workspaceId, {
     name: candidate.companyName.trim().slice(0, 160),
@@ -403,7 +432,7 @@ export async function importDiscoveredLeadAction(candidate: ImportLeadCandidate)
     location: candidate.location,
     size: candidate.size,
     source: `AI Discovery: ${candidate.sourceQuery.slice(0, 100)}`,
-    notes: candidate.description,
+    notes: localNotes,
     ownerId: userId,
   });
 
@@ -445,9 +474,15 @@ export async function importDiscoveredLeadAction(candidate: ImportLeadCandidate)
     stage: "NEW",
     score,
     temperature: candidate.fitScore >= 70 ? "WARM" : "COLD",
-    notes: candidate.description
-      ? `Discovered by Aexyl Lead Discovery.\nFit: ${candidate.fitScore}/100.\n${candidate.description.slice(0, 500)}`
-      : `Discovered by Aexyl Lead Discovery. Fit: ${candidate.fitScore}/100.`,
+    notes: [
+      candidate.description ? candidate.description.slice(0, 500) : "Discovered by Aexyl Lead Discovery.",
+      `Fit: ${candidate.fitScore}/100.`,
+      candidate.priority ? `Local priority: ${candidate.priority}.` : null,
+      candidate.priorityReason ? `Why: ${candidate.priorityReason}` : null,
+      candidate.hook ? `Suggested hook (AI-generated, verify before use): ${candidate.hook}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
 
   await ActivityService.logAudit(workspaceId, userId, "CREATE", "LEAD", lead.id, {
@@ -457,6 +492,8 @@ export async function importDiscoveredLeadAction(candidate: ImportLeadCandidate)
     sourceQuery: candidate.sourceQuery,
     fitScore: candidate.fitScore,
     sourceUrl: candidate.sourceUrl,
+    placeId: candidate.placeId ?? null,
+    priority: candidate.priority ?? null,
   });
 
   revalidatePath("/leads");

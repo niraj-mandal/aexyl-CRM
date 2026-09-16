@@ -86,6 +86,11 @@ export const TOOL_SCHEMAS = {
   get_business_metrics: z.object({}),
   get_daily_briefing: z.object({}),
   web_search: z.object({ query: searchText, maxResults: z.number().int().min(1).max(8).default(5) }),
+  discover_local_leads: z.object({
+    category: searchText,
+    city: searchText,
+    maxResults: z.number().int().min(1).max(20).default(10),
+  }),
   prepare_email: z.object({
     toEmail: z.string().email(),
     subject: z.string().min(3).max(200),
@@ -111,6 +116,7 @@ import { CrmService, ProjectService } from "@/services/crm.service";
 import { ActivityService } from "@/services/activity.service";
 import { AiAgentService } from "@/services/ai/ai-agent.service";
 import { LeadDiscoveryService } from "@/services/ai/lead-discovery.service";
+import { LocalLeadDiscoveryService } from "@/services/ai/local-lead-discovery.service";
 import { sendRawEmail } from "@/services/email.service";
 import { db } from "@/db";
 import { agentApprovals } from "@/db/schema";
@@ -527,6 +533,44 @@ export const AGENT_TOOLS: Record<string, AgentToolDefinition> = Object.fromEntri
             phones: l.phones,
             fitScore: l.fitScore,
             fitReason: l.fitReason,
+          })),
+        };
+      },
+    }),
+
+    tool({
+      id: "research.discover_local_leads",
+      name: "Discover Local Leads",
+      description:
+        "Find local businesses by category + city via Google Places. Qualification signal: missing website/phone plus rating and review count (Hot/Warm/Cold tier).",
+      category: "research",
+      riskLevel: "MEDIUM",
+      requiresApproval: false,
+      supportsDryRun: false,
+      requiredPermission: "tools.external_research",
+      defaultDailyLimit: 20,
+      inputSchema: TOOL_SCHEMAS.discover_local_leads,
+      execute: async (args) => {
+        const { category, city, maxResults } = TOOL_SCHEMAS.discover_local_leads.parse(args);
+        const result = await LocalLeadDiscoveryService.discover({ category, city, maxResults });
+        return {
+          success: result.success,
+          llmUsed: result.llmUsed,
+          notes: result.notes,
+          leads: result.leads.map((l) => ({
+            companyName: l.companyName,
+            website: l.website,
+            industry: l.industry,
+            location: l.location,
+            phone: l.phone,
+            rating: l.rating,
+            reviewCount: l.reviewCount,
+            placeId: l.placeId,
+            priority: l.priority,
+            priorityReason: l.priorityReason,
+            // Model-generated, labeled; distinct from the factual fields above.
+            hook: l.hook,
+            fitScore: l.fitScore,
           })),
         };
       },

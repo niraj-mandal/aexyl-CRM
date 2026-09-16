@@ -102,13 +102,13 @@ export const AGENT_DEFINITIONS: AgentDefinition[] = [
     description: "Discovers and researches potential businesses matching the workspace ICP; prepares prospects for review.",
     version: "v1",
     defaultAutonomy: 1,
-    defaultAllowedTools: ["research.web_search", "crm.search_companies", "intelligence.get_business_metrics"],
+    defaultAllowedTools: ["research.web_search", "research.discover_local_leads", "crm.search_companies", "intelligence.get_business_metrics"],
     defaultDailyRunLimit: 20,
     defaultMaxTokensPerRun: 15000,
     defaultDailyBudgetMicroUsd: 1_000_000,
     planner: (objective, ctx) => ({
       system: PLAN_INSTRUCTIONS,
-      user: `AGENT: Scout Agent\nOBJECTIVE: ${objective}\nALLOWED TOOLS: ${["research.web_search", "crm.search_companies"].join(", ")}\nPROVIDED CONTEXT: ${JSON.stringify(ctx.data).slice(0, 3000)}\nProduce the plan JSON.`,
+      user: `AGENT: Scout Agent\nOBJECTIVE: ${objective}\nALLOWED TOOLS: ${["research.web_search", "research.discover_local_leads", "crm.search_companies"].join(", ")}\nPROVIDED CONTEXT: ${JSON.stringify(ctx.data).slice(0, 3000)}\nProduce the plan JSON.`,
     }),
     fallbackPlan: (objective, ctx) => ({
       summary: `Deterministic scout plan: run web research for "${objective.slice(0, 80)}", dedupe against ${Array.isArray(ctx.data.knownDomains) ? ctx.data.knownDomains.length : 0} known companies.`,
