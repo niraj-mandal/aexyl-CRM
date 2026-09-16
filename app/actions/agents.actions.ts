@@ -13,7 +13,7 @@ import {
 import { ensureWorkspaceAgents, isKillSwitchEngaged } from "@/agents/registry";
 import { db } from "@/db";
 import { agents, agentRuns, agentApprovals, automationRules } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // --- run + events ------------------------------------------------------------
@@ -161,4 +161,36 @@ export async function getPendingApprovals(workspaceId: string) {
     .from(agentApprovals)
     .where(and(eq(agentApprovals.workspaceId, workspaceId), eq(agentApprovals.status, "PENDING")))
     .orderBy(desc(agentApprovals.requestedAt));
+}
+
+/**
+ * Lightweight summary for always-visible chrome (sidebar badge / header pin):
+ * how many agent actions await human review + how many runs failed recently.
+ * Polled every 30s by ActionNeededBadge; cheap (two count queries) and
+ * workspace-scoped. Expired approvals are cleaned up so the count stays true.
+ */
+export async function actionNeededSummaryAction() {
+  const { workspaceId } = await requireWorkspace();
+  await expireStaleApprovals(workspaceId);
+
+  const [pendingRows, failedRows] = await Promise.all([
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(agentApprovals)
+      .where(and(eq(agentApprovals.workspaceId, workspaceId), eq(agentApprovals.status, "PENDING"))),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(agentRuns)
+      .where(
+        and(
+          eq(agentRuns.workspaceId, workspaceId),
+          eq(agentRuns.status, "FAILED"),
+          gte(agentRuns.createdAt, new Date(Date.now() - 24 * 3600 * 1000))
+        )
+      ),
+  ]);
+
+  const pending = pendingRows[0]?.n ?? 0;
+  const failedRuns = failedRows[0]?.n ?? 0;
+  return { pending, failedRuns, actionNeeded: pending > 0 || failedRuns > 0 };
 }

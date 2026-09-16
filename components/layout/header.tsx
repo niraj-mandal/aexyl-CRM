@@ -1,13 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { format } from "date-fns";
-import { Search, Command } from "lucide-react";
+import { Search, Command, ShieldAlert } from "lucide-react";
 import { AexylPulse } from "@/components/ui/aexyl-pulse";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { ActionNeededBadge, useActionNeededCount } from "@/components/layout/ActionNeededBadge";
 
 export function Header({ userFirstName }: { userFirstName?: string | null }) {
   const today = new Date();
+  const { pending, failedRuns } = useActionNeededCount();
+  const actionNeeded = pending > 0 || failedRuns > 0;
   
   return (
     <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between px-8 bg-surface-lowest/80 backdrop-blur-xl border-b border-border-subtle">
@@ -20,6 +24,20 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
       </div>
 
       <div className="flex items-center space-x-4">
+        {/* Pinned approvals shortcut — review inbox always one click away */}
+        <Link
+          href="/agents/approvals"
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-all ${
+            actionNeeded
+              ? "border-tertiary/50 bg-tertiary/10 text-text-primary hover:border-tertiary/70"
+              : "border-border-subtle bg-surface-low/80 text-text-muted hover:border-primary/40 hover:text-text-secondary"
+          }`}
+          title={`${pending} agent action${pending === 1 ? "" : "s"} awaiting approval${failedRuns ? ` · ${failedRuns} failed run${failedRuns === 1 ? "" : "s"} (24h)` : ""}`}
+        >
+          <ShieldAlert className={`h-3.5 w-3.5 ${actionNeeded ? "text-tertiary" : ""}`} />
+          <span className="hidden lg:inline">Action needed</span>
+          <ActionNeededBadge count={pending} />
+        </Link>
         <NotificationBell />
         {/* Search Command Palette Trigger */}
         <button
