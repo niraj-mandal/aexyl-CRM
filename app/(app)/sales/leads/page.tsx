@@ -2,6 +2,7 @@ import { Display, Body } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
 import { GlassCard } from "@/components/ui/glass-card";
+import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
 
 // Columns for DataTable must match the data shape
 // Note: TanStack Table usually wants these in a client component, but we can pass them down or define them client-side.
@@ -66,6 +67,7 @@ export default async function LeadsPage() {
                 <th className="px-6 py-4 font-medium">Temp</th>
                 <th className="px-6 py-4 font-medium">Score</th>
                 <th className="px-6 py-4 font-medium">Owner</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -93,10 +95,13 @@ export default async function LeadsPage() {
                   </td>
                   <td className="px-6 py-4">{lead.score}</td>
                   <td className="px-6 py-4">{lead.owner?.firstName}</td>
+                  <td className="px-6 py-4">
+                    <DeleteLeadButton leadId={lead.id} leadName={lead.company?.name || "this lead"} />
+                  </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-text-muted">
+                  <td colSpan={7} className="px-6 py-12 text-center text-text-muted">
                     No leads yet. Your sales pipeline will appear here once prospects are added.
                   </td>
                 </tr>
