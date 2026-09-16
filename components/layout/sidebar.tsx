@@ -15,10 +15,8 @@ import {
   Sparkles, 
   Bot,
   BellRing, 
-  Settings,
-  ShieldAlert
+  Settings
 } from "lucide-react";
-import { ActionNeededBadge, useActionNeededCount } from "@/components/layout/ActionNeededBadge";
 
 interface NavItem {
   name: string;
@@ -72,8 +70,6 @@ const navSections: NavSection[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { pending, failedRuns } = useActionNeededCount();
-  const actionNeeded = pending > 0 || failedRuns > 0;
 
   return (
     <aside className="flex h-full w-[260px] flex-col bg-surface-lowest border-r border-border-subtle overflow-y-auto select-none">
@@ -87,41 +83,6 @@ export function Sidebar() {
             <span className="font-semibold text-sm tracking-tight text-text-primary block">AEXYL</span>
             <span className="font-mono-code text-[10px] text-text-muted tracking-widest block uppercase">OS v2.4</span>
           </div>
-        </Link>
-      </div>
-
-      {/* Action Needed — always-visible review inbox for agent approvals */}
-      <div className="px-3 pt-4">
-        <Link
-          href="/agents/approvals"
-          className={cn(
-            "group relative flex items-center justify-between rounded-lg px-3 py-2.5 text-xs font-medium transition-all duration-150 border",
-            actionNeeded
-              ? "border-tertiary/40 bg-tertiary/10 text-text-primary shadow-[0_0_20px_rgba(255,185,95,0.12)] hover:border-tertiary/60"
-              : "border-transparent text-text-secondary hover:bg-surface-high/50 hover:text-text-primary"
-          )}
-        >
-          <div className="flex items-center space-x-2.5">
-            <ShieldAlert
-              className={cn(
-                "h-4 w-4 transition-colors",
-                actionNeeded ? "text-tertiary" : "text-text-muted group-hover:text-text-secondary"
-              )}
-            />
-            <span>Action Needed</span>
-          </div>
-          {actionNeeded ? (
-            <div className="flex items-center gap-1">
-              {failedRuns > 0 && (
-                <span className="font-mono-code text-[9px] text-text-muted" title={`${failedRuns} agent run${failedRuns === 1 ? "" : "s"} failed in the last 24h`}>
-                  {failedRuns} failed
-                </span>
-              )}
-              <ActionNeededBadge count={pending} />
-            </div>
-          ) : (
-            <span className="font-mono-code text-[9px] text-text-muted/60">clear</span>
-          )}
         </Link>
       </div>
 
