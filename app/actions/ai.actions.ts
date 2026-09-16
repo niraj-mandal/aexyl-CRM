@@ -3,6 +3,7 @@
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { AiAgentService, type CopilotTurn } from "@/services/ai/ai-agent.service";
 import { LeadDiscoveryService, type DiscoveredLead } from "@/services/ai/lead-discovery.service";
+import { LocalLeadDiscoveryService } from "@/services/ai/local-lead-discovery.service";
 import { CrmService } from "@/services/crm.service";
 import { LeadScoringService } from "@/services/sales/lead-scoring.service";
 import { ActivityService } from "@/services/activity.service";
@@ -138,6 +139,20 @@ export async function discoverLeadsAction(query: string, industry?: string, loca
     industry: industry?.slice(0, 120),
     location: location?.slice(0, 120),
     maxResults: 6,
+  });
+}
+
+/**
+ * Local-business discovery via Google Places (Hot/Warm/Cold tiered on the
+ * missing-web-presence signal). Fails soft — without GOOGLE_PLACES_API_KEY the
+ * result carries an honest note instead of an error.
+ */
+export async function discoverLocalLeadsAction(category: string, city: string, maxResults?: number) {
+  await requireWorkspace();
+  return await LocalLeadDiscoveryService.discover({
+    category: category.trim().slice(0, 120),
+    city: city.trim().slice(0, 120),
+    maxResults: maxResults ?? 10,
   });
 }
 
@@ -500,12 +515,10 @@ export async function importDiscoveredLeadAction(candidate: ImportLeadCandidate)
   revalidatePath("/companies");
   revalidatePath("/");
   return { success: true as const, leadId: lead.id, companyId: company.id, score };
-}
-
-/** Bulk import helper: imports every candidate, reporting per-item outcomes. */
+}  /** Bulk import helper: imports every candidate, reporting per-item outcomes. */
 export async function importDiscoveredLeadsAction(candidates: ImportLeadCandidate[]) {
   const results: { companyName: string; ok: boolean; error?: string; leadId?: string }[] = [];
-  for (const candidate of candidates.slice(0, 10)) {
+  for (const candidate of candidates.slice(0, 20)) {
     try {
       const r = await importDiscoveredLeadAction(candidate);
       results.push(

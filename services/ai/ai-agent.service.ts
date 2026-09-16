@@ -8,6 +8,9 @@ export interface CopilotActionPayload {
   query?: string;
   industry?: string;
   location?: string;
+  /** Local (Google Places) discovery directives. */
+  category?: string;
+  city?: string;
   /** Write-action proposals — resolved BY NAME server-side after user confirmation. */
   dealName?: string;
   leadName?: string;
@@ -31,6 +34,7 @@ export interface CopilotAction {
     | "SEND_EMAIL"
     | "RUN_SWEEP"
     | "DISCOVER_LEADS"
+    | "DISCOVER_LOCAL_LEADS"
     | "LOG_ACTIVITY";
   payload: CopilotActionPayload;
 }
@@ -421,6 +425,27 @@ export class AiAgentService {
     // Lead-discovery intent is detected before the LLM so it works with or
     // without a provider — the drawer executes DISCOVER_LEADS either way.
     if (AiAgentService.isDiscoveryIntent(prompt)) {
+      // "find gyms in Jorhat" / "scrape cafes in Mumbai" → Google Places local
+      // pipeline (category + city shape) when the prompt parses cleanly.
+      const local = AiAgentService.parseLocalDiscoveryIntent(prompt);
+      if (local) {
+        return {
+          answer: `Local discovery via Google Places: I'll pull "${local.category}" businesses in ${local.city} and tier them by the missing-web-presence signal — no website or no phone listed, plus Google rating/review traction. Hot/Warm/Cold ranked; you approve what enters the CRM${process.env.GOOGLE_PLACES_API_KEY?.trim() ? "" : " (set GOOGLE_PLACES_API_KEY to enable — the run will report honestly if missing)"}.`,
+          suggestedActions: [
+            {
+              label: `📍 Find local ${local.category} in ${local.city}`,
+              actionType: "DISCOVER_LOCAL_LEADS",
+              payload: { category: local.category, city: local.city },
+            },
+            {
+              label: "🔎 Prefer broad web research instead",
+              actionType: "DISCOVER_LEADS",
+              payload: { query: prompt.trim().slice(0, 300) },
+            },
+          ],
+          dataContext: { intent: "local_lead_discovery", category: local.category, city: local.city },
+        };
+      }
       return AiAgentService.discoveryResponse(prompt, snapshot.llmAvailable);
     }
 
@@ -445,6 +470,25 @@ export class AiAgentService {
     // Referencing existing records → that's a CRM question, not discovery.
     const referencesExisting = /\b(my|our|current|existing|stale|hot|warm|active|top|open|pipeline|deal|deals|contact|contacts)\b/.test(q);
     return !referencesExisting;
+  }
+
+  /**
+   * Parses a "find <category> in <city>" shape into local-discovery params.
+   * Returns null when the prompt doesn't match that shape (the caller then
+   * falls back to the general web-search discovery flow).
+   */
+  private static parseLocalDiscoveryIntent(prompt: string): { category: string; city: string } | null {
+    const m =
+      /\b(?:find|find me|get me|look for|search for|scrape|source|prospect|discover)(?:\s+(?:me|some|all|local))?\s+(.{2,60}?)\s+(?:in|near|around|at)\s+(.{2,60})$/i.exec(
+        prompt.trim()
+      );
+    if (!m) return null;
+    const category = m[1].replace(/\s+(businesses|companies|shops|stores|prospects|leads)$/i, "").trim();
+    const city = m[2].replace(/[?.!,]+$/, "").trim();
+    // Category must be noun-like (not a CRM question like "my deals in pipeline").
+    if (category.length < 2 || city.length < 2) return null;
+    if (/\b(my|our|stale|hot|warm|deal|deals|pipeline|contact|contacts)\b/i.test(category)) return null;
+    return { category: category.slice(0, 120), city: city.slice(0, 120) };
   }
 
   /** Builds the discovery intent answer without needing an LLM. */
@@ -563,6 +607,7 @@ Rules:
   - NAVIGATE: {url} — one of /, /my-day, /leads, /pipeline, /companies, /contacts, /deals, /outreach, /clients, /projects, /intelligence, /attention, /settings
   - RUN_SWEEP: {} — schedules follow-ups for every stale lead
   - DISCOVER_LEADS: {query, industry?, location?} — launches web lead discovery; use when the operator wants NEW prospects found/scraped/sourced
+  - DISCOVER_LOCAL_LEADS: {category, city} — launches Google Places local-business discovery tiered Hot/Warm/Cold (no-website signal); use for "find gyms in Jorhat"-shaped asks naming a concrete business category and a city
   - UPDATE_DEAL_STAGE: {dealName, stage} — proposes moving a deal to QUALIFIED|CALL_BOOKED|PROPOSAL|NEGOTIATION|WON|LOST. dealName must exactly match a deal name from the snapshot.
   - LOG_ACTIVITY: {leadName OR dealNameForActivity, activityType, title, description?} — proposes logging NOTE|CALL|EMAIL|MEETING|OUTREACH|FOLLOW_UP on a lead or deal from the snapshot.
   - CREATE_TASK: {taskTitle, taskDescription?, priority?, dueInDays?, dealName?/leadName?} — proposes a task (priority LOW|MEDIUM|HIGH|URGENT, dueInDays 0-365).
@@ -606,6 +651,7 @@ OPERATOR QUESTION: ${prompt}`;
       "NAVIGATE",
       "RUN_SWEEP",
       "DISCOVER_LEADS",
+      "DISCOVER_LOCAL_LEADS",
       "UPDATE_DEAL_STAGE",
       "LOG_ACTIVITY",
       "CREATE_TASK",
@@ -627,6 +673,18 @@ OPERATOR QUESTION: ${prompt}`;
       }
       if (a.actionType === "DISCOVER_LEADS" && typeof payload.query !== "string") {
         payload.query = prompt.slice(0, 300);
+      }
+      if (a.actionType === "DISCOVER_LOCAL_LEADS") {
+        // Model-invented category/city are sanitized; fall back to parsing the
+        // prompt itself so the action always carries usable parameters.
+        const parsed = AiAgentService.parseLocalDiscoveryIntent(prompt);
+        if (typeof payload.category !== "string" || payload.category.trim().length < 2) {
+          payload.category = parsed?.category ?? prompt.slice(0, 120);
+        }
+        if (typeof payload.city !== "string" || payload.city.trim().length < 2) {
+          payload.city = parsed?.city ?? "";
+        }
+        if (payload.city.trim().length < 2) continue;
       }
       // Write proposals: sanitize the string fields the executor will read.
       if (a.actionType === "UPDATE_DEAL_STAGE" || a.actionType === "LOG_ACTIVITY" || a.actionType === "CREATE_TASK") {

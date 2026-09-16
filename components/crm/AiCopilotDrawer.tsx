@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Sparkles, Bot, Send, X, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo } from "lucide-react";
+import { Sparkles, Bot, Send, X, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo, MapPin, Star, SquareCheck, Square, Flame } from "lucide-react";
 import {
   sendCopilotPromptAction,
   discoverLeadsAction,
+  discoverLocalLeadsAction,
   importDiscoveredLeadAction,
+  importDiscoveredLeadsAction,
   executeCopilotWriteAction,
   type ImportLeadCandidate,
   type CopilotWriteResult,
@@ -29,11 +31,31 @@ interface DiscoveryLead {
   fitReason: string;
 }
 
+/** Local (Google Places) discovery result — distinct shape from web-search leads. */
+interface LocalDiscoveryLead {
+  companyName: string;
+  website: string | null;
+  industry: string | null;
+  location: string | null;
+  size: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  phone: string | null;
+  placeId: string;
+  priority: "Hot" | "Warm" | "Cold";
+  priorityReason: string;
+  hook: string | null;
+  sourceQuery: string;
+  sourceUrl: string | null;
+  fitScore: number;
+}
+
 interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   actions?: { label: string; actionType: string; payload: Record<string, unknown> }[];
   leads?: DiscoveryLead[];
+  localLeads?: LocalDiscoveryLead[];
   notes?: string[];
   /** Excluded from copilot memory (UI-only scaffolding). */
   ephemeral?: boolean;
@@ -150,6 +172,107 @@ export function AiCopilotDrawer() {
     }
   };
 
+  const handleDiscoverLocal = async (category: string, city: string) => {
+    if (!category.trim() || !city.trim() || discovering) return;
+    setMessages((prev) => [...prev, { role: "user", text: `📍 Find local ${category.trim()} in ${city.trim()}` }]);
+    setPrompt("");
+    setDiscovering(true);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", text: "Querying Google Places and tiering businesses by missing-web-presence signals. This takes a few seconds…", ephemeral: true },
+    ]);
+
+    try {
+      const res = await discoverLocalLeadsAction(category, city, 10);
+      if (!res.success || res.leads.length === 0) {
+        const failNote = "notes" in res && res.notes ? res.notes.join(" ") : "";
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: `No local businesses came back. ${failNote} Try a concrete category plus city, e.g. "find gyms in Jorhat, Assam".`,
+          },
+        ]);
+        return;
+      }
+      const hot = res.leads.filter((l) => l.priority === "Hot").length;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: `Found ${res.leads.length} local business${res.leads.length === 1 ? "" : "es"} — ${hot} Hot (no website). Select all or pick individual leads to import; duplicates are blocked automatically.`,
+          localLeads: res.leads,
+          notes: res.notes,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "The local discovery run failed (Places API unreachable). Try again in a moment." },
+      ]);
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const localToCandidate = (l: LocalDiscoveryLead): ImportLeadCandidate => ({
+    companyName: l.companyName,
+    website: l.website,
+    industry: l.industry,
+    location: l.location,
+    size: l.size,
+    description: null,
+    emails: [],
+    phones: l.phone ? [l.phone] : [],
+    linkedin: null,
+    fitScore: l.fitScore,
+    sourceQuery: `${l.industry ?? "local business"} ${l.location ?? ""}`.trim(),
+    sourceUrl: l.sourceUrl,
+    placeId: l.placeId,
+    rating: l.rating,
+    reviewCount: l.reviewCount,
+    priority: l.priority,
+    priorityReason: l.priorityReason,
+    hook: l.hook,
+  });
+
+  const handleImportLocal = async (lead: LocalDiscoveryLead) => {
+    const key = lead.placeId || lead.companyName;
+    if (importStates[key]?.state === "importing" || importStates[key]?.state === "imported") return;
+    setImport(key, "importing");
+    try {
+      const res = await importDiscoveredLeadAction(localToCandidate(lead));
+      if (res.success) {
+        setImport(key, "imported", `Score ${res.score} · in CRM`);
+        router.refresh();
+      } else {
+        setImport(key, "error", res.error ?? "Import failed");
+      }
+    } catch {
+      setImport(key, "error", "Import failed");
+    }
+  };
+
+  const handleImportAllLocal = async (leads: LocalDiscoveryLead[]) => {
+    const fresh = leads.filter((l) => {
+      const st = importStates[l.placeId || l.companyName]?.state;
+      return st !== "imported" && st !== "importing" && st !== "error";
+    });
+    if (fresh.length === 0) return;
+    for (const l of fresh) setImport(l.placeId || l.companyName, "importing");
+    try {
+      const res = await importDiscoveredLeadsAction(fresh.map(localToCandidate));
+      res.results.forEach((r, i) => {
+        const key = fresh[i]?.placeId || fresh[i]?.companyName || r.companyName;
+        if (r.ok) setImport(key, "imported", "In CRM");
+        else setImport(key, "error", r.error ?? "Import failed");
+      });
+      if (res.imported > 0) router.refresh();
+    } catch {
+      for (const l of fresh) setImport(l.placeId || l.companyName, "error", "Import failed");
+    }
+  };
+
   const handleImport = async (lead: DiscoveryLead) => {
     const key = lead.website ?? lead.companyName;
     if (importStates[key]?.state === "importing") return;
@@ -215,6 +338,13 @@ export function AiCopilotDrawer() {
     if (action.actionType === "DISCOVER_LEADS") {
       const q = typeof action.payload?.query === "string" ? action.payload.query : "";
       if (q) await handleDiscover(q);
+      return;
+    }
+
+    if (action.actionType === "DISCOVER_LOCAL_LEADS") {
+      const category = typeof action.payload?.category === "string" ? action.payload.category : "";
+      const city = typeof action.payload?.city === "string" ? action.payload.city : "";
+      if (category && city) await handleDiscoverLocal(category, city);
       return;
     }
 
@@ -439,6 +569,16 @@ export function AiCopilotDrawer() {
                       </div>
                     )}
 
+                    {/* Local (Google Places) discovery cards — tiered, with batch import */}
+                    {m.localLeads && m.localLeads.length > 0 && (
+                      <LocalLeadsBlock
+                        leads={m.localLeads}
+                        importStates={importStates}
+                        onImport={handleImportLocal}
+                        onImportAll={handleImportAllLocal}
+                      />
+                    )}
+
                     {m.notes && m.notes.length > 0 && (
                       <p className="mt-2 text-[10px] text-text-muted italic">{m.notes.join(" ")}</p>
                     )}
@@ -565,5 +705,152 @@ export function AiCopilotDrawer() {
         </div>
       )}
     </>
+  );
+}
+
+const TIER_STYLE: Record<LocalDiscoveryLead["priority"], string> = {
+  Hot: "bg-tertiary/15 text-tertiary border-tertiary/40",
+  Warm: "bg-sky-500/15 text-sky-400 border-sky-500/40",
+  Cold: "bg-surface-high text-text-muted border-border-subtle",
+};
+
+/**
+ * Batch-import block for Google Places local leads: select-all + per-card
+ * import, showing the Hot/Warm/Cold tier, real Google rating/review data,
+ * phone, and the labeled LLM hook (model-generated — reviewers verify).
+ */
+function LocalLeadsBlock({
+  leads,
+  importStates,
+  onImport,
+  onImportAll,
+}: {
+  leads: LocalDiscoveryLead[];
+  importStates: Record<string, { state: ImportState; message?: string }>;
+  onImport: (lead: LocalDiscoveryLead) => void;
+  onImportAll: (leads: LocalDiscoveryLead[]) => void;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(leads.map((l) => l.placeId)));
+  const [bulkState, setBulkState] = useState<"idle" | "importing" | "done">("idle");
+
+  const importable = leads.filter((l) => {
+    const st = importStates[l.placeId]?.state;
+    return st !== "imported" && st !== "importing";
+  });
+  const selectedFresh = leads.filter((l) => selected.has(l.placeId) && importStates[l.placeId]?.state !== "imported");
+  const importedCount = leads.filter((l) => importStates[l.placeId]?.state === "imported").length;
+  const allDone = importedCount === leads.length;
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const importSelected = async () => {
+    if (selectedFresh.length === 0 || bulkState === "importing") return;
+    setBulkState("importing");
+    await onImportAll(selectedFresh);
+    setBulkState("done");
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-tertiary/30 bg-tertiary/5 p-2">
+      <div className="flex items-center justify-between px-1 pb-2">
+        <button
+          onClick={() => setSelected(allDone ? new Set() : new Set(importable.map((l) => l.placeId)))}
+          disabled={allDone || importable.length === 0}
+          className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
+        >
+          {selected.size > 0 && !allDone ? <SquareCheck className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5" />}
+          Select all ({selected.size}/{leads.length})
+        </button>
+        <button
+          onClick={importSelected}
+          disabled={selectedFresh.length === 0 || bulkState === "importing"}
+          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
+        >
+          {bulkState === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+          {allDone ? "All in CRM" : `Import ${selectedFresh.length}`}
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
+        {leads.map((lead) => {
+          const key = lead.placeId;
+          const st = importStates[key]?.state ?? "idle";
+          const isSelected = selected.has(key) && st !== "imported" && st !== "importing";
+          return (
+            <div
+              key={key}
+              className={`rounded-lg border p-2 transition-colors ${
+                st === "imported" ? "border-emerald-500/40 bg-emerald-500/10" : isSelected ? "border-primary/40 bg-surface-lowest" : "border-border-subtle bg-surface-lowest"
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                {st !== "imported" && (
+                  <button onClick={() => toggle(key)} className="mt-0.5 shrink-0" aria-label={`Select ${lead.companyName}`}>
+                    {isSelected ? <SquareCheck className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5 text-text-muted" />}
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold text-text-primary truncate">{lead.companyName}</p>
+                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold font-mono-code ${TIER_STYLE[lead.priority]}`}>
+                      {lead.priority === "Hot" ? <Flame className="mr-0.5 inline h-2.5 w-2.5" /> : null}{lead.priority.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-text-muted truncate">{lead.location ?? "—"}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+                    {lead.rating !== null && (
+                      <span className="inline-flex items-center gap-0.5">
+                        <Star className="h-2.5 w-2.5 text-tertiary" /> {lead.rating}
+                        {lead.reviewCount !== null ? ` (${lead.reviewCount})` : ""}
+                      </span>
+                    )}
+                    {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{lead.phone}</span>}
+                    {lead.website ? (
+                      <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
+                        <Globe className="h-2.5 w-2.5" />site
+                      </a>
+                    ) : (
+                      <span className="text-tertiary">no website</span>
+                    )}
+                    {lead.sourceUrl && (
+                      <a href={lead.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
+                        <MapPin className="h-2.5 w-2.5" />maps
+                      </a>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[9px] text-text-muted/80">{lead.priorityReason}</p>
+                  {lead.hook && (
+                    <p className="mt-0.5 text-[10px] text-secondary italic" title="AI-generated from reviews — verify before use">
+                      Hook (AI): {lead.hook}
+                    </p>
+                  )}
+                  {st === "error" && <p className="mt-0.5 text-[10px] text-red-400">{importStates[key]?.message}</p>}
+                </div>
+                <button
+                  onClick={() => onImport(lead)}
+                  disabled={st === "importing" || st === "imported"}
+                  className={`shrink-0 self-center rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
+                    st === "imported"
+                      ? "text-emerald-400"
+                      : st === "importing"
+                        ? "text-text-muted"
+                        : "bg-primary/20 border border-primary/40 text-primary hover:bg-primary/30"
+                  }`}
+                >
+                  {st === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : st === "imported" ? <CheckCircle2 className="h-3 w-3" /> : "Import"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
