@@ -120,13 +120,27 @@ Everything workspace-scoped with FKs and timestamps; hot paths indexed on
 - Prompt-injection defense: external content fenced as data; tool arguments
   validated; unknown/destructive tool requests rejected by policy.
 
+## Scheduled automation
+
+Time-based automation runs via `GET /api/cron/tick` (`app/api/cron/tick/route.ts`),
+authenticated with `Authorization: Bearer ${CRON_SECRET}` and exempted from
+Clerk in `proxy.ts` (the caller is a machine). Every 15 minutes a dedicated
+Railway cron service (root directory `cron/`, config in `cron/railway.json`,
+schedule `*/15 * * * *`) invokes it; the tick, per workspace and isolated in
+try/catch, publishes due follow-up events, then runs
+`AgentEventBus.processPending` → `claimRetryingRuns` → `reapStaleRuns` →
+`detectFailureSpikes`. The bus's per-rule cooldowns and dedupe plus the
+follow-up publisher's PENDING-event check make the tick idempotent — extra or
+missed ticks self-heal. This replaces the earlier pull-based behavior where
+`processPending`/`reapStaleRuns` only ran on page loads and manual actions.
+
 ## Where things live
 
 | Concern | Path |
 | --- | --- |
 | Pages | `app/(app)/*` (dashboard, my-day, pipeline, projects, agents, settings) |
 | Server actions | `app/actions/*` |
-| API routes | `app/api/*` (health, telemetry, AI endpoints) |
+| API routes | `app/api/*` (health, telemetry, AI endpoints, cron/tick) |
 | Agent runtime | `agents/core/*`, `agents/services/*`, `agents/events/*` |
 | Tools | `agents/core/registry/tools.ts` |
 | Domain services | `services/*` |

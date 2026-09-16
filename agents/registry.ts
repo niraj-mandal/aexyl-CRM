@@ -414,6 +414,7 @@ export async function ensureWorkspaceAgents(workspaceId: string) {
   const defaultRules = [
     salesAgent && { agentId: salesAgent.id, name: "New lead analysis", eventType: "lead.created", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 3600 },
     followupAgent && { agentId: followupAgent.id, name: "Hot lead goes stale", eventType: "lead.stale", conditions: { temperature: "HOT" }, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
+    followupAgent && { agentId: followupAgent.id, name: "Due follow-ups", eventType: "lead.followup_due", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
     operationsAgent && { agentId: operationsAgent.id, name: "Project at risk", eventType: "project.at_risk", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
   ].filter(Boolean) as { agentId: string; name: string; eventType: string; conditions: Record<string, unknown>; actionPolicy: string; cooldownSeconds: number }[];
 
