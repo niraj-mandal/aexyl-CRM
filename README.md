@@ -149,8 +149,10 @@ The local-business pipeline (`services/ai/local-lead-discovery.service.ts`) uses
 
 | Variable | Description |
 |---|---|
-| `RESEND_API_KEY` | [Resend](https://resend.com) API key — enables real invite-email delivery; without it, invites work with copyable links only |
-| `EMAIL_FROM` | Verified sender address, e.g. `Aexyl <onboarding@resend.dev>` |
+| `BREVO_API_KEY` | [Brevo](https://app.brevo.com) transactional API key (SMTP & API page) — primary provider when set; sender must be verified in the Brevo dashboard |
+| `RESEND_API_KEY` | [Resend](https://resend.com) API key — fallback provider; enables real invite-email delivery when Brevo is not configured |
+| `EMAIL_PROVIDER` | Optional explicit `brevo` or `resend`; otherwise Brevo wins when both keys exist |
+| `EMAIL_FROM` | Verified sender address, e.g. `Aexyl <onboarding@resend.dev>` (Brevo: verify it in the dashboard first) |
 
 ### Optional — App URL
 

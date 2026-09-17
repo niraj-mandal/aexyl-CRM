@@ -12,7 +12,7 @@
 import { db } from "@/db";
 import { integrationConnections } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { isEmailConfigured, sendRawEmail } from "@/services/email.service";
+import { getEmailProvider, sendRawEmail } from "@/services/email.service";
 
 export interface ConnectorDefinition {
   key: string;
@@ -33,14 +33,27 @@ export interface ConnectorDefinition {
 
 export const CONNECTORS: ConnectorDefinition[] = [
   {
-    key: "resend",
-    name: "Email (Resend)",
+    key: "brevo",
+    name: "Email (Brevo)",
     category: "communication",
     description: "Transactional email: workspace invites, agent-approved outreach, follow-ups.",
     scopes: ["email:send"],
+    isConfigurable: (env) => Boolean(env.BREVO_API_KEY),
+    setupHint:
+      "Add BREVO_API_KEY to environment (.env.local) — SMTP & API keys live in the Brevo dashboard (app.brevo.com). Sender must be verified there.",
+    check: async () =>
+      getEmailProvider() === "brevo" ? null : "BREVO_API_KEY missing (Resend fallback active)",
+  },
+  {
+    key: "resend",
+    name: "Email (Resend)",
+    category: "communication",
+    description: "Transactional email fallback: invites, outreach and follow-ups when Brevo is not configured.",
+    scopes: ["email:send"],
     isConfigurable: (env) => Boolean(env.RESEND_API_KEY),
     setupHint: "Add RESEND_API_KEY to environment (.env.local) — free tier at resend.com.",
-    check: async () => (isEmailConfigured() ? null : "RESEND_API_KEY missing"),
+    check: async () =>
+      getEmailProvider() === "resend" ? null : "RESEND_API_KEY missing or Brevo is primary",
   },
   {
     key: "gmail",

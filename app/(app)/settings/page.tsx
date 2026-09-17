@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { auditLogs, workspaceMemberships, workspaceInvites, workspaces } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { InviteForm, PendingInviteRow } from "@/components/crm/InviteManager";
-import { isEmailConfigured } from "@/services/email.service";
+import { getEmailProvider, isEmailConfigured } from "@/services/email.service";
 import { LlmService } from "@/services/ai/llm.service";
 import { currentUser } from "@clerk/nextjs/server";
 import { WorkspaceNameEditor, AutomationControls } from "@/components/crm/SettingsClient";
@@ -81,6 +81,7 @@ export default async function SettingsPage({
   if (!workspace) throw new Error("Workspace not found");
 
   const emailOk = isEmailConfigured();
+  const emailProvider = getEmailProvider();
   const llm = LlmService.getStatus();
   const fromNote = process.env.EMAIL_FROM
     ? ` from ${process.env.EMAIL_FROM.replace(/<.*>/, "").trim() || process.env.EMAIL_FROM}`
@@ -308,10 +309,10 @@ export default async function SettingsPage({
                     ok: llm.available,
                   },
                   {
-                    name: "Email Delivery (Resend)",
+                    name: `Email Delivery — ${emailProvider === "brevo" ? "Brevo" : emailProvider === "resend" ? "Resend" : "not configured"}`,
                     desc: emailOk
-                      ? `Configured — invite emails send automatically${fromNote}`
-                      : "Add RESEND_API_KEY to .env.local to send invites & outreach automatically",
+                      ? `Configured — invite & outreach emails send automatically${fromNote}`
+                      : "Add BREVO_API_KEY (app.brevo.com) or RESEND_API_KEY (resend.com) to .env.local to send invites & outreach automatically",
                     status: emailOk ? "CONNECTED" : "NOT CONFIGURED",
                     ok: emailOk,
                   },

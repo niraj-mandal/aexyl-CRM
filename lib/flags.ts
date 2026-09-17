@@ -12,7 +12,7 @@ import { and, eq } from "drizzle-orm";
  * fresh enough for rollout control.
  */
 export const FLAG_DEFINITIONS = [
-  { key: "integrations.email", description: "Outbound email via Resend connector" },
+  { key: "integrations.email", description: "Outbound email via Brevo/Resend connector" },
   { key: "integrations.calendar", description: "Google Calendar integration (placeholder until OAuth app exists)" },
   { key: "agents.outreach.send", description: "Allow the Outreach Agent to send approved emails (requires approval still)" },
   { key: "agents.progressive_autonomy", description: "Enable per-tool policy overrides toward L4 behavior" },
