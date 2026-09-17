@@ -1,4 +1,4 @@
-import { Display, Body } from "@/components/ui/typography";
+import { Display } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { ActivityTimeline } from "@/components/crm/ActivityTimeline";
 import { LogActivityForm } from "@/components/crm/LogActivityForm";
 import { ConvertLeadButton } from "@/components/crm/ConvertLeadButton";
+import { CallScriptCard } from "@/components/crm/CallScriptCard";
 import { ActivityService } from "@/services/activity.service";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 
@@ -105,6 +106,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <div className="text-sm text-text-muted">No contact assigned.</div>
             )}
           </GlassCard>
+
+          <CallScriptCard leadId={leadId} />
         </div>
       </div>
     </div>
