@@ -176,7 +176,7 @@ export const AGENT_DEFINITIONS: AgentDefinition[] = [
       } | null;
       let target: string;
       if (lead?.id && lead?.email) {
-        target = `The target lead is in PROVIDED CONTEXT as "lead". It has a real email. Use lead.email ("${lead.email}") for toEmail and lead.id ("${lead.id}") for leadId EXACTLY — copy the characters verbatim, never invent an address or id. Call communication.prepare_email once.${lead.contact ? ` Address the body to ${lead.contact}.` : ""}`;
+        target = `The target lead is in PROVIDED CONTEXT as "lead". It has a real email. Call communication.prepare_email ONCE with ALL FOUR required arguments: toEmail = lead.email ("${lead.email}"), subject = a concrete first-touch subject line mentioning the gym (3-8 words), body = a short personalized first-touch email (3-6 sentences, no subject line inside the body), leadId = lead.id ("${lead.id}"). Copy email and id EXACTLY, character for character — never invent an address or id. Every one of toEmail, subject, body, leadId is REQUIRED; omitting any one invalidates the action.${lead.contact ? ` Address the body to ${lead.contact}.` : ""}`;
       } else if (lead?.id && lead?.phone) {
         target = `The target lead is in PROVIDED CONTEXT as "lead". It has NO email on file but has phone "${lead.phone}". Call communication.prepare_message ONCE with toPhone set to lead.phone ("${lead.phone}") and leadId set to lead.id ("${lead.id}") EXACTLY — copy verbatim, never invent. channel: "WHATSAPP" (Indian SMB default). The body is a SHORT first-touch WhatsApp message (2-4 sentences, no subject field). Ground every claim in PROVIDED CONTEXT only.${lead.contact ? ` Address it to ${lead.contact}.` : ""}`;
       } else {
