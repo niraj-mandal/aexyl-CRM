@@ -587,6 +587,64 @@ async function main() {
       check("revenue intelligence returns real aggregates", typeof rev.openPipelineValue === "number" && Array.isArray(rev.pipelineByStage));
       check("no fabricated forecast without closed deals", rev.wonValue90d === 0 ? rev.forecast30d === null : true, `won90d=${rev.wonValue90d}, forecast=${rev.forecast30d}`);
     }
+
+    console.log("\nPhase 6 — approved send closes the follow-up loop");
+    {
+      const { activities } = await import("@/db/schema");
+      const [loopLead] = await db
+        .insert(leads)
+        .values({ workspaceId: ws.id, source: "scenario_test" })
+        .returning();
+      const [anyAgent] = await db.select({ id: agents.id }).from(agents).where(eq(agents.workspaceId, ws.id)).limit(1);
+      const [sendApproval] = await db
+        .insert(agentApprovals)
+        .values({
+          workspaceId: ws.id,
+          agentId: anyAgent.id,
+          runId: null,
+          toolName: "communication.send_email",
+          actionType: "SEND",
+          description: "Scenario: approved follow-up email",
+          proposedArguments: { toEmail: "prospect@example.com", subject: "Scenario follow-up", body: "Checking in after your tour — any questions?", leadId: loopLead.id },
+          impactSummary: "Sends one email",
+          status: "APPROVED",
+          expiresAt: new Date(Date.now() + 3_600_000),
+        })
+        .returning();
+      const { closeFollowUpLoop } = await import("@/agents/core/registry/tools");
+      const loop = await closeFollowUpLoop({
+        workspaceId: ws.id,
+        userId: operator.id,
+        runId: "scenario-loop",
+        approvalId: sendApproval.id,
+        leadId: loopLead.id,
+        to: "prospect@example.com",
+        subject: "Scenario follow-up",
+        messageId: "<scenario@test>",
+      });
+      check("delivery recorded as timeline activity", loop.activityCreated);
+      check("lead marked contacted", loop.leadUpdated);
+      const [contacted] = await db.select().from(leads).where(eq(leads.id, loopLead.id)).limit(1);
+      const due = contacted.nextFollowUpAt ? new Date(contacted.nextFollowUpAt).getTime() : 0;
+      check(
+        "next follow-up scheduled on workspace cadence",
+        due >= Date.now() + 1 * 86_400_000 && due <= Date.now() + 3 * 86_400_000 + 60_000,
+        `next=${contacted.nextFollowUpAt}`,
+      );
+      const emailActivities = await db
+        .select()
+        .from(activities)
+        .where(and(eq(activities.workspaceId, ws.id), eq(activities.leadId, loopLead.id), eq(activities.type, "EMAIL")));
+      check("EMAIL activity on lead timeline", emailActivities.length === 1);
+      const loopAudit = await db
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.workspaceId, ws.id), eq(auditLogs.entityId, loopLead.id), eq(auditLogs.action, "UPDATE")));
+      check("lead update audited", loopAudit.length > 0);
+      await db.delete(activities).where(eq(activities.workspaceId, ws.id));
+      await db.delete(agentApprovals).where(eq(agentApprovals.id, sendApproval.id));
+      await db.delete(leads).where(eq(leads.id, loopLead.id));
+    }
   } finally {
     // --- cleanup: remove every row created for this scenario workspace -------
     const { agentTraces, agentUsage, agentEvents, agentMemory, notifications, incidents, integrationConnections, featureFlags } = await import("@/db/schema");

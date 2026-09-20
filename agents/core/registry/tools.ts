@@ -119,7 +119,7 @@ import { LeadDiscoveryService } from "@/services/ai/lead-discovery.service";
 import { LocalLeadDiscoveryService } from "@/services/ai/local-lead-discovery.service";
 import { sendRawEmail } from "@/services/email.service";
 import { db } from "@/db";
-import { agentApprovals, agents } from "@/db/schema";
+import { agentApprovals, agents, leads, workspaces } from "@/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 function tool(def: AgentToolDefinition): AgentToolDefinition {
@@ -714,7 +714,7 @@ export const AGENT_TOOLS: Record<string, AgentToolDefinition> = Object.fromEntri
         if (approval.workspaceId !== ctx.workspaceId) {
           throw new Error("Cross-workspace send blocked");
         }
-        const draft = (approval.proposedArguments ?? {}) as { toEmail?: string; subject?: string; body?: string };
+        const draft = (approval.proposedArguments ?? {}) as { toEmail?: string; subject?: string; body?: string; leadId?: string };
         if (!draft.toEmail || !draft.subject || !draft.body) {
           throw new Error("Approval record missing email draft fields");
         }
@@ -727,8 +727,33 @@ export const AGENT_TOOLS: Record<string, AgentToolDefinition> = Object.fromEntri
             subject: draft.subject,
             messageId: result.messageId ?? null,
           });
+          // Close the follow-up loop: timeline activity + conversation
+          // tracking + next-follow-up scheduling. Never throws.
+          const loop = await closeFollowUpLoop({
+            workspaceId: ctx.workspaceId,
+            userId: ctx.userId,
+            runId: ctx.runId,
+            approvalId: approval.id,
+            leadId: typeof draft.leadId === "string" ? draft.leadId : null,
+            to: draft.toEmail,
+            subject: draft.subject,
+            messageId: result.messageId ?? null,
+          });
+          const { NotificationService } = await import("@/services/notification.service");
+          await NotificationService.notifyWorkspace({
+            workspaceId: ctx.workspaceId,
+            exceptUserId: ctx.userId,
+            type: "agent.email_delivered",
+            title: "Follow-up email delivered",
+            body: `"${draft.subject}" sent to ${draft.toEmail}${loop.nextFollowUpAt ? " — next follow-up scheduled" : ""}`,
+            link: loop.leadUpdated && draft.leadId ? `/sales/leads/${draft.leadId}` : "/agents/approvals",
+            dedupeKey: `email-delivered:${approval.id}`,
+          });
+          return { ...result, followUpLoop: loop };
         }
-        return result;
+        // A provider rejection must NOT mark the approval EXECUTED — throw so
+        // the approval service records the failure and the send stays replayable.
+        throw new Error(`Email delivery failed: ${result.error ?? "provider rejected the send"}`);
       },
     }),
   ].map((t) => [t.id, t])
@@ -740,4 +765,81 @@ export function getTool(id: string): AgentToolDefinition | undefined {
 
 export function listToolIds(): string[] {
   return Object.keys(AGENT_TOOLS);
+}
+
+/**
+ * Close the follow-up loop after a delivered agent email:
+ *   1. EMAIL activity on the lead's timeline (conversation tracking)
+ *   2. leads.lastContactedAt = now
+ *   3. leads.nextFollowUpAt = now + workspace cadence (sweep_follow_up_days,
+ *      default 7) — so the follow-up engine re-engages automatically
+ *
+ * Best-effort by design: bookkeeping must never turn a real delivery into a
+ * reported failure. Exported for scenario tests (no provider call involved).
+ */
+export async function closeFollowUpLoop(params: {
+  workspaceId: string;
+  userId: string;
+  runId?: string | null;
+  approvalId: string;
+  leadId?: string | null;
+  to: string;
+  subject: string;
+  messageId: string | null;
+}): Promise<{ activityCreated: boolean; leadUpdated: boolean; nextFollowUpAt: string | null }> {
+  const { workspaceId, userId, runId, approvalId, leadId, to, subject, messageId } = params;
+  const now = new Date();
+  let activityCreated = false;
+  let leadUpdated = false;
+  let nextFollowUpAt: string | null = null;
+
+  if (!leadId) return { activityCreated, leadUpdated, nextFollowUpAt };
+
+  try {
+    const [lead] = await db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(and(eq(leads.id, leadId), eq(leads.workspaceId, workspaceId)))
+      .limit(1);
+    if (!lead) return { activityCreated, leadUpdated, nextFollowUpAt };
+
+    await ActivityService.createActivity(workspaceId, {
+      workspaceId,
+      leadId,
+      dealId: null,
+      actorId: userId,
+      type: "EMAIL",
+      title: `Email sent: ${subject}`.slice(0, 200),
+      description: `Delivered to ${to} via an approved agent draft.`,
+      metadata: { via: "agent_tool", runId: runId ?? null, approvalId, messageId },
+    });
+    activityCreated = true;
+
+    const [ws] = await db
+      .select({ days: workspaces.sweepFollowUpDays })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    const days = ws?.days && ws.days > 0 ? ws.days : 7;
+    const next = new Date(now.getTime() + days * 86_400_000);
+    await CrmService.updateLead(workspaceId, leadId, {
+      lastContactedAt: now,
+      nextFollowUpAt: next,
+      updatedAt: now,
+    });
+    leadUpdated = true;
+    nextFollowUpAt = next.toISOString();
+
+    await ActivityService.logAudit(workspaceId, userId, "UPDATE", "LEAD", leadId, {
+      via: "agent_tool",
+      runId: runId ?? null,
+      reason: "follow_up_delivered",
+      approvalId,
+      nextFollowUpAt: next.toISOString(),
+    });
+  } catch {
+    // Best-effort — delivery already happened.
+  }
+
+  return { activityCreated, leadUpdated, nextFollowUpAt };
 }

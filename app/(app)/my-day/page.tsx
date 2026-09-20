@@ -3,12 +3,15 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
+import { db } from "@/db";
+import { agentApprovals, companies, leads } from "@/db/schema";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { SweepButton } from "@/components/crm/SweepButton";
 import { CompleteTaskButton } from "@/components/crm/CompleteTaskButton";
 import { LiveRefresher } from "@/components/crm/LiveRefresher";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Clock, Flame, ListTodo } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfToday } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +20,31 @@ export default async function MyDayPage() {
   const queue = await CrmService.getPriorityQueue(workspaceId);
   const openTasks = await CrmService.getOpenTasks(workspaceId, 8);
 
+  // Agent-prepared follow-up emails waiting on a human decision (§7 queue).
+  const pendingDrafts = await db
+    .select({
+      approvalId: agentApprovals.id,
+      toEmail: sql<string>`(${agentApprovals.proposedArguments}->>'toEmail')`,
+      subject: sql<string>`(${agentApprovals.proposedArguments}->>'subject')`,
+      leadCompany: companies.name,
+    })
+    .from(agentApprovals)
+    .leftJoin(leads, eq(leads.id, sql`(${agentApprovals.proposedArguments}->>'leadId')::uuid`))
+    .leftJoin(companies, eq(companies.id, leads.companyId))
+    .where(
+      and(
+        eq(agentApprovals.workspaceId, workspaceId),
+        eq(agentApprovals.status, "PENDING"),
+        eq(agentApprovals.toolName, "communication.send_email")
+      )
+    )
+    .orderBy(desc(agentApprovals.requestedAt))
+    .limit(5);
+
   const followUpsDue = queue.followUpsDue ?? [];
+  const startToday = startOfToday();
+  const overdueFollowUps = followUpsDue.filter((l) => new Date(l.nextFollowUpAt!) < startToday);
+  const dueToday = followUpsDue.filter((l) => new Date(l.nextFollowUpAt!) >= startToday);
   const hotLeads = queue.hotLeads ?? [];
   const staleLeads = queue.staleLeads ?? [];
   const dealsNeedingAttention = queue.dealsNeedingAttention ?? [];
@@ -74,35 +101,59 @@ export default async function MyDayPage() {
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <PageTitle>Follow-ups Due</PageTitle>
-            <Badge variant="tertiary" className="font-mono-code text-[10px]">{followUpsDue.length}</Badge>
+            <div className="flex items-center space-x-2">
+              <Clock className="h-4 w-4 text-primary" />
+              <PageTitle>Follow-up Queue</PageTitle>
+            </div>
+            <Badge variant="tertiary" className="font-mono-code text-[10px]">
+              {overdueFollowUps.length} overdue · {dueToday.length} today
+            </Badge>
           </div>
-          {followUpsDue.length === 0 ? (
+
+          {pendingDrafts.length > 0 && (
+            <GlassCard className="p-4 border-primary/30">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-mono-code text-primary">AGENT DRAFTS AWAITING YOUR APPROVAL</p>
+                <Link href="/agents/approvals" className="text-[11px] text-primary hover:underline">Review →</Link>
+              </div>
+              <div className="space-y-1.5">
+                {pendingDrafts.map((d) => (
+                  <p key={d.approvalId} className="text-[11px] text-text-muted truncate">
+                    ✉ {d.leadCompany ?? d.toEmail} — {d.subject}
+                  </p>
+                ))}
+              </div>
+            </GlassCard>
+          )}
+
+          {followUpsDue.length === 0 && pendingDrafts.length === 0 ? (
             <GlassCard className="flex items-center justify-center min-h-[120px]">
               <Body className="text-center text-text-muted">No follow-ups due today.</Body>
             </GlassCard>
           ) : (
             <div className="space-y-3">
-              {followUpsDue.map((lead) => (
+              {followUpsDue.map((lead) => {
+                const isOverdue = new Date(lead.nextFollowUpAt!) < startToday;
+                return (
                 <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block">
-                  <GlassCard className="p-4 transition-all hover:border-primary/40">
+                  <GlassCard className={`p-4 transition-all hover:border-primary/40 ${isOverdue ? "border-tertiary/30" : ""}`}>
                     <div className="flex items-start justify-between">
                       <div>
                         <h4 className="text-xs font-semibold text-text-primary">
                           {lead.company?.name || "Unknown company"} · {lead.contact?.firstName} {lead.contact?.lastName}
                         </h4>
                         <p className="text-[11px] text-text-muted mt-1">
-                          Due {lead.nextFollowUpAt ? format(new Date(lead.nextFollowUpAt), "MMM d, HH:mm") : "—"}
-                          {lead.temperature === "HOT" && " · HOT"}
+                          {isOverdue ? "Overdue — " : "Due "}{lead.nextFollowUpAt ? format(new Date(lead.nextFollowUpAt), "MMM d, HH:mm") : "—"}
                         </p>
                       </div>
-                      <Badge variant={lead.temperature === "HOT" ? "tertiary" : "outline"} className="font-mono-code text-[10px]">
-                        {lead.temperature}
+                      <Badge variant={isOverdue ? "tertiary" : "outline"} className="font-mono-code text-[10px]">
+                        {isOverdue ? "OVERDUE" : lead.temperature}
                       </Badge>
                     </div>
                   </GlassCard>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
