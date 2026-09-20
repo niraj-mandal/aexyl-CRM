@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const { workspaceId, userId, firstName, lastName } = await requireWorkspace();
-    const rl = rateLimit(clientKey(request, "telemetry", userId), 120, 60);
+    const rl = await rateLimit(clientKey(request, "telemetry", userId), 120, 60);
     if (!rl.ok) {
       return NextResponse.json(
         { success: false, error: "Rate limit exceeded" },

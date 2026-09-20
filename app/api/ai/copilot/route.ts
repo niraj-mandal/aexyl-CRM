@@ -6,7 +6,7 @@ import { rateLimit, clientKey } from "@/lib/rate-limit";
 export async function POST(request: NextRequest) {
   try {
     const { workspaceId, userId } = await requireWorkspace();
-    const rl = rateLimit(clientKey(request, "ai-copilot", userId), 20, 60);
+    const rl = await rateLimit(clientKey(request, "ai-copilot", userId), 20, 60);
     if (!rl.ok) {
       return NextResponse.json(
         { success: false, error: "Rate limit exceeded — try again shortly" },
