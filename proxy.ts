@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/health',
   // Machine caller: authenticates via its own CRON_SECRET bearer check.
   '/api/cron/tick',
+  // Brevo webhook: authenticates via its own token query-param check.
+  '/api/webhooks/brevo',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

@@ -4,6 +4,7 @@ import { and, eq, gte, isNotNull, lte, notInArray } from "drizzle-orm";
 import { db } from "@/db";
 import { agentEvents, leads, users, workspaces } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import { captureError } from "@/lib/observability";
 import { AgentEventBus } from "@/agents/events/bus";
 import {
   claimRetryingRuns,
@@ -177,12 +178,14 @@ export async function GET(req: Request) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push(`${ws.id}: ${msg}`);
         logger.error("cron tick workspace failed", { workspaceId: ws.id, error: msg });
+        await captureError(err, { scope: "cron.tick.workspace", workspaceId: ws.id });
       }
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     errors.push(`fatal: ${msg}`);
     logger.error("cron tick fatal", { error: msg });
+    await captureError(err, { scope: "cron.tick.fatal" });
   }
 
   const body = {

@@ -12,12 +12,21 @@ import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
 
 import Link from "next/link";
 
-export default async function LeadsPage() {
+const PAGE_SIZE = 50;
+
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { workspaceId } = await requireWorkspace();
-  const [leads, leadCounts] = await Promise.all([
-    CrmService.getLeads(workspaceId, 500),
+  const params = await searchParams;
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+  const [leads, totalLeads, leadCounts] = await Promise.all([
+    CrmService.getLeads(workspaceId, PAGE_SIZE, (page - 1) * PAGE_SIZE),
+    CrmService.countLeads(workspaceId),
     CrmService.getLeadCounts(workspaceId),
   ]);
+  const totalPages = Math.max(1, Math.ceil(totalLeads / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
 
   // Metrics come from real SQL counts across the whole table — not the page slice.
   const total = leadCounts.total;
@@ -33,12 +42,20 @@ export default async function LeadsPage() {
         </section>
         
         {/* We would typically use a Dialog here. For Phase 2, we'll just put a simple "Create Lead" card or button that navigates to a create page, or render the form directly. */}
-        <Link 
-          href="/sales/leads/new" 
-          className="bg-text-primary text-background px-4 py-2 rounded-md font-medium text-sm hover:bg-text-secondary transition"
-        >
-          + Add Lead
-        </Link>
+        <div className="flex items-center gap-3">
+          <a
+            href="/api/leads/export"
+            className="border border-border-subtle text-text-primary px-4 py-2 rounded-md font-medium text-sm hover:border-primary/50 transition"
+          >
+            Export CSV
+          </a>
+          <Link
+            href="/sales/leads/new"
+            className="bg-text-primary text-background px-4 py-2 rounded-md font-medium text-sm hover:bg-text-secondary transition"
+          >
+            + Add Lead
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -110,6 +127,27 @@ export default async function LeadsPage() {
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-text-muted">
+          <span>
+            Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, totalLeads)} of {totalLeads}
+          </span>
+          <div className="flex items-center gap-2">
+            {safePage > 1 && (
+              <Link href={`/sales/leads?page=${safePage - 1}`} className="px-3 py-1.5 rounded-md border border-border-subtle hover:border-primary/50 transition">
+                ← Prev
+              </Link>
+            )}
+            <span className="font-mono-code">{safePage} / {totalPages}</span>
+            {safePage < totalPages && (
+              <Link href={`/sales/leads?page=${safePage + 1}`} className="px-3 py-1.5 rounded-md border border-border-subtle hover:border-primary/50 transition">
+                Next →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

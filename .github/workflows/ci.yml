@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aexyl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aexyl
+      # The scenario suite never calls Clerk at runtime; dummy values satisfy
+      # module-level constants only.
+      CLERK_SECRET_KEY: dummy-ci-secret
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: dummy-ci-key
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply versioned migrations to ephemeral database
+        run: npx drizzle-kit migrate
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint agents app components services lib db tests
+
+      - name: Scenario suite (real DB, ephemeral workspace)
+        run: npx tsx tests/agents.scenarios.ts

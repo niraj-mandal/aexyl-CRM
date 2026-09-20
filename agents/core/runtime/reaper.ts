@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { agents, agentRuns, incidents } from "@/db/schema";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { captureError } from "@/lib/observability";
 
 const MAX_RUNTIME_MS = 10 * 60 * 1000; // 10 min hard ceiling per run
 const MAX_ATTEMPTS = 3;
@@ -61,6 +62,11 @@ export async function reapStaleRuns(workspaceId?: string): Promise<ReaperSummary
       .set({ status: "FAILED", error: "Exceeded max runtime after retries — escalated", completedAt: new Date() })
       .where(eq(agentRuns.id, run.id));
     summary.escalated.push(run.id);
+    await captureError(new Error("Agent run escalated: exceeded max runtime after retries"), {
+      scope: "reaper.escalation",
+      runId: run.id,
+      agentKey: run.agentId,
+    });
 
     const [incident] = await db
       .insert(incidents)

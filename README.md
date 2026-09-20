@@ -86,9 +86,17 @@ Fill in `.env.local` (see [Environment variables](#environment-variables) below)
 
 ### 3. Create the schema
 
+Two supported paths:
+
 ```bash
-npm run db:push
+npm run db:migrate   # preferred: apply the versioned SQL migrations in db/migrations/
+npm run db:push      # dev-only convenience: sync schema directly (can drop data)
 ```
+
+**Migration workflow (production):** edit `db/schema.ts` → `npm run db:generate`
+(review the generated SQL in `db/migrations/`) → `npm run db:migrate` on staging →
+verify → `npm run db:migrate` on production. `db:push` is a dev convenience only —
+it never runs against staging/prod.
 
 ### 4. (Optional) Seed demo workspace
 
@@ -111,6 +119,27 @@ Sign in with Clerk, and the workspace bootstraps itself (agents, feature flags, 
 ```bash
 npm run build && npm start
 ```
+
+---
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push/PR against an ephemeral Postgres 16:
+`npm ci` → `drizzle-kit migrate` (proves the migration chain replays cleanly) →
+`tsc --noEmit` → `eslint` → the 52-check agent scenario suite. Nothing merges broken.
+
+## Inbound email webhooks (Brevo)
+
+Point a Brevo transactional webhook at:
+
+```
+POST https://<host>/api/webhooks/brevo?token=<BREVO_WEBHOOK_TOKEN>
+```
+
+Open/click/bounce/spam/unsubscribe events are matched to the recipient's contact,
+and a real EMAIL activity lands on the lead's timeline — so the follow-up engine
+stops blind-sending unresponsive contacts and can see engagement. Token-gated;
+invalid tokens get 401; processing is fail-soft (always 200 on valid tokens).
 
 ---
 

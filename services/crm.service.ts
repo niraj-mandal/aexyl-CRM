@@ -273,6 +273,15 @@ export class CrmService {
     });
   }
 
+  /** Total active-lead count for pagination. */
+  static async countLeads(workspaceId: string): Promise<number> {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(eq(leads.workspaceId, workspaceId));
+    return row?.n ?? 0;
+  }
+
   static async getLeadById(workspaceId: string, leadId: string) {
     return db.query.leads.findFirst({
       where: and(eq(leads.id, leadId), eq(leads.workspaceId, workspaceId)),
