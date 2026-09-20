@@ -1,5 +1,15 @@
 # Deploying Aexyl CRM to Vercel + Neon
 
+> **Status (2026-09-21):** Phases 1 & 4 are DONE. Neon project
+> `wild-bird-03431602` ("AEXYL crm", aws-us-east-2) exists; the stale Sep-7
+> schema in it was dropped, `0000_init.sql` was migrated in, and the full
+> local dataset (59 leads, 60 companies, 37 approvals, 52 agent runs) was
+> cloned in. Pooled + direct connection strings are recoverable anytime via
+> `npx neon connection-string production --project-id wild-bird-03431602
+> --pooled` (CLI is authenticated). Note: Aexyl's schema uses no vector
+> columns, so pgvector is not required. Remaining: Phases 2–3 (Vercel +
+> Clerk), 5 (cron-job.org), 6 (Brevo), 7 (verify).
+
 Target stack (total ₹0/month, free tiers):
 
 | Piece | Service | Plan |
