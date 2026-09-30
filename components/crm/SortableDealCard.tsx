@@ -2,9 +2,15 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DealCard } from "./DealCard";
+import { DealCard, type DealCardData } from "./DealCard";
 
-export function SortableDealCard({ deal }: { deal: any }) {
+export function SortableDealCard({
+  deal,
+  onDeleted,
+}: {
+  deal: DealCardData;
+  onDeleted?: (id: string) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -34,7 +40,7 @@ export function SortableDealCard({ deal }: { deal: any }) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <DealCard deal={deal} />
+      <DealCard deal={deal} onDelete={onDeleted ? () => onDeleted(deal.id) : undefined} />
     </div>
   );
 }

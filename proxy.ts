@@ -4,6 +4,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/invite/(.*)',
+  // OAuth return endpoint for the custom auto-Google sign-in flow.
+  '/sso-callback(.*)',
   '/api/health',
   // Machine caller: authenticates via its own CRON_SECRET bearer check.
   '/api/cron/tick',

@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/services/calendar.service";
+import { EventContextMenu } from "@/components/crm/EventContextMenu";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -197,7 +198,7 @@ export function CalendarGrid({
             <div
               key={i}
               className={cn(
-                "min-h-[84px] sm:min-h-[104px] rounded-lg border p-1.5 flex flex-col gap-1 transition",
+                "min-h-[96px] sm:min-h-[124px] rounded-lg border p-1.5 flex flex-col gap-1 transition",
                 inMonth
                   ? "border-border-subtle/60 bg-surface-lowest/40"
                   : "border-transparent bg-transparent opacity-35",
@@ -222,18 +223,28 @@ export function CalendarGrid({
                   const style = KIND_STYLES[e.kind];
                   const time = new Date(e.when);
                   return (
-                    <Link
-                      key={e.id}
+                    <EventContextMenu key={e.id} event={e}>
+                      <Link
                       href={e.href ?? "#"}
-                      title={`${e.title}${e.context ? ` · ${e.context}` : ""}`}
+                      title={`${e.title}${e.context ? ` — ${e.context}` : ""}`}
                       className={cn(
-                        "truncate rounded border px-1.5 py-0.5 text-[10px] leading-tight transition hover:opacity-80",
+                        "block rounded border px-1.5 py-0.5 text-[10px] leading-tight transition hover:opacity-80",
                         style.pill
                       )}
                     >
-                      {e.allDay ? "" : `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")} `}
-                      {e.title}
-                    </Link>
+                      {/* Line 1 (bold): time + WHOSE event — the key info in a narrow cell. */}
+                      <span className="block truncate font-medium">
+                        {e.allDay ? "" : `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")} `}
+                        {e.context ?? e.title}
+                      </span>
+                      {/* Line 2 (dim): what it is — only when the first line already told who. */}
+                      {e.context && (
+                        <span className="block truncate text-[9px] opacity-70">
+                          {e.title}
+                        </span>
+                      )}
+                      </Link>
+                    </EventContextMenu>
                   );
                 })}
                 {dayEvents.length > 3 && (

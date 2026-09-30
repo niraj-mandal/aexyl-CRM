@@ -3,6 +3,8 @@ import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { deals } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { deleteDealAction } from "@/app/actions/crm.actions";
+import { DeleteRowButton } from "@/components/crm/DeleteRowButton";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -46,6 +48,7 @@ export default async function DealsPage() {
                 <th className="px-6 py-4 font-medium">Prob.</th>
                 <th className="px-6 py-4 font-medium">Expected Close</th>
                 <th className="px-6 py-4 font-medium">Owner</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -66,10 +69,13 @@ export default async function DealsPage() {
                   <td className="px-6 py-4">{deal.probability}%</td>
                   <td className="px-6 py-4">{deal.expectedCloseDate ? format(new Date(deal.expectedCloseDate), "MMM d, yyyy") : "—"}</td>
                   <td className="px-6 py-4">{deal.owner?.firstName || "—"}</td>
+                  <td className="px-6 py-4">
+                    <DeleteRowButton action={deleteDealAction} id={deal.id} label={deal.name} />
+                  </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-text-muted">
+                  <td colSpan={8} className="px-6 py-12 text-center text-text-muted">
                     No deals yet. Move a qualified lead to a deal to get started.
                   </td>
                 </tr>

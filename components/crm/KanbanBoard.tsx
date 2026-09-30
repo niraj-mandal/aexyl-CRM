@@ -20,10 +20,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableDealCard } from "./SortableDealCard";
-import { DealCard } from "./DealCard";
+import { DealCard, type DealCardData } from "./DealCard";
 import { CreateDealButton } from "./CreateDealButton";
 import { updateDealStageAction } from "@/app/actions/crm.actions";
-import { cn } from "@/lib/utils";
 
 const STAGES = ["QUALIFIED", "CALL_BOOKED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"];
 
@@ -31,12 +30,18 @@ export function KanbanBoard({
   initialDeals,
   companyOptions = [],
 }: {
-  initialDeals: any[];
+  initialDeals: DealCardData[];
   companyOptions?: { id: string; name: string }[];
 }) {
   const [deals, setDeals] = useState(initialDeals);
   const [activeId, setActiveId] = useState<string | null>(null);
   const snapshotRef = useRef<typeof deals | null>(null);
+
+  /** Optimistically drop a deleted deal from the board (server action has
+   *  already persisted + audited the delete by the time this runs). */
+  const removeDeal = (dealId: string) => {
+    setDeals((prev) => prev.filter((d) => d.id !== dealId));
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -72,7 +77,7 @@ export function KanbanBoard({
             <div className="glass-panel flex-1 bg-surface-glass/30 border-dashed min-h-[500px] p-3 flex flex-col space-y-3">
               <SortableContext items={col.deals.map((d) => d.id)} strategy={verticalListSortingStrategy}>
                 {col.deals.map((deal) => (
-                  <SortableDealCard key={deal.id} deal={deal} />
+                  <SortableDealCard key={deal.id} deal={deal} onDeleted={removeDeal} />
                 ))}
               </SortableContext>
               {companyOptions.length > 0 && (

@@ -1,6 +1,8 @@
 import { Display, Body } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
+import { deleteContactAction } from "@/app/actions/crm.actions";
+import { DeleteRowButton } from "@/components/crm/DeleteRowButton";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Mail, Phone, Link as LinkIcon } from "lucide-react";
@@ -35,6 +37,7 @@ export default async function ContactsPage() {
                 <th className="px-6 py-4 font-medium">Role</th>
                 <th className="px-6 py-4 font-medium">Contact Info</th>
                 <th className="px-6 py-4 font-medium">Added</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -61,10 +64,13 @@ export default async function ContactsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4">{format(new Date(contact.createdAt), "MMM d, yyyy")}</td>
+                  <td className="px-6 py-4">
+                    <DeleteRowButton action={deleteContactAction} id={contact.id} label={`${contact.firstName} ${contact.lastName}`} />
+                  </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-text-muted">
+                  <td colSpan={6} className="px-6 py-12 text-center text-text-muted">
                     No contacts yet.
                   </td>
                 </tr>

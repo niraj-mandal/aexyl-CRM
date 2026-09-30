@@ -77,6 +77,19 @@ export async function markNotificationsReadAction(notificationId?: string) {
   return { ok: true as const };
 }
 
+/**
+ * Full notification list for the /notifications page (larger limit than the
+ * bell's 20; includes read items so history is browsable).
+ */
+export async function notificationsPageAction() {
+  const { workspaceId, userId } = await requireWorkspace();
+  const [items, unread] = await Promise.all([
+    NotificationService.list(workspaceId, userId, 50),
+    NotificationService.unreadCount(workspaceId, userId),
+  ]);
+  return { items, unread };
+}
+
 // --- agent feedback (spec §27) ------------------------------------------------
 
 export async function submitRunFeedbackAction(runId: string, rating: "HELPFUL" | "NOT_HELPFUL", comment?: string) {

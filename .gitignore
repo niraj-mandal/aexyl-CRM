@@ -48,3 +48,6 @@ next-env.d.ts
 
 # local tooling config (contains credentials)
 /.agents
+
+.vercel
+.env*

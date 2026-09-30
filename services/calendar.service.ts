@@ -10,6 +10,14 @@ import {
   users,
 } from "@/db/schema";
 import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+
+/**
+ * Second alias for `companies`: meetings reach the company through BOTH the
+ * deal path and the lead path (lead-booked meetings have no deal), and
+ * Drizzle needs distinct names for the two joins.
+ */
+const leadCompanies = alias(companies, "lead_companies");
 
 export interface CalendarEvent {
   id: string; // unique per calendar entry (may differ from source row id)
@@ -64,8 +72,12 @@ export class CalendarService {
           title: activities.title,
           description: activities.description,
           occurredAt: activities.occurredAt,
+          leadId: activities.leadId,
+          dealId: activities.dealId,
+          contactId: activities.contactId,
           dealName: deals.name,
           companyName: companies.name,
+          leadCompanyName: leadCompanies.name,
           contactFirst: contacts.firstName,
           contactLast: contacts.lastName,
           actorFirst: users.firstName,
@@ -73,6 +85,8 @@ export class CalendarService {
         .from(activities)
         .leftJoin(deals, eq(activities.dealId, deals.id))
         .leftJoin(companies, eq(deals.companyId, companies.id))
+        .leftJoin(leads, eq(activities.leadId, leads.id))
+        .leftJoin(leadCompanies, eq(leads.companyId, leadCompanies.id))
         .leftJoin(contacts, eq(activities.contactId, contacts.id))
         .leftJoin(users, eq(activities.actorId, users.id))
         .where(
@@ -166,10 +180,20 @@ export class CalendarService {
     const events: CalendarEvent[] = [];
 
     for (const m of meetingRows) {
+      // Whose meeting: the invited contact first, else the lead's company,
+      // else the deal's company/deal name. Lead-booked meetings resolve via
+      // the lead→company path (they have no deal and often no contact).
       const who =
         m.contactFirst || m.contactLast
           ? [m.contactFirst, m.contactLast].filter(Boolean).join(" ")
-          : m.companyName || m.dealName || null;
+          : m.leadCompanyName || m.companyName || m.dealName || null;
+      const href = m.leadId
+        ? `/sales/leads/${m.leadId}`
+        : m.dealId
+          ? `/sales/deals/${m.dealId}`
+          : m.contactId
+            ? `/sales/contacts/${m.contactId}`
+            : null;
       events.push({
         id: `meeting-${m.id}`,
         sourceId: m.id,
@@ -177,7 +201,7 @@ export class CalendarService {
         title: m.title,
         when: m.occurredAt.toISOString(),
         allDay: false,
-        href: m.dealName ? "/sales/deals" : "/sales/leads",
+        href,
         context: who,
       });
     }
@@ -220,7 +244,7 @@ export class CalendarService {
         title: `Follow up: ${who}`,
         when: (l.nextFollowUpAt as Date).toISOString(),
         allDay: true,
-        href: "/sales/leads",
+        href: `/sales/leads/${l.id}`,
         context: l.companyName,
       });
     }
@@ -258,12 +282,15 @@ export class CalendarService {
         description: activities.description,
         occurredAt: activities.occurredAt,
         companyName: companies.name,
+        leadCompanyName: leadCompanies.name,
         contactFirst: contacts.firstName,
         contactLast: contacts.lastName,
       })
       .from(activities)
       .leftJoin(deals, eq(activities.dealId, deals.id))
       .leftJoin(companies, eq(deals.companyId, companies.id))
+      .leftJoin(leads, eq(activities.leadId, leads.id))
+      .leftJoin(leadCompanies, eq(leads.companyId, leadCompanies.id))
       .leftJoin(contacts, eq(activities.contactId, contacts.id))
       .where(
         and(
@@ -279,7 +306,7 @@ export class CalendarService {
       const who =
         m.contactFirst || m.contactLast
           ? [m.contactFirst, m.contactLast].filter(Boolean).join(" ")
-          : m.companyName || null;
+          : m.leadCompanyName || m.companyName || null;
       return {
         id: m.id,
         title: m.title,

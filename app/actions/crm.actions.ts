@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { companies, contacts, deals, leads, projects, workspaces } from "@/db/schema";
+import { activities, companies, contacts, deals, leads, projects, workspaces } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { CrmService, ProjectService } from "@/services/crm.service";
 import { ActivityService } from "@/services/activity.service";
@@ -573,4 +573,112 @@ export async function scheduleMeetingAction(input: {
   revalidatePath("/calendar");
   revalidatePath("/my-day");
   return activity;
+}
+
+/**
+ * Confirm a lead and book its meeting in one step.
+ *
+ * "Confirming" a lead promotes it to QUALIFIED (unless it is already
+ * CONVERTED/LOST) and schedules the associated meeting as a real MEETING
+ * activity linked to the lead + contact, so it appears on the Calendar, the
+ * lead timeline, and agent context. Returns the meeting timestamp so the
+ * caller can route straight to the right calendar month.
+ */
+export async function confirmLeadForMeetingAction(input: {
+  leadId: string;
+  title: string;
+  when: string; // datetime-local string
+  description?: string;
+}) {
+  const { userId, workspaceId } = await requireWorkspace();
+
+  const whenDate = new Date(input.when);
+  if (!input.title.trim()) throw new Error("Meeting title is required");
+  if (Number.isNaN(whenDate.getTime())) throw new Error("Invalid meeting date");
+
+  const lead = await CrmService.getLeadById(workspaceId, input.leadId);
+  if (!lead) throw new Error("Lead not found");
+
+  if (lead.status !== "CONVERTED" && lead.status !== "LOST") {
+    await CrmService.updateLead(workspaceId, lead.id, { status: "QUALIFIED" });
+  }
+
+  const activity = await ActivityService.createActivity(workspaceId, {
+    workspaceId,
+    actorId: userId,
+    leadId: lead.id,
+    contactId: lead.contactId ?? null,
+    type: "MEETING",
+    title: input.title.trim(),
+    description: input.description?.trim() || null,
+    occurredAt: whenDate,
+  });
+
+  await ActivityService.logAudit(workspaceId, userId, "CONFIRM", "LEAD", lead.id, {
+    activityId: activity.id,
+    meetingFor: whenDate.toISOString(),
+  });
+
+  revalidatePath("/sales/leads");
+  revalidatePath(`/sales/leads/${lead.id}`);
+  revalidatePath("/calendar");
+  revalidatePath("/my-day");
+
+  return { leadId: lead.id, when: whenDate.toISOString() };
+}
+
+/**
+ * Delete a scheduled meeting from the Calendar's right-click context menu.
+ * Workspace-scoped hard delete of the MEETING activity row; the underlying
+ * lead/deal/contact records are untouched.
+ */
+export async function deleteMeetingAction(activityId: string) {
+  const { userId, workspaceId } = await requireWorkspace();
+
+  const [existing] = await db
+    .select({ id: activities.id, title: activities.title, leadId: activities.leadId })
+    .from(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.workspaceId, workspaceId)));
+
+  if (!existing) throw new Error("Meeting not found");
+
+  await db
+    .delete(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.workspaceId, workspaceId)));
+
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "ACTIVITY", activityId, {
+    activityType: "MEETING",
+    title: existing.title,
+    via: "calendar_context_menu",
+  });
+
+  revalidatePath("/calendar");
+  revalidatePath("/my-day");
+  if (existing.leadId) revalidatePath(`/sales/leads/${existing.leadId}`);
+
+  return { success: true };
+}
+
+/**
+ * Clear a lead's scheduled follow-up (removes the FOLLOW_UP calendar event by
+ * nulling nextFollowUpAt). The lead record itself is untouched.
+ */
+export async function clearFollowUpAction(leadId: string) {
+  const { userId, workspaceId } = await requireWorkspace();
+
+  const lead = await CrmService.updateLead(workspaceId, leadId, { nextFollowUpAt: null });
+  if (!lead) throw new Error("Lead not found");
+
+  await ActivityService.logAudit(workspaceId, userId, "UPDATE", "LEAD", leadId, {
+    field: "nextFollowUpAt",
+    to: null,
+    via: "calendar_context_menu",
+  });
+
+  revalidatePath("/calendar");
+  revalidatePath("/my-day");
+  revalidatePath("/sales/leads");
+  revalidatePath(`/sales/leads/${leadId}`);
+
+  return { success: true };
 }

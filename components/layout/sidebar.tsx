@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
@@ -11,12 +12,18 @@ import {
   Kanban, 
   Send, 
   Briefcase, 
+  Building2,
+  Contact,
+  TrendingUp,
   FolderKanban, 
   Sparkles, 
   Bot,
   BellRing, 
+  Bell,
   Settings
 } from "lucide-react";
+import { useSidebarBadges } from "./sidebar-badges";
+import { SidebarBadge } from "./sidebar-badge";
 
 interface NavItem {
   name: string;
@@ -24,6 +31,8 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   badge?: string;
+  /** Live count badge source from useSidebarBadges. */
+  badgeKey?: "approvals" | "attention" | "notifications";
 }
 
 interface NavSection {
@@ -38,6 +47,7 @@ const navSections: NavSection[] = [
       { name: "Command Center", href: "/", icon: LayoutDashboard, exact: true },
       { name: "My Day", href: "/my-day", icon: CalendarDays },
       { name: "Calendar", href: "/calendar", icon: CalendarRange },
+      { name: "Notifications", href: "/notifications", icon: Bell, badgeKey: "notifications" },
     ]
   },
   {
@@ -45,16 +55,16 @@ const navSections: NavSection[] = [
     items: [
       { name: "Leads", href: "/sales/leads", icon: Users },
       { name: "Pipeline", href: "/sales/pipeline", icon: Kanban },
-      { name: "Companies", href: "/sales/companies", icon: Briefcase },
-      { name: "Contacts", href: "/sales/contacts", icon: Users },
-      { name: "Deals", href: "/sales/deals", icon: Kanban },
+      { name: "Companies", href: "/sales/companies", icon: Building2 },
+      { name: "Contacts", href: "/sales/contacts", icon: Contact },
+      { name: "Deals", href: "/sales/deals", icon: TrendingUp },
       { name: "Outreach Engine", href: "/outreach", icon: Send },
     ]
   },
   {
     title: "OPERATIONS",
     items: [
-      { name: "Clients Directory", href: "/sales/companies", icon: Briefcase },
+      { name: "Clients Directory", href: "/clients", icon: Briefcase },
       { name: "Projects Directory", href: "/projects", icon: FolderKanban },
     ]
   },
@@ -62,32 +72,35 @@ const navSections: NavSection[] = [
     title: "INTELLIGENCE",
     items: [
       { name: "Executive Matrix", href: "/intelligence", icon: Sparkles, badge: "AI" },
-      { name: "Attention Required", href: "/attention", icon: BellRing },
-      { name: "Aexyl Agents", href: "/agents", icon: Bot },
+      { name: "Attention Required", href: "/attention", icon: BellRing, badgeKey: "attention" },
+      { name: "Aexyl Agents", href: "/agents", icon: Bot, badgeKey: "approvals" },
     ]
   }
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const badges = useSidebarBadges();
 
   return (
-    <aside className="flex h-full w-[260px] flex-col bg-surface-lowest border-r border-border-subtle overflow-y-auto select-none">
+    <aside className="flex h-full w-[260px] flex-col bg-surface-lowest border-r border-border-subtle overflow-hidden select-none">
       {/* Brand Header */}
       <div className="flex h-16 items-center px-6 border-b border-border-subtle/50">
         <Link href="/" className="flex items-center space-x-3 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white shadow-[0_0_15px_rgba(43,102,255,0.4)] transition-transform group-hover:scale-105">
-            <span className="font-bold text-sm tracking-wider">A</span>
-          </div>
-          <div>
-            <span className="font-semibold text-sm tracking-tight text-text-primary block">AEXYL</span>
-            <span className="font-mono-code text-[10px] text-text-muted tracking-widest block uppercase">OS v2.4</span>
-          </div>
+          <Image
+            src="/aexyl-mark-white.png"
+            alt="AEXYL"
+            width={874}
+            height={150}
+            priority
+            className="h-3 w-auto transition-transform group-hover:scale-105"
+          />
+          <span className="font-mono-code text-[10px] text-text-muted tracking-widest uppercase">OS v2.4</span>
         </Link>
       </div>
 
-      {/* Navigation Groups */}
-      <div className="flex-1 space-y-6 px-3 py-4">
+      {/* Navigation Groups (scrollable; brand + footer stay pinned) */}
+      <div className="flex-1 space-y-6 px-3 py-4 overflow-y-auto scrollbar-thin">
         {navSections.map((section) => (
           <div key={section.title} className="space-y-1">
             <div className="px-3 pb-1.5 text-[10px] font-mono-code tracking-[0.08em] text-text-muted/70 uppercase">
@@ -125,6 +138,20 @@ export function Sidebar() {
                     </span>
                   )}
 
+                  {item.badgeKey && (
+                    <SidebarBadge
+                      count={badges[item.badgeKey]}
+                      tone={item.badgeKey === "notifications" ? "info" : "alert"}
+                      title={
+                        item.badgeKey === "approvals"
+                          ? `${badges.approvals} agent action${badges.approvals === 1 ? "" : "s"} awaiting approval`
+                          : item.badgeKey === "attention"
+                            ? (badges.attention === 1 ? "1 pipeline risk needs attention" : `${badges.attention} pipeline risks need attention`)
+                            : `${badges.notifications} unread notification${badges.notifications === 1 ? "" : "s"}`
+                      }
+                    />
+                  )}
+
                   {isActive && (
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 h-4 w-1 rounded-l-full bg-primary" />
                   )}
@@ -136,13 +163,18 @@ export function Sidebar() {
       </div>
 
       {/* Footer System Quick Action */}
-      <div className="p-3 border-t border-border-subtle/50">
+      <div className="shrink-0 p-3 border-t border-border-subtle/50">
         <Link
           href="/settings"
-          className="flex items-center justify-between rounded-lg px-3 py-2 text-xs text-text-secondary hover:bg-surface-high/50 hover:text-text-primary transition-colors"
+          className={cn(
+            "flex items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors",
+            pathname.startsWith("/settings")
+              ? "bg-primary/15 text-text-primary border border-primary/30"
+              : "text-text-secondary hover:bg-surface-high/50 hover:text-text-primary border border-transparent"
+          )}
         >
           <div className="flex items-center space-x-2.5">
-            <Settings className="h-4 w-4 text-text-muted" />
+            <Settings className={cn("h-4 w-4", pathname.startsWith("/settings") ? "text-primary" : "text-text-muted")} />
             <span>Settings & Rules</span>
           </div>
           <kbd className="font-mono-code text-[10px] text-text-muted bg-surface-high px-1.5 py-0.5 rounded border border-border-subtle">

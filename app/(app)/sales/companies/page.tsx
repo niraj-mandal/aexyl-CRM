@@ -1,6 +1,8 @@
 import { Display, Body } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
+import { deleteCompanyAction } from "@/app/actions/crm.actions";
+import { DeleteRowButton } from "@/components/crm/DeleteRowButton";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -35,6 +37,7 @@ export default async function CompaniesPage() {
                 <th className="px-6 py-4 font-medium">Deals</th>
                 <th className="px-6 py-4 font-medium">Owner</th>
                 <th className="px-6 py-4 font-medium">Updated</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -53,10 +56,13 @@ export default async function CompaniesPage() {
                   <td className="px-6 py-4">{company.deals.length}</td>
                   <td className="px-6 py-4">{company.owner?.firstName || "Unassigned"}</td>
                   <td className="px-6 py-4">{format(new Date(company.updatedAt), "MMM d, yyyy")}</td>
+                  <td className="px-6 py-4">
+                    <DeleteRowButton action={deleteCompanyAction} id={company.id} label={company.name} />
+                  </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-text-muted">
+                  <td colSpan={7} className="px-6 py-12 text-center text-text-muted">
                     No companies yet. Add your first prospect to start building the Aexyl pipeline.
                   </td>
                 </tr>

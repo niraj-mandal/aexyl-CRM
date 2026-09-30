@@ -1,6 +1,7 @@
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CalendarService } from "@/services/calendar.service";
 import { CalendarGrid } from "@/components/crm/CalendarGrid";
+import { EventContextMenu } from "@/components/crm/EventContextMenu";
 import { ScheduleMeetingButton } from "@/components/crm/ScheduleMeetingButton";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
@@ -98,23 +99,29 @@ export default async function CalendarPage({
                   </MonoLabel>
                   <div className="space-y-1.5">
                     {dayEvents.map((e) => (
-                      <Link
-                        key={e.id}
-                        href={e.href ?? "#"}
-                        className="flex items-center gap-3 rounded-lg border border-border-subtle/60 bg-surface-lowest/40 px-3 py-2 hover:bg-surface-elevated/60 transition group"
-                      >
+                      <EventContextMenu key={e.id} event={e}>
+                        <Link
+                          href={e.href ?? "#"}
+                          className="flex items-center gap-3 rounded-lg border border-border-subtle/60 bg-surface-lowest/40 px-3 py-2 hover:bg-surface-elevated/60 transition group"
+                        >
                         <span className="font-mono-code text-[11px] text-text-muted w-12 shrink-0">
                           {e.allDay
                             ? "all-day"
                             : format(new Date(e.when), "HH:mm")}
                         </span>
-                        <span className="flex-1 truncate text-sm text-text-primary group-hover:text-primary transition">
-                          {e.title}
+                        <span className="flex-1 min-w-0 text-sm text-text-primary group-hover:text-primary transition">
+                          <span className="block truncate">{e.title}</span>
+                          {e.context && (
+                            <span className="block truncate text-[11px] text-text-muted">
+                              {e.context}
+                            </span>
+                          )}
                         </span>
                         <Badge variant="secondary" className="font-mono-code text-[10px] shrink-0">
                           {KIND_LABEL[e.kind] ?? e.kind}
                         </Badge>
-                      </Link>
+                        </Link>
+                      </EventContextMenu>
                     ))}
                   </div>
                 </div>

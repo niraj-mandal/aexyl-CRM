@@ -1,7 +1,29 @@
 import { cn } from "@/lib/utils";
 import { Building2, User } from "lucide-react";
+import { deleteDealAction } from "@/app/actions/crm.actions";
+import { DeleteRowButton } from "./DeleteRowButton";
 
-export function DealCard({ deal, isOverlay }: { deal: any; isOverlay?: boolean }) {
+/** Minimal deal shape the card renders; extra fields from wider queries are
+ *  fine (structural typing). */
+export interface DealCardData {
+  id: string;
+  name: string;
+  stage: string;
+  value: string | number | null;
+  company?: { name: string | null } | null;
+  owner?: { firstName: string | null; lastName: string | null } | null;
+}
+
+export function DealCard({
+  deal,
+  isOverlay,
+  onDelete,
+}: {
+  deal: DealCardData;
+  isOverlay?: boolean;
+  /** When set, shows a two-stage delete button (pipeline board only). */
+  onDelete?: () => void;
+}) {
   return (
     <div
       className={cn(
@@ -9,10 +31,21 @@ export function DealCard({ deal, isOverlay }: { deal: any; isOverlay?: boolean }
         isOverlay && "rotate-2 scale-105 shadow-2xl cursor-grabbing ring-1 ring-border-strong"
       )}
     >
-      <div className="flex justify-between items-start mb-3">
+      <div className="flex justify-between items-start mb-3 gap-1">
         <h4 className="font-medium text-text-primary text-sm line-clamp-2 leading-tight">
           {deal.name}
         </h4>
+        {onDelete && (
+          <div className="group/card shrink-0">
+            <DeleteRowButton
+              action={deleteDealAction}
+              id={deal.id}
+              label={deal.name}
+              onDeleted={onDelete}
+            />
+          </div>
+        )
+        }
       </div>
       
       <div className="flex items-center text-xs text-text-secondary mb-3">

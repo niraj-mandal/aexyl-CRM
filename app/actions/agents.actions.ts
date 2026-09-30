@@ -1,6 +1,7 @@
 "use server";
 
 import { requireWorkspace } from "@/lib/auth/workspace";
+import { AiAgentService } from "@/services/ai/ai-agent.service";
 import { AgentRunnerService } from "@/agents/services/runner.service";
 import { AgentEventBus } from "@/agents/events/bus";
 import {
@@ -15,6 +16,19 @@ import { db } from "@/db";
 import { agents, agentRuns, agentApprovals, automationRules } from "@/db/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+
+/**
+ * Cheap HIGH/WARNING risk count for always-visible chrome (sidebar badge on
+ * "Attention Required"). Reuses the full risk audit — the counts that matter
+ * come from the same insights the /attention page renders, so the badge never
+ * disagrees with the page. Non-critical chrome: callers swallow failures.
+ */
+export async function attentionCountAction() {
+  const { workspaceId } = await requireWorkspace();
+  const audit = await AiAgentService.auditPipelineRisk(workspaceId);
+  const count = audit.insights.filter((i) => i.severity === "HIGH" || i.severity === "WARNING").length;
+  return { count };
+}
 
 // --- run + events ------------------------------------------------------------
 
