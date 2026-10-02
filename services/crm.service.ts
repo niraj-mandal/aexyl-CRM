@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { companies, contacts, leads, deals, projects, tasks, outboundCampaigns, outboundSteps, outboundEnrollments } from "@/db/schema";
+import { companies, contacts, leads, deals, projects, tasks, outboundCampaigns, outboundSteps, outboundEnrollments, outboundMessages, outboundReplies } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -240,6 +240,31 @@ export class CrmService {
   // ---------------------------------------------------------------------------
   // OUTBOUND OS
   // ---------------------------------------------------------------------------
+
+  static async createPreparedOutboundMessage(workspaceId: string, data: Omit<typeof outboundMessages.$inferInsert, "workspaceId">) {
+    const [message] = await db.insert(outboundMessages).values({ ...data, workspaceId }).returning();
+    return message;
+  }
+
+  static async getOutboundMessages(workspaceId: string, enrollmentId: string) {
+    return db.query.outboundMessages.findMany({
+      where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.enrollmentId, enrollmentId)),
+      orderBy: [desc(outboundMessages.createdAt)],
+    });
+  }
+
+  static async createOutboundReply(workspaceId: string, data: Omit<typeof outboundReplies.$inferInsert, "workspaceId">) {
+    const [reply] = await db.insert(outboundReplies).values({ ...data, workspaceId }).returning();
+    return reply;
+  }
+
+  static async updateOutboundEnrollmentState(workspaceId: string, enrollmentId: string, data: Partial<typeof outboundEnrollments.$inferInsert>) {
+    const [updated] = await db.update(outboundEnrollments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)))
+      .returning();
+    return updated;
+  }
 
   static async getOutboundCampaigns(workspaceId: string) {
     return db.query.outboundCampaigns.findMany({
