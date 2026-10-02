@@ -4,6 +4,7 @@ import { ActivityService } from "@/services/activity.service";
 export type OutboundChannel = "EMAIL" | "LINKEDIN" | "WHATSAPP";
 
 export type OutboundIntent = "HIGH" | "MEDIUM" | "LOW" | "TIMING" | "NOT_INTERESTED" | "UNKNOWN";
+export type NurtureAction = "HANDOFF" | "CONTINUE" | "HANDLE_OBJECTION" | "REACTIVATE" | "NURTURE" | "STOP" | "REVIEW";
 
 export async function classifyOutboundReplyForEnrollment(
   workspaceId: string,
