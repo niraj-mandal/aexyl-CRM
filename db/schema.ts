@@ -170,6 +170,69 @@ export const activities = pgTable("activities", {
 });
 
 
+
+/**
+ * OUTBOUND OS
+ * Persistent campaign/enrollment state. Message sending remains behind the
+ * existing approval/integration layer.
+ */
+export const outboundCampaigns = pgTable("outbound_campaigns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status").default("DRAFT").notNull(), // DRAFT, ACTIVE, PAUSED, COMPLETED, ARCHIVED
+  targetProfile: text("target_profile"),
+  valueProp: text("value_prop"),
+  channels: jsonb("channels").$type<string[]>().default(["EMAIL"]).notNull(),
+  dailySendLimit: integer("daily_send_limit").default(25).notNull(),
+  approvalRequired: boolean("approval_required").default(true).notNull(),
+  createdById: uuid("created_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_campaigns_workspace_idx").on(t.workspaceId),
+  index("outbound_campaigns_status_idx").on(t.workspaceId, t.status),
+]);
+
+export const outboundSteps = pgTable("outbound_steps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  campaignId: uuid("campaign_id").references(() => outboundCampaigns.id).notNull(),
+  stepNumber: integer("step_number").notNull(),
+  channel: text("channel").notNull(), // EMAIL, LINKEDIN, WHATSAPP, CALL
+  delayDays: integer("delay_days").default(0).notNull(),
+  title: text("title").notNull(),
+  instructions: text("instructions"),
+  template: text("template"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_steps_campaign_idx").on(t.campaignId),
+  unique("outbound_steps_campaign_number_unique").on(t.campaignId, t.stepNumber),
+]);
+
+export const outboundEnrollments = pgTable("outbound_enrollments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  campaignId: uuid("campaign_id").references(() => outboundCampaigns.id).notNull(),
+  leadId: uuid("lead_id").references(() => leads.id).notNull(),
+  status: text("status").default("ACTIVE").notNull(), // ACTIVE, PAUSED, REPLIED, BOOKED, WON, LOST, UNSUBSCRIBED, COMPLETED
+  currentStep: integer("current_step").default(1).notNull(),
+  nextActionAt: timestamp("next_action_at"),
+  lastActionAt: timestamp("last_action_at"),
+  lastChannel: text("last_channel"),
+  intent: text("intent").default("UNKNOWN").notNull(), // UNKNOWN, LOW, MEDIUM, HIGH
+  objection: text("objection"),
+  timeline: text("timeline"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_enrollments_workspace_idx").on(t.workspaceId),
+  index("outbound_enrollments_campaign_idx").on(t.campaignId),
+  index("outbound_enrollments_next_action_idx").on(t.workspaceId, t.nextActionAt),
+  unique("outbound_enrollments_campaign_lead_unique").on(t.campaignId, t.leadId),
+]);
+
 // -----------------------------------------------------------------------------
 // WORKSPACE INVITES
 // -----------------------------------------------------------------------------
