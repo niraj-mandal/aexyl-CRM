@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { companies, contacts, leads, deals, projects, tasks } from "@/db/schema";
+import { companies, contacts, leads, deals, projects, tasks, outboundCampaigns, outboundSteps, outboundEnrollments } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -235,6 +235,105 @@ export class CrmService {
       .where(and(eq(contacts.id, contactId), eq(contacts.workspaceId, workspaceId)))
       .returning();
     return deleted;
+  }
+
+  // ---------------------------------------------------------------------------
+  // OUTBOUND OS
+  // ---------------------------------------------------------------------------
+
+  static async getOutboundCampaigns(workspaceId: string) {
+    return db.query.outboundCampaigns.findMany({
+      where: eq(outboundCampaigns.workspaceId, workspaceId),
+      orderBy: [desc(outboundCampaigns.updatedAt)],
+      with: { steps: true, enrollments: true },
+    });
+  }
+
+  static async createOutboundCampaign(
+    workspaceId: string,
+    data: Omit<typeof outboundCampaigns.$inferInsert, "workspaceId">,
+  ) {
+    const [campaign] = await db.insert(outboundCampaigns).values({ ...data, workspaceId }).returning();
+    return campaign;
+  }
+
+  static async updateOutboundCampaign(
+    workspaceId: string,
+    campaignId: string,
+    data: Partial<typeof outboundCampaigns.$inferInsert>,
+  ) {
+    const [campaign] = await db.update(outboundCampaigns)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(outboundCampaigns.workspaceId, workspaceId), eq(outboundCampaigns.id, campaignId)))
+      .returning();
+    return campaign;
+  }
+
+  static async createOutboundStep(
+    workspaceId: string,
+    campaignId: string,
+    data: Omit<typeof outboundSteps.$inferInsert, "campaignId">,
+  ) {
+    const campaign = await db.query.outboundCampaigns.findFirst({
+      where: and(eq(outboundCampaigns.id, campaignId), eq(outboundCampaigns.workspaceId, workspaceId)),
+    });
+    if (!campaign) throw new Error("Campaign not found");
+    const [step] = await db.insert(outboundSteps).values({ ...data, campaignId }).returning();
+    return step;
+  }
+
+  static async enrollLeadInOutboundCampaign(workspaceId: string, campaignId: string, leadId: string) {
+    const [enrollment] = await db.insert(outboundEnrollments).values({
+      workspaceId,
+      campaignId,
+      leadId,
+      status: "ACTIVE",
+      currentStep: 1,
+      nextActionAt: new Date(),
+    }).onConflictDoNothing().returning();
+    if (!enrollment) {
+      return db.query.outboundEnrollments.findFirst({
+        where: and(
+          eq(outboundEnrollments.workspaceId, workspaceId),
+          eq(outboundEnrollments.campaignId, campaignId),
+          eq(outboundEnrollments.leadId, leadId),
+        ),
+      });
+    }
+    return enrollment;
+  }
+
+  static async getOutboundQueue(workspaceId: string, limit = 50) {
+    return db.query.outboundEnrollments.findMany({
+      where: and(
+        eq(outboundEnrollments.workspaceId, workspaceId),
+        eq(outboundEnrollments.status, "ACTIVE"),
+        sql`${outboundEnrollments.nextActionAt} <= now()`,
+      ),
+      orderBy: [outboundEnrollments.nextActionAt],
+      limit,
+      with: {
+        lead: {
+          with: {
+            company: { columns: { name: true, website: true, industry: true, location: true } },
+            contact: { columns: { firstName: true, lastName: true, email: true, phone: true, jobTitle: true, linkedinUrl: true } },
+          },
+        },
+        campaign: { columns: { name: true, status: true } },
+      },
+    });
+  }
+
+  static async updateOutboundEnrollment(
+    workspaceId: string,
+    enrollmentId: string,
+    data: Partial<typeof outboundEnrollments.$inferInsert>,
+  ) {
+    const [updated] = await db.update(outboundEnrollments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)))
+      .returning();
+    return updated;
   }
 
   // ---------------------------------------------------------------------------
