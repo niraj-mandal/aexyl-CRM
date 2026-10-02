@@ -246,6 +246,26 @@ export class CrmService {
     return message;
   }
 
+  static async getOutboundMessage(workspaceId: string, messageId: string) {
+    return db.query.outboundMessages.findFirst({
+      where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.id, messageId)),
+    });
+  }
+
+  static async updateOutboundMessage(workspaceId: string, messageId: string, data: Partial<typeof outboundMessages.$inferInsert>) {
+    const [updated] = await db.update(outboundMessages).set(data)
+      .where(and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.id, messageId))).returning();
+    return updated;
+  }
+
+  static async countOutboundSendsToday(workspaceId: string, campaignId: string) {
+    const [row] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(outboundMessages).innerJoin(outboundEnrollments, eq(outboundMessages.enrollmentId, outboundEnrollments.id))
+      .where(and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundEnrollments.campaignId, campaignId),
+        eq(outboundMessages.direction, "OUTBOUND"), eq(outboundMessages.status, "SENT"),
+        sql`${outboundMessages.sentAt} >= current_date`));
+    return row?.count ?? 0;
+  }
   static async getOutboundMessages(workspaceId: string, enrollmentId: string) {
     return db.query.outboundMessages.findMany({
       where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.enrollmentId, enrollmentId)),
