@@ -659,3 +659,9 @@ export async function enrollLeadsInOutboundCampaignAction(campaignId: string, le
   }
   return results;
 }
+
+
+export async function getLeadsForOutboundEnrollmentAction(limit = 100) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getLeads(workspaceId, Math.min(Math.max(limit, 1), 100), 0);
+}
