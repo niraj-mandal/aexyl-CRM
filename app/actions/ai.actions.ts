@@ -665,3 +665,60 @@ export async function getLeadsForOutboundEnrollmentAction(limit = 100) {
   const { workspaceId } = await requireWorkspace();
   return await CrmService.getLeads(workspaceId, Math.min(Math.max(limit, 1), 100), 0);
 }
+
+
+export async function getOutboundExecutionQueueAction(limit = 25) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundQueue(workspaceId, Math.min(Math.max(limit, 1), 50));
+}
+
+export async function prepareOutboundEnrollmentAction(enrollmentId: string, channel?: "EMAIL" | "LINKEDIN" | "WHATSAPP") {
+  const { workspaceId, userId } = await requireWorkspace();
+  const queue = await CrmService.getOutboundQueue(workspaceId, 100);
+  const enrollment = queue.find((item) => item.id === enrollmentId);
+  if (!enrollment) throw new Error("Outbound enrollment is not due or no longer active.");
+
+  const campaign = await CrmService.getOutboundCampaignById(workspaceId, enrollment.campaignId);
+  if (!campaign) throw new Error("Campaign not found.");
+
+  const step = campaign.steps.find((candidate) => candidate.stepNumber === enrollment.currentStep);
+  if (!step) throw new Error("Campaign step not found.");
+
+  const selectedChannel = (channel || step.channel || "EMAIL").toUpperCase();
+  if (!["EMAIL", "LINKEDIN", "WHATSAPP"].includes(selectedChannel)) {
+    throw new Error("This step does not have a supported AI preparation channel.");
+  }
+
+  const opening = await preparePersonalizedOpening(workspaceId, enrollment.leadId, selectedChannel as "EMAIL" | "LINKEDIN" | "WHATSAPP");
+
+  await ActivityService.logAudit(workspaceId, userId, "PREPARE", "OUTBOUND_ENROLLMENT", enrollment.id, {
+    campaignId: campaign.id,
+    leadId: enrollment.leadId,
+    stepNumber: enrollment.currentStep,
+    channel: selectedChannel,
+    generatedBy: opening.generatedBy,
+  });
+
+  return {
+    enrollment: {
+      id: enrollment.id,
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      leadId: enrollment.leadId,
+      currentStep: enrollment.currentStep,
+      intent: enrollment.intent,
+      objection: enrollment.objection,
+      timeline: enrollment.timeline,
+    },
+    step: {
+      id: step.id,
+      stepNumber: step.stepNumber,
+      title: step.title,
+      channel: step.channel,
+      delayDays: step.delayDays,
+      instructions: step.instructions,
+      template: step.template,
+    },
+    opening,
+  };
+}
