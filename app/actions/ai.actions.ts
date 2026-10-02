@@ -624,3 +624,38 @@ export async function updateOutboundEnrollmentAction(
     ...(data.timeline !== undefined ? { timeline: data.timeline?.slice(0, 500) ?? null } : {}),
   });
 }
+
+
+export async function getOutboundCampaignByIdAction(campaignId: string) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundCampaignById(workspaceId, campaignId);
+}
+
+export async function createOutboundStepAction(
+  campaignId: string,
+  input: { stepNumber: number; channel: string; delayDays?: number; title: string; instructions?: string; template?: string },
+) {
+  const { workspaceId } = await requireWorkspace();
+  if (!Number.isInteger(input.stepNumber) || input.stepNumber < 1) throw new Error("Step number must be >= 1.");
+  if (!input.title.trim()) throw new Error("Step title is required.");
+  return await CrmService.createOutboundStep(workspaceId, campaignId, {
+    stepNumber: input.stepNumber,
+    channel: input.channel.toUpperCase().slice(0, 30),
+    delayDays: Math.max(0, Math.floor(input.delayDays ?? 0)),
+    title: input.title.trim().slice(0, 160),
+    instructions: input.instructions?.trim().slice(0, 1000) || null,
+    template: input.template?.trim().slice(0, 5000) || null,
+  });
+}
+
+export async function enrollLeadsInOutboundCampaignAction(campaignId: string, leadIds: string[]) {
+  const { workspaceId } = await requireWorkspace();
+  const ids = [...new Set(leadIds)].slice(0, 100);
+  const results = [];
+  for (const leadId of ids) {
+    const lead = await CrmService.getLeadById(workspaceId, leadId);
+    if (!lead) continue;
+    results.push(await CrmService.enrollLeadInOutboundCampaign(workspaceId, campaignId, leadId));
+  }
+  return results;
+}
