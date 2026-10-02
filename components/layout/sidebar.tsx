@@ -20,7 +20,11 @@ import {
   Bot,
   BellRing, 
   Bell,
-  Settings
+  Settings,
+  Megaphone,
+  Clock3,
+  Flame,
+  TimerReset
 } from "lucide-react";
 import { useSidebarBadges } from "./sidebar-badges";
 import { SidebarBadge } from "./sidebar-badge";
@@ -59,6 +63,10 @@ const navSections: NavSection[] = [
       { name: "Contacts", href: "/sales/contacts", icon: Contact },
       { name: "Deals", href: "/sales/deals", icon: TrendingUp },
       { name: "Outreach Engine", href: "/outreach", icon: Send },
+      { name: "Campaigns", href: "/outreach/campaigns", icon: Megaphone },
+      { name: "Outbound Queue", href: "/outreach/queue", icon: Clock3 },
+      { name: "Human Handoffs", href: "/outreach/handoffs", icon: Flame, badgeKey: "attention" },
+      { name: "Nurture", href: "/outreach/nurture", icon: TimerReset },
     ]
   },
   {

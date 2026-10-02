@@ -758,3 +758,132 @@ OPERATOR QUESTION: ${prompt}`;
     };
   }
 }
+
+
+/** Live outbound operating snapshot used by the Outreach Engine UI. */
+export async function buildOutboundWorkspaceSnapshot(workspaceId: string) {
+  const [leads, companies, deals] = await Promise.all([
+    CrmService.getLeads(workspaceId, 500),
+    CrmService.getCompanies(workspaceId, 500),
+    CrmService.getPipeline(workspaceId),
+  ]);
+
+  const now = Date.now();
+  const DAY = 86_400_000;
+  const activeLeads = leads.filter((l) => l.status !== "CONVERTED" && l.status !== "LOST");
+  const hotLeads = activeLeads.filter((l) => l.temperature === "HOT" || l.score >= 70);
+  const dueFollowUps = activeLeads
+    .filter((l) => l.nextFollowUpAt && new Date(l.nextFollowUpAt).getTime() <= now)
+    .sort((a, b) => (a.nextFollowUpAt ? new Date(a.nextFollowUpAt).getTime() : 0) - (b.nextFollowUpAt ? new Date(b.nextFollowUpAt).getTime() : 0));
+  const staleLeads = activeLeads
+    .filter((l) => !l.lastContactedAt || now - new Date(l.lastContactedAt).getTime() >= 7 * DAY)
+    .sort((a, b) => b.score - a.score);
+  const reactivation = activeLeads
+    .filter((l) => l.status === "NURTURE" || (!!l.lastContactedAt && now - new Date(l.lastContactedAt).getTime() >= 30 * DAY))
+    .sort((a, b) => b.score - a.score);
+
+  const openDeals = deals.filter((d) => d.stage !== "WON" && d.stage !== "LOST");
+  const pipelineValue = openDeals.reduce((sum, d) => sum + (Number(d.value ?? 0) || 0), 0);
+
+  const serializeLead = (l: typeof activeLeads[number]) => ({
+    id: l.id,
+    company: l.company?.name ?? "Unknown company",
+    website: l.company?.website ?? null,
+    industry: l.company?.industry ?? null,
+    location: l.company?.location ?? null,
+    contact: l.contact
+      ? {
+          name: [l.contact.firstName, l.contact.lastName].filter(Boolean).join(" "),
+          title: l.contact.jobTitle ?? null,
+          email: l.contact.email ?? null,
+          phone: l.contact.phone ?? null,
+        }
+      : null,
+    score: l.score,
+    temperature: l.temperature,
+    status: l.status,
+    lastContactedAt: l.lastContactedAt,
+    nextFollowUpAt: l.nextFollowUpAt,
+    daysSinceContact: l.lastContactedAt
+      ? Math.floor((now - new Date(l.lastContactedAt).getTime()) / DAY)
+      : null,
+    source: l.source ?? null,
+  });
+
+  return {
+    generatedAt: new Date().toISOString(),
+    metrics: {
+      totalLeads: activeLeads.length,
+      hotLeads: hotLeads.length,
+      dueFollowUps: dueFollowUps.length,
+      staleLeads: staleLeads.length,
+      reactivationCandidates: reactivation.length,
+      companies: companies.length,
+      openDeals: openDeals.length,
+      pipelineValue,
+    },
+    priorityLeads: hotLeads.slice(0, 8).map(serializeLead),
+    dueFollowUps: dueFollowUps.slice(0, 8).map(serializeLead),
+    reactivationCandidates: reactivation.slice(0, 8).map(serializeLead),
+    staleLeads: staleLeads.slice(0, 12).map(serializeLead),
+  };
+}
+
+/** Prepare a grounded first-touch opening from a real CRM lead. Never sends. */
+export async function preparePersonalizedOpening(
+  workspaceId: string,
+  leadId: string,
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP" = "EMAIL"
+) {
+  const lead = await CrmService.getLeadById(workspaceId, leadId);
+  if (!lead) throw new Error("Lead not found");
+
+  const contactName = lead.contact
+    ? [lead.contact.firstName, lead.contact.lastName].filter(Boolean).join(" ")
+    : "there";
+  const company = lead.company?.name ?? "your company";
+  const title = lead.contact?.jobTitle ?? "decision-maker";
+  const industry = lead.company?.industry ?? "your industry";
+
+  if (LlmService.getStatus().available) {
+    const result = await LlmService.completeJson(
+      `You are Aexyl's outbound copywriter. Write one concise, human first-touch message for a B2B agency prospect. Use ONLY the supplied CRM facts. Never invent metrics, events, technologies, pain points, funding, customers, or claims about the prospect. Do not mention AI. The goal is a low-pressure conversation, not a hard pitch. Channel: ${channel}. Return JSON only: {"opening":"...","angle":"...","reason":"..."}.`,
+      JSON.stringify({
+        contactName,
+        company,
+        title,
+        industry,
+        website: lead.company?.website ?? null,
+        location: lead.company?.location ?? null,
+        notes: lead.notes ?? null,
+        score: lead.score,
+        temperature: lead.temperature,
+      }),
+    );
+    if (result.ok && result.text) {
+      const parsed = LlmService.parseJsonLoose(result.text);
+      if (parsed && typeof parsed.opening === "string") {
+        return {
+          leadId,
+          channel,
+          opening: parsed.opening.slice(0, 1200),
+          angle: typeof parsed.angle === "string" ? parsed.angle : "Relevant business improvement",
+          reason: typeof parsed.reason === "string" ? parsed.reason : "Grounded in the CRM profile",
+          generatedBy: "llm" as const,
+        };
+      }
+    }
+  }
+
+  return {
+    leadId,
+    channel,
+    opening:
+      channel === "WHATSAPP"
+        ? `Hi ${contactName}, came across ${company} and wanted to reach out. We work with businesses in ${industry.toLowerCase()} on improving their digital presence and lead flow. Open to a quick chat if this is relevant?`
+        : `Hi ${contactName}, I came across ${company} and wanted to reach out. We help businesses improve their digital presence and lead flow. Would it be useful to compare notes on what you're working on at ${company}?`,
+    angle: `${title} at ${company}`,
+    reason: "Deterministic fallback using only CRM fields.",
+    generatedBy: "deterministic" as const,
+  };
+}

@@ -1,7 +1,8 @@
+import { sendRawEmail } from "@/services/email.service";
 "use server";
 
 import { requireWorkspace } from "@/lib/auth/workspace";
-import { AiAgentService, type CopilotTurn } from "@/services/ai/ai-agent.service";
+import { AiAgentService, type CopilotTurn, buildOutboundWorkspaceSnapshot, preparePersonalizedOpening } from "@/services/ai/ai-agent.service";
 import { LeadDiscoveryService, type DiscoveredLead } from "@/services/ai/lead-discovery.service";
 import { LocalLeadDiscoveryService } from "@/services/ai/local-lead-discovery.service";
 import { CrmService } from "@/services/crm.service";
@@ -545,3 +546,373 @@ export async function importDiscoveredLeadsAction(candidates: ImportLeadCandidat
 }
 
 export type { DiscoveredLead };
+
+
+export async function getOutboundWorkspaceAction() {
+  const { workspaceId } = await requireWorkspace();
+  return await buildOutboundWorkspaceSnapshot(workspaceId);
+}
+
+export async function preparePersonalizedOpeningAction(
+  leadId: string,
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP" = "EMAIL",
+) {
+  const { workspaceId } = await requireWorkspace();
+  return await preparePersonalizedOpening(workspaceId, leadId, channel);
+}
+
+
+export async function getOutboundCampaignsAction() {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundCampaigns(workspaceId);
+}
+
+export async function createOutboundCampaignAction(input: {
+  name: string;
+  description?: string;
+  targetProfile?: string;
+  valueProp?: string;
+  channels?: string[];
+}) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const name = input.name.trim().slice(0, 120);
+  if (name.length < 2) throw new Error("Campaign name is required.");
+  return await CrmService.createOutboundCampaign(workspaceId, {
+    name,
+    description: input.description?.trim().slice(0, 1000) || null,
+    targetProfile: input.targetProfile?.trim().slice(0, 2000) || null,
+    valueProp: input.valueProp?.trim().slice(0, 2000) || null,
+    channels: (input.channels?.length ? input.channels : ["EMAIL"]).slice(0, 4),
+    createdById: userId,
+  });
+}
+
+export async function updateOutboundCampaignAction(
+  campaignId: string,
+  data: { status?: string; targetProfile?: string; valueProp?: string },
+) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.updateOutboundCampaign(workspaceId, campaignId, {
+    ...(data.status ? { status: data.status } : {}),
+    ...(data.targetProfile !== undefined ? { targetProfile: data.targetProfile.slice(0, 2000) } : {}),
+    ...(data.valueProp !== undefined ? { valueProp: data.valueProp.slice(0, 2000) } : {}),
+  });
+}
+
+export async function enrollLeadInOutboundCampaignAction(campaignId: string, leadId: string) {
+  const { workspaceId } = await requireWorkspace();
+  const lead = await CrmService.getLeadById(workspaceId, leadId);
+  if (!lead) throw new Error("Lead not found.");
+  return await CrmService.enrollLeadInOutboundCampaign(workspaceId, campaignId, leadId);
+}
+
+export async function getOutboundQueueAction() {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundQueue(workspaceId);
+}
+
+export async function updateOutboundEnrollmentAction(
+  enrollmentId: string,
+  data: { status?: string; currentStep?: number; nextActionAt?: string | null; intent?: string; objection?: string | null; timeline?: string | null },
+) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.updateOutboundEnrollment(workspaceId, enrollmentId, {
+    ...(data.status ? { status: data.status } : {}),
+    ...(typeof data.currentStep === "number" ? { currentStep: Math.max(1, Math.floor(data.currentStep)) } : {}),
+    ...(data.nextActionAt !== undefined ? { nextActionAt: data.nextActionAt ? new Date(data.nextActionAt) : null } : {}),
+    ...(data.intent ? { intent: data.intent } : {}),
+    ...(data.objection !== undefined ? { objection: data.objection?.slice(0, 500) ?? null } : {}),
+    ...(data.timeline !== undefined ? { timeline: data.timeline?.slice(0, 500) ?? null } : {}),
+  });
+}
+
+
+export async function getOutboundCampaignByIdAction(campaignId: string) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundCampaignById(workspaceId, campaignId);
+}
+
+export async function createOutboundStepAction(
+  campaignId: string,
+  input: { stepNumber: number; channel: string; delayDays?: number; title: string; instructions?: string; template?: string },
+) {
+  const { workspaceId } = await requireWorkspace();
+  if (!Number.isInteger(input.stepNumber) || input.stepNumber < 1) throw new Error("Step number must be >= 1.");
+  if (!input.title.trim()) throw new Error("Step title is required.");
+  return await CrmService.createOutboundStep(workspaceId, campaignId, {
+    stepNumber: input.stepNumber,
+    channel: input.channel.toUpperCase().slice(0, 30),
+    delayDays: Math.max(0, Math.floor(input.delayDays ?? 0)),
+    title: input.title.trim().slice(0, 160),
+    instructions: input.instructions?.trim().slice(0, 1000) || null,
+    template: input.template?.trim().slice(0, 5000) || null,
+  });
+}
+
+export async function enrollLeadsInOutboundCampaignAction(campaignId: string, leadIds: string[]) {
+  const { workspaceId } = await requireWorkspace();
+  const ids = [...new Set(leadIds)].slice(0, 100);
+  const results = [];
+  for (const leadId of ids) {
+    const lead = await CrmService.getLeadById(workspaceId, leadId);
+    if (!lead) continue;
+    results.push(await CrmService.enrollLeadInOutboundCampaign(workspaceId, campaignId, leadId));
+  }
+  return results;
+}
+
+
+export async function getLeadsForOutboundEnrollmentAction(limit = 100) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getLeads(workspaceId, Math.min(Math.max(limit, 1), 100), 0);
+}
+
+
+export async function getOutboundExecutionQueueAction(limit = 25) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundQueue(workspaceId, Math.min(Math.max(limit, 1), 50));
+}
+
+export async function prepareOutboundEnrollmentAction(enrollmentId: string, channel?: "EMAIL" | "LINKEDIN" | "WHATSAPP") {
+  const { workspaceId, userId } = await requireWorkspace();
+  const queue = await CrmService.getOutboundQueue(workspaceId, 100);
+  const enrollment = queue.find((item) => item.id === enrollmentId);
+  if (!enrollment) throw new Error("Outbound enrollment is not due or no longer active.");
+
+  const campaign = await CrmService.getOutboundCampaignById(workspaceId, enrollment.campaignId);
+  if (!campaign) throw new Error("Campaign not found.");
+
+  const step = campaign.steps.find((candidate) => candidate.stepNumber === enrollment.currentStep);
+  if (!step) throw new Error("Campaign step not found.");
+
+  const selectedChannel = (channel || step.channel || "EMAIL").toUpperCase();
+  if (!["EMAIL", "LINKEDIN", "WHATSAPP"].includes(selectedChannel)) {
+    throw new Error("This step does not have a supported AI preparation channel.");
+  }
+
+  const opening = await preparePersonalizedOpening(workspaceId, enrollment.leadId, selectedChannel as "EMAIL" | "LINKEDIN" | "WHATSAPP");
+
+  await ActivityService.logAudit(workspaceId, userId, "PREPARE", "OUTBOUND_ENROLLMENT", enrollment.id, {
+    campaignId: campaign.id,
+    leadId: enrollment.leadId,
+    stepNumber: enrollment.currentStep,
+    channel: selectedChannel,
+    generatedBy: opening.generatedBy,
+  });
+
+  return {
+    enrollment: {
+      id: enrollment.id,
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      leadId: enrollment.leadId,
+      currentStep: enrollment.currentStep,
+      intent: enrollment.intent,
+      objection: enrollment.objection,
+      timeline: enrollment.timeline,
+    },
+    step: {
+      id: step.id,
+      stepNumber: step.stepNumber,
+      title: step.title,
+      channel: step.channel,
+      delayDays: step.delayDays,
+      instructions: step.instructions,
+      template: step.template,
+    },
+    opening,
+  };
+}
+
+
+export async function savePreparedOutboundMessageAction(input: {
+  enrollmentId: string;
+  stepId?: string;
+  leadId: string;
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP";
+  recipient?: string;
+  subject?: string;
+  body: string;
+}) {
+  const { workspaceId, userId } = await requireWorkspace();
+  if (!input.body.trim()) throw new Error("Message body is required.");
+  const message = await CrmService.createPreparedOutboundMessage(workspaceId, {
+    enrollmentId: input.enrollmentId,
+    stepId: input.stepId || null,
+    leadId: input.leadId,
+    channel: input.channel,
+    direction: "OUTBOUND",
+    status: "PREPARED",
+    recipient: input.recipient || null,
+    subject: input.subject || null,
+    body: input.body.trim().slice(0, 10000),
+    metadata: { preparedBy: userId, approvalRequired: true },
+  });
+  return message;
+}
+
+export async function classifyOutboundReplyAction(input: {
+  enrollmentId: string;
+  leadId: string;
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP";
+  body: string;
+}) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const body = input.body.trim().slice(0, 8000);
+  if (!body) throw new Error("Reply body is required.");
+
+  const lower = body.toLowerCase();
+  let intent = "UNKNOWN";
+  let recommendedAction = "REVIEW";
+  if (/(unsubscribe|remove me|stop emailing|don't contact|do not contact)/i.test(lower)) {
+    intent = "NOT_INTERESTED"; recommendedAction = "STOP";
+  } else if (/(book|schedule|demo|meeting|call|available)/i.test(lower)) {
+    intent = "HIGH"; recommendedAction = "HANDOFF";
+  } else if (/(later|next month|next quarter|in \d+ (day|week|month)|not now|timing)/i.test(lower)) {
+    intent = "TIMING"; recommendedAction = "REACTIVATE";
+  } else if (/(price|pricing|cost|budget|expensive|how much)/i.test(lower)) {
+    intent = "MEDIUM"; recommendedAction = "HANDLE_OBJECTION";
+  } else if (/(interested|tell me more|sounds good|send|learn more)/i.test(lower)) {
+    intent = "MEDIUM"; recommendedAction = "CONTINUE";
+  } else if (/(no thanks|not interested|pass|not a fit)/i.test(lower)) {
+    intent = "NOT_INTERESTED"; recommendedAction = "STOP";
+  }
+
+  const reply = await CrmService.createOutboundReply(workspaceId, {
+    enrollmentId: input.enrollmentId,
+    leadId: input.leadId,
+    channel: input.channel,
+    body,
+    intent,
+    confidence: intent === "UNKNOWN" ? 45 : 82,
+    recommendedAction,
+  });
+
+  const enrollmentStatus =
+    recommendedAction === "STOP" ? "UNSUBSCRIBED" :
+    recommendedAction === "HANDOFF" ? "REPLIED" :
+    recommendedAction === "REACTIVATE" ? "PAUSED" : "REPLIED";
+
+  await CrmService.updateOutboundEnrollmentState(workspaceId, input.enrollmentId, {
+    status: enrollmentStatus,
+    intent,
+    lastActionAt: new Date(),
+    nextActionAt: recommendedAction === "REACTIVATE" ? new Date(Date.now() + 30 * 86400000) : null,
+  });
+
+  await ActivityService.logAudit(workspaceId, userId, "CLASSIFY_REPLY", "OUTBOUND_REPLY", reply.id, {
+    enrollmentId: input.enrollmentId,
+    intent,
+    confidence: reply.confidence,
+    recommendedAction,
+  });
+
+  return reply;
+}
+
+export async function sendApprovedOutboundMessageAction(messageId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const message = await CrmService.getOutboundMessage(workspaceId, messageId);
+  if (!message) throw new Error("Prepared outbound message not found.");
+  if (message.status !== "PREPARED") throw new Error("Only prepared messages can be sent.");
+
+  const enrollment = await CrmService.getOutboundEnrollmentById(workspaceId, message.enrollmentId);
+  if (!enrollment) throw new Error("Outbound enrollment not found.");
+  const campaign = await CrmService.getOutboundCampaignById(workspaceId, enrollment.campaignId);
+  if (!campaign || campaign.status !== "ACTIVE") throw new Error("Campaign is not active.");
+  if (!campaign.approvalRequired) throw new Error("This action requires an explicit approval policy.");
+
+  const todayCount = await CrmService.countOutboundSendsToday(workspaceId, campaign.id);
+  if (todayCount >= campaign.dailySendLimit) throw new Error("Campaign daily send limit reached.");
+  if (message.channel !== "EMAIL") throw new Error("Only EMAIL provider execution is connected currently.");
+  if (!message.recipient) throw new Error("Recipient email is missing.");
+
+  const subject = message.subject || campaign.name;
+  const html = message.body.replace(/\n/g, "<br />");
+  const result = await sendRawEmail({ to: message.recipient, subject, html, text: message.body });
+
+  if (!result.sent) {
+    await CrmService.updateOutboundMessage(workspaceId, message.id, { status: "FAILED", metadata: { error: result.error || "Provider failed" } });
+    throw new Error(result.error || "Email provider failed.");
+  }
+
+  await CrmService.updateOutboundMessage(workspaceId, message.id, {
+    status: "SENT",
+    providerMessageId: result.messageId || null,
+    sentAt: new Date(),
+  });
+
+  const steps = campaign.steps.sort((a, b) => a.stepNumber - b.stepNumber);
+  const next = steps.find((step) => step.stepNumber > enrollment.currentStep);
+  await CrmService.updateOutboundEnrollment(workspaceId, enrollment.id, {
+    currentStep: next?.stepNumber ?? enrollment.currentStep,
+    lastActionAt: new Date(),
+    lastChannel: message.channel,
+    nextActionAt: next ? new Date(Date.now() + Math.max(0, next.delayDays) * 86400000) : null,
+    status: next ? "ACTIVE" : "COMPLETED",
+  });
+
+  await ActivityService.logAudit(workspaceId, userId, "SEND_APPROVED_OUTBOUND", "OUTBOUND_MESSAGE", message.id, {
+    campaignId: campaign.id, enrollmentId: enrollment.id, providerMessageId: result.messageId,
+  });
+
+  return { sent: true, messageId: message.id, providerMessageId: result.messageId, nextStep: next?.stepNumber ?? null };
+}
+
+
+export async function getOutboundHandoffQueueAction() {
+  const { workspaceId } = await requireWorkspace();
+  return CrmService.getHighIntentOutboundReplies(workspaceId);
+}
+
+export async function acknowledgeOutboundHandoffAction(replyId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const reply = await db.query.outboundReplies.findFirst({
+    where: and(eq(outboundReplies.id, replyId), eq(outboundReplies.workspaceId, workspaceId)),
+  });
+  if (!reply) throw new Error("Handoff not found.");
+  await CrmService.updateOutboundEnrollmentState(workspaceId, reply.enrollmentId, {
+    status: "HANDED_OFF",
+    nextActionAt: null,
+  });
+  await ActivityService.logAudit(workspaceId, userId, "ACKNOWLEDGE_HANDOFF", "OUTBOUND_REPLY", replyId, {
+    enrollmentId: reply.enrollmentId,
+    intent: reply.intent,
+  });
+  return { acknowledged: true };
+}
+
+
+export async function getOutboundNurtureQueueAction() {
+  const { workspaceId } = await requireWorkspace();
+  const queue = await CrmService.getOutboundExecutionQueue(workspaceId, 100);
+  return queue.filter((item: any) => ["MEDIUM", "LOW", "TIMING"].includes(item.intent));
+}
+
+export async function prepareNurtureAction(enrollmentId: string) {
+  const { workspaceId } = await requireWorkspace();
+  const queue = await CrmService.getOutboundExecutionQueue(workspaceId, 100);
+  const enrollment = queue.find((item: any) => item.id === enrollmentId);
+  if (!enrollment) throw new Error("Nurture enrollment not found.");
+
+  const prepared = await preparePersonalizedOpening(
+    workspaceId,
+    enrollment.leadId,
+    enrollment.lastChannel === "WHATSAPP" ? "WHATSAPP" : "EMAIL"
+  );
+
+  const action =
+    enrollment.intent === "TIMING" ? "REACTIVATE" :
+    enrollment.intent === "MEDIUM" ? "CONTINUE" : "NURTURE";
+
+  return {
+    enrollmentId,
+    leadId: enrollment.leadId,
+    intent: enrollment.intent,
+    action,
+    message: prepared.opening,
+    angle: prepared.angle,
+    reason: prepared.reason,
+    approvalRequired: true,
+  };
+}

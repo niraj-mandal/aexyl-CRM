@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { companies, contacts, leads, deals, projects, tasks } from "@/db/schema";
+import { companies, contacts, leads, deals, projects, tasks, outboundCampaigns, outboundSteps, outboundEnrollments, outboundMessages, outboundReplies } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -235,6 +235,207 @@ export class CrmService {
       .where(and(eq(contacts.id, contactId), eq(contacts.workspaceId, workspaceId)))
       .returning();
     return deleted;
+  }
+
+  // ---------------------------------------------------------------------------
+  // OUTBOUND OS
+  // ---------------------------------------------------------------------------
+
+  static async createPreparedOutboundMessage(workspaceId: string, data: Omit<typeof outboundMessages.$inferInsert, "workspaceId">) {
+    const [message] = await db.insert(outboundMessages).values({ ...data, workspaceId }).returning();
+    return message;
+  }
+
+  static async getOutboundMessage(workspaceId: string, messageId: string) {
+    return db.query.outboundMessages.findFirst({
+      where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.id, messageId)),
+    });
+  }
+
+  static async updateOutboundMessage(workspaceId: string, messageId: string, data: Partial<typeof outboundMessages.$inferInsert>) {
+    const [updated] = await db.update(outboundMessages).set(data)
+      .where(and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.id, messageId))).returning();
+    return updated;
+  }
+
+  static async countOutboundSendsToday(workspaceId: string, campaignId: string) {
+    const [row] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(outboundMessages).innerJoin(outboundEnrollments, eq(outboundMessages.enrollmentId, outboundEnrollments.id))
+      .where(and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundEnrollments.campaignId, campaignId),
+        eq(outboundMessages.direction, "OUTBOUND"), eq(outboundMessages.status, "SENT"),
+        sql`${outboundMessages.sentAt} >= current_date`));
+    return row?.count ?? 0;
+  }
+  static async getHighIntentOutboundReplies(workspaceId: string, limit = 50) {
+    return db.query.outboundReplies.findMany({
+      where: and(eq(outboundReplies.workspaceId, workspaceId), eq(outboundReplies.intent, "HIGH")),
+      orderBy: [desc(outboundReplies.receivedAt)],
+      limit,
+      with: {
+        enrollment: {
+          with: {
+            campaign: { columns: { id: true, name: true } },
+            lead: {
+              with: {
+                company: { columns: { id: true, name: true } },
+                contact: { columns: { id: true, firstName: true, lastName: true, email: true, jobTitle: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  static async getOutboundMessages(workspaceId: string, enrollmentId: string) {
+    return db.query.outboundMessages.findMany({
+      where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.enrollmentId, enrollmentId)),
+      orderBy: [desc(outboundMessages.createdAt)],
+    });
+  }
+
+  static async createOutboundReply(workspaceId: string, data: Omit<typeof outboundReplies.$inferInsert, "workspaceId">) {
+    const [reply] = await db.insert(outboundReplies).values({ ...data, workspaceId }).returning();
+    return reply;
+  }
+
+  static async updateOutboundEnrollmentState(workspaceId: string, enrollmentId: string, data: Partial<typeof outboundEnrollments.$inferInsert>) {
+    const [updated] = await db.update(outboundEnrollments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)))
+      .returning();
+    return updated;
+  }
+
+  static async getOutboundCampaigns(workspaceId: string) {
+    return db.query.outboundCampaigns.findMany({
+      where: eq(outboundCampaigns.workspaceId, workspaceId),
+      orderBy: [desc(outboundCampaigns.updatedAt)],
+      with: { steps: true, enrollments: true },
+    });
+  }
+
+  static async createOutboundCampaign(
+    workspaceId: string,
+    data: Omit<typeof outboundCampaigns.$inferInsert, "workspaceId">,
+  ) {
+    const [campaign] = await db.insert(outboundCampaigns).values({ ...data, workspaceId }).returning();
+    return campaign;
+  }
+
+  static async findOutboundEnrollmentByRecipient(workspaceId: string, recipient: string) {
+    const normalized = recipient.trim().toLowerCase();
+    const rows = await db.query.outboundEnrollments.findMany({
+      where: eq(outboundEnrollments.workspaceId, workspaceId),
+      with: { lead: { with: { contact: true } } },
+      limit: 100,
+    });
+    return rows.find((row) => row.lead?.contact?.email?.toLowerCase() === normalized) ?? null;
+  }
+
+  static async getOutboundEnrollmentById(workspaceId: string, enrollmentId: string) {
+    return db.query.outboundEnrollments.findFirst({
+      where: and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)),
+    });
+  }
+
+  static async getOutboundCampaignById(workspaceId: string, campaignId: string) {
+    return db.query.outboundCampaigns.findFirst({
+      where: and(eq(outboundCampaigns.workspaceId, workspaceId), eq(outboundCampaigns.id, campaignId)),
+      with: {
+        steps: { orderBy: [outboundSteps.stepNumber] },
+        enrollments: {
+          with: {
+            lead: {
+              with: {
+                company: { columns: { name: true } },
+                contact: { columns: { firstName: true, lastName: true, email: true, jobTitle: true } },
+              },
+            },
+          },
+          orderBy: [desc(outboundEnrollments.updatedAt)],
+        },
+      },
+    });
+  }
+
+  static async updateOutboundCampaign(
+    workspaceId: string,
+    campaignId: string,
+    data: Partial<typeof outboundCampaigns.$inferInsert>,
+  ) {
+    const [campaign] = await db.update(outboundCampaigns)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(outboundCampaigns.workspaceId, workspaceId), eq(outboundCampaigns.id, campaignId)))
+      .returning();
+    return campaign;
+  }
+
+  static async createOutboundStep(
+    workspaceId: string,
+    campaignId: string,
+    data: Omit<typeof outboundSteps.$inferInsert, "campaignId">,
+  ) {
+    const campaign = await db.query.outboundCampaigns.findFirst({
+      where: and(eq(outboundCampaigns.id, campaignId), eq(outboundCampaigns.workspaceId, workspaceId)),
+    });
+    if (!campaign) throw new Error("Campaign not found");
+    const [step] = await db.insert(outboundSteps).values({ ...data, campaignId }).returning();
+    return step;
+  }
+
+  static async enrollLeadInOutboundCampaign(workspaceId: string, campaignId: string, leadId: string) {
+    const [enrollment] = await db.insert(outboundEnrollments).values({
+      workspaceId,
+      campaignId,
+      leadId,
+      status: "ACTIVE",
+      currentStep: 1,
+      nextActionAt: new Date(),
+    }).onConflictDoNothing().returning();
+    if (!enrollment) {
+      return db.query.outboundEnrollments.findFirst({
+        where: and(
+          eq(outboundEnrollments.workspaceId, workspaceId),
+          eq(outboundEnrollments.campaignId, campaignId),
+          eq(outboundEnrollments.leadId, leadId),
+        ),
+      });
+    }
+    return enrollment;
+  }
+
+  static async getOutboundQueue(workspaceId: string, limit = 50) {
+    return db.query.outboundEnrollments.findMany({
+      where: and(
+        eq(outboundEnrollments.workspaceId, workspaceId),
+        eq(outboundEnrollments.status, "ACTIVE"),
+        sql`${outboundEnrollments.nextActionAt} <= now()`,
+      ),
+      orderBy: [outboundEnrollments.nextActionAt],
+      limit,
+      with: {
+        lead: {
+          with: {
+            company: { columns: { name: true, website: true, industry: true, location: true } },
+            contact: { columns: { firstName: true, lastName: true, email: true, phone: true, jobTitle: true, linkedinUrl: true } },
+          },
+        },
+        campaign: { columns: { name: true, status: true } },
+      },
+    });
+  }
+
+  static async updateOutboundEnrollment(
+    workspaceId: string,
+    enrollmentId: string,
+    data: Partial<typeof outboundEnrollments.$inferInsert>,
+  ) {
+    const [updated] = await db.update(outboundEnrollments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)))
+      .returning();
+    return updated;
   }
 
   // ---------------------------------------------------------------------------
