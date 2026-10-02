@@ -722,3 +722,89 @@ export async function prepareOutboundEnrollmentAction(enrollmentId: string, chan
     opening,
   };
 }
+
+
+export async function savePreparedOutboundMessageAction(input: {
+  enrollmentId: string;
+  stepId?: string;
+  leadId: string;
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP";
+  recipient?: string;
+  subject?: string;
+  body: string;
+}) {
+  const { workspaceId, userId } = await requireWorkspace();
+  if (!input.body.trim()) throw new Error("Message body is required.");
+  const message = await CrmService.createPreparedOutboundMessage(workspaceId, {
+    enrollmentId: input.enrollmentId,
+    stepId: input.stepId || null,
+    leadId: input.leadId,
+    channel: input.channel,
+    direction: "OUTBOUND",
+    status: "PREPARED",
+    recipient: input.recipient || null,
+    subject: input.subject || null,
+    body: input.body.trim().slice(0, 10000),
+    metadata: { preparedBy: userId, approvalRequired: true },
+  });
+  return message;
+}
+
+export async function classifyOutboundReplyAction(input: {
+  enrollmentId: string;
+  leadId: string;
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP";
+  body: string;
+}) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const body = input.body.trim().slice(0, 8000);
+  if (!body) throw new Error("Reply body is required.");
+
+  const lower = body.toLowerCase();
+  let intent = "UNKNOWN";
+  let recommendedAction = "REVIEW";
+  if (/(unsubscribe|remove me|stop emailing|don't contact|do not contact)/i.test(lower)) {
+    intent = "NOT_INTERESTED"; recommendedAction = "STOP";
+  } else if (/(book|schedule|demo|meeting|call|available)/i.test(lower)) {
+    intent = "HIGH"; recommendedAction = "HANDOFF";
+  } else if (/(later|next month|next quarter|in \d+ (day|week|month)|not now|timing)/i.test(lower)) {
+    intent = "TIMING"; recommendedAction = "REACTIVATE";
+  } else if (/(price|pricing|cost|budget|expensive|how much)/i.test(lower)) {
+    intent = "MEDIUM"; recommendedAction = "HANDLE_OBJECTION";
+  } else if (/(interested|tell me more|sounds good|send|learn more)/i.test(lower)) {
+    intent = "MEDIUM"; recommendedAction = "CONTINUE";
+  } else if (/(no thanks|not interested|pass|not a fit)/i.test(lower)) {
+    intent = "NOT_INTERESTED"; recommendedAction = "STOP";
+  }
+
+  const reply = await CrmService.createOutboundReply(workspaceId, {
+    enrollmentId: input.enrollmentId,
+    leadId: input.leadId,
+    channel: input.channel,
+    body,
+    intent,
+    confidence: intent === "UNKNOWN" ? 45 : 82,
+    recommendedAction,
+  });
+
+  const enrollmentStatus =
+    recommendedAction === "STOP" ? "UNSUBSCRIBED" :
+    recommendedAction === "HANDOFF" ? "REPLIED" :
+    recommendedAction === "REACTIVATE" ? "PAUSED" : "REPLIED";
+
+  await CrmService.updateOutboundEnrollmentState(workspaceId, input.enrollmentId, {
+    status: enrollmentStatus,
+    intent,
+    lastActionAt: new Date(),
+    nextActionAt: recommendedAction === "REACTIVATE" ? new Date(Date.now() + 30 * 86400000) : null,
+  });
+
+  await ActivityService.logAudit(workspaceId, userId, "CLASSIFY_REPLY", "OUTBOUND_REPLY", reply.id, {
+    enrollmentId: input.enrollmentId,
+    intent,
+    confidence: reply.confidence,
+    recommendedAction,
+  });
+
+  return reply;
+}
