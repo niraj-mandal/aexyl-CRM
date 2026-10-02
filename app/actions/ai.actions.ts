@@ -559,3 +559,68 @@ export async function preparePersonalizedOpeningAction(
   const { workspaceId } = await requireWorkspace();
   return await preparePersonalizedOpening(workspaceId, leadId, channel);
 }
+
+
+export async function getOutboundCampaignsAction() {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundCampaigns(workspaceId);
+}
+
+export async function createOutboundCampaignAction(input: {
+  name: string;
+  description?: string;
+  targetProfile?: string;
+  valueProp?: string;
+  channels?: string[];
+}) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const name = input.name.trim().slice(0, 120);
+  if (name.length < 2) throw new Error("Campaign name is required.");
+  return await CrmService.createOutboundCampaign(workspaceId, {
+    name,
+    description: input.description?.trim().slice(0, 1000) || null,
+    targetProfile: input.targetProfile?.trim().slice(0, 2000) || null,
+    valueProp: input.valueProp?.trim().slice(0, 2000) || null,
+    channels: (input.channels?.length ? input.channels : ["EMAIL"]).slice(0, 4),
+    createdById: userId,
+  });
+}
+
+export async function updateOutboundCampaignAction(
+  campaignId: string,
+  data: { status?: string; targetProfile?: string; valueProp?: string },
+) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.updateOutboundCampaign(workspaceId, campaignId, {
+    ...(data.status ? { status: data.status } : {}),
+    ...(data.targetProfile !== undefined ? { targetProfile: data.targetProfile.slice(0, 2000) } : {}),
+    ...(data.valueProp !== undefined ? { valueProp: data.valueProp.slice(0, 2000) } : {}),
+  });
+}
+
+export async function enrollLeadInOutboundCampaignAction(campaignId: string, leadId: string) {
+  const { workspaceId } = await requireWorkspace();
+  const lead = await CrmService.getLeadById(workspaceId, leadId);
+  if (!lead) throw new Error("Lead not found.");
+  return await CrmService.enrollLeadInOutboundCampaign(workspaceId, campaignId, leadId);
+}
+
+export async function getOutboundQueueAction() {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundQueue(workspaceId);
+}
+
+export async function updateOutboundEnrollmentAction(
+  enrollmentId: string,
+  data: { status?: string; currentStep?: number; nextActionAt?: string | null; intent?: string; objection?: string | null; timeline?: string | null },
+) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.updateOutboundEnrollment(workspaceId, enrollmentId, {
+    ...(data.status ? { status: data.status } : {}),
+    ...(typeof data.currentStep === "number" ? { currentStep: Math.max(1, Math.floor(data.currentStep)) } : {}),
+    ...(data.nextActionAt !== undefined ? { nextActionAt: data.nextActionAt ? new Date(data.nextActionAt) : null } : {}),
+    ...(data.intent ? { intent: data.intent } : {}),
+    ...(data.objection !== undefined ? { objection: data.objection?.slice(0, 500) ?? null } : {}),
+    ...(data.timeline !== undefined ? { timeline: data.timeline?.slice(0, 500) ?? null } : {}),
+  });
+}
