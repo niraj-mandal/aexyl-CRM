@@ -266,6 +266,27 @@ export class CrmService {
         sql`${outboundMessages.sentAt} >= current_date`));
     return row?.count ?? 0;
   }
+  static async getHighIntentOutboundReplies(workspaceId: string, limit = 50) {
+    return db.query.outboundReplies.findMany({
+      where: and(eq(outboundReplies.workspaceId, workspaceId), eq(outboundReplies.intent, "HIGH")),
+      orderBy: [desc(outboundReplies.receivedAt)],
+      limit,
+      with: {
+        enrollment: {
+          with: {
+            campaign: { columns: { id: true, name: true } },
+            lead: {
+              with: {
+                company: { columns: { id: true, name: true } },
+                contact: { columns: { id: true, firstName: true, lastName: true, email: true, jobTitle: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   static async getOutboundMessages(workspaceId: string, enrollmentId: string) {
     return db.query.outboundMessages.findMany({
       where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.enrollmentId, enrollmentId)),
