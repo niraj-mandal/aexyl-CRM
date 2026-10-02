@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Pause, Play, Plus, RefreshCw, Users, Zap } from "lucide-react";
+import { ArrowLeft, Check, Pause, Play, Plus, RefreshCw, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
   enrollLeadsInOutboundCampaignAction,
   getOutboundCampaignByIdAction,
   updateOutboundCampaignAction,
+  getLeadsForOutboundEnrollmentAction,
 } from "@/app/actions/ai.actions";
 
 type Campaign = Awaited<ReturnType<typeof getOutboundCampaignByIdAction>>;
@@ -26,6 +27,9 @@ export default function CampaignDetailPage() {
   const [stepDelay, setStepDelay] = useState(2);
   const [stepInstructions, setStepInstructions] = useState("");
   const [stepTemplate, setStepTemplate] = useState("");
+  const [availableLeads, setAvailableLeads] = useState<Awaited<ReturnType<typeof getLeadsForOutboundEnrollmentAction>>>([]);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [enrolling, setEnrolling] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -36,10 +40,11 @@ export default function CampaignDetailPage() {
     }
   };
 
-  useEffect(() => { void load(); }, [params.campaignId]);
+  useEffect(() => { void load(); void getLeadsForOutboundEnrollmentAction().then(setAvailableLeads); }, [params.campaignId]);
 
   const nextStep = (campaign?.steps.length ?? 0) + 1;
-  const availableLeads = useMemo(() => campaign?.enrollments.length ?? 0, [campaign]);
+  const enrolledCount = useMemo(() => campaign?.enrollments.length ?? 0, [campaign]);
+  const enrolledIds = useMemo(() => new Set(campaign?.enrollments.map((e) => e.leadId) ?? []), [campaign]);
 
   const addStep = async () => {
     if (!stepTitle.trim()) return;
@@ -86,7 +91,7 @@ export default function CampaignDetailPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-xl border border-border-subtle bg-surface-low p-4"><MonoLabel>STATUS</MonoLabel><div className="mt-3"><Badge variant={campaign.status === "ACTIVE" ? "tertiary" : "outline"}>{campaign.status}</Badge></div></div>
         <div className="rounded-xl border border-border-subtle bg-surface-low p-4"><MonoLabel>STEPS</MonoLabel><div className="mt-3 text-xl font-semibold">{campaign.steps.length}</div></div>
-        <div className="rounded-xl border border-border-subtle bg-surface-low p-4"><MonoLabel>ENROLLED</MonoLabel><div className="mt-3 text-xl font-semibold">{availableLeads}</div></div>
+        <div className="rounded-xl border border-border-subtle bg-surface-low p-4"><MonoLabel>ENROLLED</MonoLabel><div className="mt-3 text-xl font-semibold">{enrolledCount}</div></div>
         <div className="rounded-xl border border-border-subtle bg-surface-low p-4"><MonoLabel>CHANNELS</MonoLabel><div className="mt-3 text-xl font-semibold">{campaign.channels.length}</div></div>
       </div>
 
