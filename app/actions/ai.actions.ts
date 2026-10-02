@@ -858,3 +858,26 @@ export async function sendApprovedOutboundMessageAction(messageId: string) {
 
   return { sent: true, messageId: message.id, providerMessageId: result.messageId, nextStep: next?.stepNumber ?? null };
 }
+
+
+export async function getOutboundHandoffQueueAction() {
+  const { workspaceId } = await requireWorkspace();
+  return CrmService.getHighIntentOutboundReplies(workspaceId);
+}
+
+export async function acknowledgeOutboundHandoffAction(replyId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const reply = await db.query.outboundReplies.findFirst({
+    where: and(eq(outboundReplies.id, replyId), eq(outboundReplies.workspaceId, workspaceId)),
+  });
+  if (!reply) throw new Error("Handoff not found.");
+  await CrmService.updateOutboundEnrollmentState(workspaceId, reply.enrollmentId, {
+    status: "HANDED_OFF",
+    nextActionAt: null,
+  });
+  await ActivityService.logAudit(workspaceId, userId, "ACKNOWLEDGE_HANDOFF", "OUTBOUND_REPLY", replyId, {
+    enrollmentId: reply.enrollmentId,
+    intent: reply.intent,
+  });
+  return { acknowledged: true };
+}
