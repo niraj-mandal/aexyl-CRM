@@ -1,7 +1,7 @@
 "use server";
 
 import { requireWorkspace } from "@/lib/auth/workspace";
-import { AiAgentService, type CopilotTurn } from "@/services/ai/ai-agent.service";
+import { AiAgentService, type CopilotTurn, buildOutboundWorkspaceSnapshot, preparePersonalizedOpening } from "@/services/ai/ai-agent.service";
 import { LeadDiscoveryService, type DiscoveredLead } from "@/services/ai/lead-discovery.service";
 import { LocalLeadDiscoveryService } from "@/services/ai/local-lead-discovery.service";
 import { CrmService } from "@/services/crm.service";
@@ -545,3 +545,17 @@ export async function importDiscoveredLeadsAction(candidates: ImportLeadCandidat
 }
 
 export type { DiscoveredLead };
+
+
+export async function getOutboundWorkspaceAction() {
+  const { workspaceId } = await requireWorkspace();
+  return await buildOutboundWorkspaceSnapshot(workspaceId);
+}
+
+export async function preparePersonalizedOpeningAction(
+  leadId: string,
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP" = "EMAIL",
+) {
+  const { workspaceId } = await requireWorkspace();
+  return await preparePersonalizedOpening(workspaceId, leadId, channel);
+}
