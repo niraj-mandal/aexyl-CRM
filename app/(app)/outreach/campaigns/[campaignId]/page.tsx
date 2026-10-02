@@ -128,6 +128,28 @@ export default function CampaignDetailPage() {
 
       <GlassPanel className="p-6">
         <div className="mb-5 flex items-center justify-between">
+          <div><MonoLabel className="text-primary">LEAD ENROLLMENT</MonoLabel><PageTitle className="mt-1 text-lg">Put qualified leads into the motion</PageTitle></div>
+          <button disabled={enrolling || selectedLeadIds.length === 0} onClick={async () => { setEnrolling(true); try { await enrollLeadsInOutboundCampaignAction(params.campaignId, selectedLeadIds); setSelectedLeadIds([]); await load(); } finally { setEnrolling(false); } }} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
+            <Check className="h-4 w-4" /> {enrolling ? "Enrolling..." : `Enroll ${selectedLeadIds.length || ""} leads`}
+          </button>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+          {availableLeads.filter((lead) => !enrolledIds.has(lead.id)).map((lead) => {
+            const checked = selectedLeadIds.includes(lead.id);
+            return (
+              <button key={lead.id} onClick={() => setSelectedLeadIds((ids) => checked ? ids.filter((id) => id !== lead.id) : [...ids, lead.id])} className={`rounded-xl border p-4 text-left transition ${checked ? "border-primary/50 bg-primary/5" : "border-border-subtle bg-surface-low hover:border-primary/30"}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border ${checked ? "border-primary bg-primary text-white" : "border-border-subtle"}`}>{checked && <Check className="h-3 w-3" />}</div>
+                  <div className="min-w-0"><p className="truncate text-sm font-semibold">{lead.company?.name || "Unknown company"}</p><p className="mt-1 truncate text-xs text-text-muted">{[lead.contact?.firstName, lead.contact?.lastName].filter(Boolean).join(" ") || "Unknown contact"}</p><div className="mt-2 flex gap-2 text-[10px] text-text-muted"><span>{lead.temperature}</span><span>·</span><span>score {lead.score}</span></div></div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </GlassPanel>
+
+      <GlassPanel className="p-6">
+        <div className="mb-5 flex items-center justify-between">
           <div><MonoLabel className="text-primary">ENROLLMENTS</MonoLabel><PageTitle className="mt-1 text-lg">Leads inside this campaign</PageTitle></div>
           <Badge variant="outline"><Users className="mr-1 inline h-3 w-3" /> {availableLeads}</Badge>
         </div>
