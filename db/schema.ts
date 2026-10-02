@@ -505,6 +505,23 @@ export const agentEvents = pgTable("agent_events", {
 // RELATIONS
 // -----------------------------------------------------------------------------
 
+export const outboundCampaignsRelations = relations(outboundCampaigns, ({ one, many }) => ({
+  workspace: one(workspaces, { fields: [outboundCampaigns.workspaceId], references: [workspaces.id] }),
+  createdBy: one(users, { fields: [outboundCampaigns.createdById], references: [users.id] }),
+  steps: many(outboundSteps),
+  enrollments: many(outboundEnrollments),
+}));
+
+export const outboundStepsRelations = relations(outboundSteps, ({ one }) => ({
+  campaign: one(outboundCampaigns, { fields: [outboundSteps.campaignId], references: [outboundCampaigns.id] }),
+}));
+
+export const outboundEnrollmentsRelations = relations(outboundEnrollments, ({ one }) => ({
+  workspace: one(workspaces, { fields: [outboundEnrollments.workspaceId], references: [workspaces.id] }),
+  campaign: one(outboundCampaigns, { fields: [outboundEnrollments.campaignId], references: [outboundCampaigns.id] }),
+  lead: one(leads, { fields: [outboundEnrollments.leadId], references: [leads.id] }),
+}));
+
 export const workspacesRelations = relations(workspaces, ({ many }) => ({
   members: many(workspaceMemberships),
   roles: many(roles),
