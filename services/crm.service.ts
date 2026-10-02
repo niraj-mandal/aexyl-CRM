@@ -302,6 +302,16 @@ export class CrmService {
     return campaign;
   }
 
+  static async findOutboundEnrollmentByRecipient(workspaceId: string, recipient: string) {
+    const normalized = recipient.trim().toLowerCase();
+    const rows = await db.query.outboundEnrollments.findMany({
+      where: eq(outboundEnrollments.workspaceId, workspaceId),
+      with: { lead: { with: { contact: true } } },
+      limit: 100,
+    });
+    return rows.find((row) => row.lead?.contact?.email?.toLowerCase() === normalized) ?? null;
+  }
+
   static async getOutboundEnrollmentById(workspaceId: string, enrollmentId: string) {
     return db.query.outboundEnrollments.findFirst({
       where: and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)),
