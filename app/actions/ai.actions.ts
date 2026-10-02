@@ -808,3 +808,52 @@ export async function classifyOutboundReplyAction(input: {
 
   return reply;
 }
+
+export async function sendApprovedOutboundMessageAction(messageId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const message = await CrmService.getOutboundMessage(workspaceId, messageId);
+  if (!message) throw new Error("Prepared outbound message not found.");
+  if (message.status !== "PREPARED") throw new Error("Only prepared messages can be sent.");
+
+  const enrollment = await CrmService.getOutboundEnrollmentById(workspaceId, message.enrollmentId);
+  if (!enrollment) throw new Error("Outbound enrollment not found.");
+  const campaign = await CrmService.getOutboundCampaignById(workspaceId, enrollment.campaignId);
+  if (!campaign || campaign.status !== "ACTIVE") throw new Error("Campaign is not active.");
+  if (!campaign.approvalRequired) throw new Error("This action requires an explicit approval policy.");
+
+  const todayCount = await CrmService.countOutboundSendsToday(workspaceId, campaign.id);
+  if (todayCount >= campaign.dailySendLimit) throw new Error("Campaign daily send limit reached.");
+  if (message.channel !== "EMAIL") throw new Error("Only EMAIL provider execution is connected currently.");
+  if (!message.recipient) throw new Error("Recipient email is missing.");
+
+  const subject = message.subject || campaign.name;
+  const html = message.body.replace(/\n/g, "<br />");
+  const result = await sendRawEmail({ to: message.recipient, subject, html, text: message.body });
+
+  if (!result.sent) {
+    await CrmService.updateOutboundMessage(workspaceId, message.id, { status: "FAILED", metadata: { error: result.error || "Provider failed" } });
+    throw new Error(result.error || "Email provider failed.");
+  }
+
+  await CrmService.updateOutboundMessage(workspaceId, message.id, {
+    status: "SENT",
+    providerMessageId: result.messageId || null,
+    sentAt: new Date(),
+  });
+
+  const steps = campaign.steps.sort((a, b) => a.stepNumber - b.stepNumber);
+  const next = steps.find((step) => step.stepNumber > enrollment.currentStep);
+  await CrmService.updateOutboundEnrollment(workspaceId, enrollment.id, {
+    currentStep: next?.stepNumber ?? enrollment.currentStep,
+    lastActionAt: new Date(),
+    lastChannel: message.channel,
+    nextActionAt: next ? new Date(Date.now() + Math.max(0, next.delayDays) * 86400000) : null,
+    status: next ? "ACTIVE" : "COMPLETED",
+  });
+
+  await ActivityService.logAudit(workspaceId, userId, "SEND_APPROVED_OUTBOUND", "OUTBOUND_MESSAGE", message.id, {
+    campaignId: campaign.id, enrollmentId: enrollment.id, providerMessageId: result.messageId,
+  });
+
+  return { sent: true, messageId: message.id, providerMessageId: result.messageId, nextStep: next?.stepNumber ?? null };
+}
