@@ -302,6 +302,12 @@ export class CrmService {
     return campaign;
   }
 
+  static async getOutboundEnrollmentById(workspaceId: string, enrollmentId: string) {
+    return db.query.outboundEnrollments.findFirst({
+      where: and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)),
+    });
+  }
+
   static async getOutboundCampaignById(workspaceId: string, campaignId: string) {
     return db.query.outboundCampaigns.findFirst({
       where: and(eq(outboundCampaigns.workspaceId, workspaceId), eq(outboundCampaigns.id, campaignId)),
