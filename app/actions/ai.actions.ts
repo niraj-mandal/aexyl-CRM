@@ -881,3 +881,38 @@ export async function acknowledgeOutboundHandoffAction(replyId: string) {
   });
   return { acknowledged: true };
 }
+
+
+export async function getOutboundNurtureQueueAction() {
+  const { workspaceId } = await requireWorkspace();
+  const queue = await CrmService.getOutboundExecutionQueue(workspaceId, 100);
+  return queue.filter((item: any) => ["MEDIUM", "LOW", "TIMING"].includes(item.intent));
+}
+
+export async function prepareNurtureAction(enrollmentId: string) {
+  const { workspaceId } = await requireWorkspace();
+  const queue = await CrmService.getOutboundExecutionQueue(workspaceId, 100);
+  const enrollment = queue.find((item: any) => item.id === enrollmentId);
+  if (!enrollment) throw new Error("Nurture enrollment not found.");
+
+  const prepared = await preparePersonalizedOpening(
+    workspaceId,
+    enrollment.leadId,
+    enrollment.lastChannel === "WHATSAPP" ? "WHATSAPP" : "EMAIL"
+  );
+
+  const action =
+    enrollment.intent === "TIMING" ? "REACTIVATE" :
+    enrollment.intent === "MEDIUM" ? "CONTINUE" : "NURTURE";
+
+  return {
+    enrollmentId,
+    leadId: enrollment.leadId,
+    intent: enrollment.intent,
+    action,
+    message: prepared.opening,
+    angle: prepared.angle,
+    reason: prepared.reason,
+    approvalRequired: true,
+  };
+}
