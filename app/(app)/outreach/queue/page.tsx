@@ -5,7 +5,7 @@ import { ArrowRight, Clock3, Mail, MessageCircle, RefreshCw, Send, Sparkles, Che
 import { Badge } from "@/components/ui/badge";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { Display, MonoLabel, PageTitle } from "@/components/ui/typography";
-import { getOutboundExecutionQueueAction, prepareOutboundEnrollmentAction, savePreparedOutboundMessageAction } from "@/app/actions/ai.actions";
+import { getOutboundExecutionQueueAction, prepareOutboundEnrollmentAction, savePreparedOutboundMessageAction, sendApprovedOutboundMessageAction } from "@/app/actions/ai.actions";
 
 type Queue = Awaited<ReturnType<typeof getOutboundExecutionQueueAction>>;
 type Prepared = Awaited<ReturnType<typeof prepareOutboundEnrollmentAction>>;
@@ -20,6 +20,8 @@ export default function OutboundQueuePage() {
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -79,6 +81,9 @@ export default function OutboundQueuePage() {
             <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-low p-4">
               <div className="flex items-center justify-between"><div><p className="text-xs font-semibold">Ready for review</p><p className="mt-1 text-[11px] text-text-muted">Saving this creates a prepared outbound record. It does not send anything.</p></div><Badge variant="secondary">APPROVAL REQUIRED</Badge></div>
               <button disabled={saved} onClick={async () => { await savePreparedOutboundMessageAction({ enrollmentId: prepared.enrollment.id, stepId: prepared.step.id, leadId: prepared.enrollment.leadId, channel: (prepared.step.channel as "EMAIL"|"LINKEDIN"|"WHATSAPP"), recipient: selected?.lead.contact?.email ?? undefined, body: prepared.opening.opening }); setSaved(true); }} className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-xs font-semibold text-primary disabled:opacity-60">{saved ? <><CheckCircle2 className="h-4 w-4" /> Prepared record saved</> : "Save for approval"}</button>
+              {saved && prepared.step.channel === "EMAIL" && (
+                <button disabled={sending || sent} onClick={async () => { setSending(true); setError(null); try { await sendApprovedOutboundMessageAction((await savePreparedOutboundMessageAction({ enrollmentId: prepared.enrollment.id, stepId: prepared.step.id, leadId: prepared.enrollment.leadId, channel: "EMAIL", recipient: selected?.lead.contact?.email ?? undefined, body: prepared.opening.opening })).id); setSent(true); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Send failed."); } finally { setSending(false); } }} className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-60">{sent ? "Sent" : sending ? "Sending..." : "Approve & send email"}</button>
+              )}
             </div>
           </div> : null}
         </GlassPanel>
