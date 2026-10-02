@@ -257,6 +257,26 @@ export class CrmService {
     return campaign;
   }
 
+  static async getOutboundCampaignById(workspaceId: string, campaignId: string) {
+    return db.query.outboundCampaigns.findFirst({
+      where: and(eq(outboundCampaigns.workspaceId, workspaceId), eq(outboundCampaigns.id, campaignId)),
+      with: {
+        steps: { orderBy: [outboundSteps.stepNumber] },
+        enrollments: {
+          with: {
+            lead: {
+              with: {
+                company: { columns: { name: true } },
+                contact: { columns: { firstName: true, lastName: true, email: true, jobTitle: true } },
+              },
+            },
+          },
+          orderBy: [desc(outboundEnrollments.updatedAt)],
+        },
+      },
+    });
+  }
+
   static async updateOutboundCampaign(
     workspaceId: string,
     campaignId: string,
