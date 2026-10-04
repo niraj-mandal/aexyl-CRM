@@ -287,6 +287,25 @@ export class CrmService {
     });
   }
 
+  static async getAgentRegistry(workspaceId: string) {
+    return db.query.agents.findMany({ where: eq(agents.workspaceId, workspaceId), orderBy: [asc(agents.agentKey)] });
+  }
+
+  static async seedAgentRegistry(workspaceId: string) {
+    const defaults = [
+      ["scout","Scout","Find and rank relevant business signals and prospect opportunities.",1,["crm.read","signals.read"]],
+      ["sales","Sales","Prioritize leads, pipeline opportunities and human handoffs.",1,["crm.read","pipeline.read"]],
+      ["outreach","Outreach","Prepare grounded outbound messages and follow-up actions.",2,["crm.read","outreach.prepare"]],
+      ["followup","Follow-up","Monitor timing and prepare safe reactivation actions.",2,["crm.read","outreach.prepare"]],
+      ["operations","Operations","Surface delivery risks, stale work and operational blockers.",1,["crm.read","projects.read"]],
+      ["executive","Executive","Turn workspace activity into a concise decision brief.",1,["crm.read","intelligence.read"]],
+    ] as const;
+    for (const [agentKey,name,description,autonomyLevel,allowedTools] of defaults) {
+      await db.insert(agents).values({ workspaceId, agentKey, name, description, autonomyLevel, allowedTools, requiresApprovalForWrites: true }).onConflictDoNothing();
+    }
+    return this.getAgentRegistry(workspaceId);
+  }
+
   static async getAgentCommandBrief(workspaceId: string) {
     const [highIntent, events, queue, nurture, campaigns] = await Promise.all([
       this.getHighIntentOutboundReplies(workspaceId, 20),
