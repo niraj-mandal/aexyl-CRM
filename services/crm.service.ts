@@ -309,6 +309,15 @@ export class CrmService {
     return { totals:{ campaigns:campaigns.length, enrollments:enrollments.length, sent, replies:replies.length, positive, meetings, replyRate:sent ? Math.round(replies.length/sent*100) : 0, positiveRate:replies.length ? Math.round(positive/replies.length*100) : 0 }, byIntent, byObjection, campaignStats };
   }
 
+  static async getOutboundDiscoveryCandidates(workspaceId: string, campaignId: string, status = "PENDING") {
+    return db.query.outboundDiscoveryCandidates.findMany({ where: and(eq(outboundDiscoveryCandidates.workspaceId, workspaceId), eq(outboundDiscoveryCandidates.campaignId, campaignId), eq(outboundDiscoveryCandidates.status, status)), orderBy: [desc(outboundDiscoveryCandidates.fitScore)] });
+  }
+
+  static async updateOutboundDiscoveryCandidate(workspaceId: string, candidateId: string, data: Partial<typeof outboundDiscoveryCandidates.$inferInsert>) {
+    const [updated] = await db.update(outboundDiscoveryCandidates).set({ ...data, updatedAt: new Date() }).where(and(eq(outboundDiscoveryCandidates.workspaceId, workspaceId), eq(outboundDiscoveryCandidates.id, candidateId))).returning();
+    return updated;
+  }
+
   static async getOutboundInbox(workspaceId: string, limit = 100) {
     const [replies, messages] = await Promise.all([
       db.query.outboundReplies.findMany({
