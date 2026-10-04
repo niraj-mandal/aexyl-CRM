@@ -315,6 +315,14 @@ export class CrmService {
     return db.query.agents.findFirst({ where: and(eq(agents.workspaceId, workspaceId), eq(agents.agentKey, agentKey)) });
   }
 
+  static async reviewAgentApproval(workspaceId: string, approvalId: string, status: "APPROVED" | "REJECTED", reviewedBy: string) {
+    const [approval] = await db.update(agentApprovals).set({ status, reviewedBy, reviewedAt: new Date() }).where(and(eq(agentApprovals.workspaceId, workspaceId), eq(agentApprovals.id, approvalId), eq(agentApprovals.status, "PENDING"))).returning();
+    if (approval?.runId) {
+      await db.update(agentRuns).set({ status: status === "APPROVED" ? "EXECUTING" : "CANCELLED" }).where(and(eq(agentRuns.workspaceId, workspaceId), eq(agentRuns.id, approval.runId)));
+    }
+    return approval;
+  }
+
   static async getPendingAgentApprovals(workspaceId: string, limit = 50) {
     return db.query.agentApprovals.findMany({
       where: and(eq(agentApprovals.workspaceId, workspaceId), eq(agentApprovals.status, "PENDING")),
