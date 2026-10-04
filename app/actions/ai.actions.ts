@@ -10,6 +10,7 @@ import { LeadScoringService } from "@/services/sales/lead-scoring.service";
 import { ActivityService } from "@/services/activity.service";
 import { classifyObjection, buildObjectionDraft } from "@/services/outbound/objection-handler";
 import { discoverIcpMatches } from "@/services/outbound/icp-discovery";
+import { normalizeExternalProspect, scoreExternalProspect, type ExternalProspect } from "@/services/outbound/external-discovery";
 import { revalidatePath } from "next/cache";
 
 export async function runPipelineStrategicAuditAction() {
@@ -957,4 +958,14 @@ export async function getOutboundIntelligenceAction() {
 export async function discoverIcpMatchesAction(campaignId: string) {
   const { workspaceId } = await requireWorkspace();
   return discoverIcpMatches(workspaceId, campaignId);
+}
+
+
+export async function previewExternalProspectsAction(campaignId: string, prospects: Partial<ExternalProspect>[]) {
+  const { workspaceId } = await requireWorkspace();
+  const campaign = await CrmService.getOutboundCampaignById(workspaceId, campaignId);
+  if (!campaign) throw new Error("Campaign not found.");
+  return prospects.map((input) => normalizeExternalProspect(input, "EXTERNAL_RESEARCH")).filter(Boolean).map((prospect) => {
+    const p = prospect!; return { prospect: p, match: scoreExternalProspect(p, campaign.targetProfile) };
+  }).sort((a,b) => b.match.score - a.match.score);
 }
