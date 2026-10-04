@@ -318,6 +318,12 @@ export class CrmService {
     return reply;
   }
 
+  static async updateOutboundReply(workspaceId: string, replyId: string, data: Partial<typeof outboundReplies.$inferInsert>) {
+    const [updated] = await db.update(outboundReplies).set(data)
+      .where(and(eq(outboundReplies.workspaceId, workspaceId), eq(outboundReplies.id, replyId))).returning();
+    return updated;
+  }
+
   static async updateOutboundEnrollmentState(workspaceId: string, enrollmentId: string, data: Partial<typeof outboundEnrollments.$inferInsert>) {
     const [updated] = await db.update(outboundEnrollments)
       .set({ ...data, updatedAt: new Date() })
