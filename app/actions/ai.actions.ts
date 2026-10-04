@@ -9,6 +9,7 @@ import { CrmService } from "@/services/crm.service";
 import { LeadScoringService } from "@/services/sales/lead-scoring.service";
 import { ActivityService } from "@/services/activity.service";
 import { classifyObjection, buildObjectionDraft } from "@/services/outbound/objection-handler";
+import { discoverIcpMatches } from "@/services/outbound/icp-discovery";
 import { revalidatePath } from "next/cache";
 
 export async function runPipelineStrategicAuditAction() {
@@ -950,4 +951,10 @@ export async function getOutboundInboxAction() {
 export async function getOutboundIntelligenceAction() {
   const { workspaceId } = await requireWorkspace();
   return CrmService.getOutboundIntelligence(workspaceId);
+}
+
+
+export async function discoverIcpMatchesAction(campaignId: string) {
+  const { workspaceId } = await requireWorkspace();
+  return discoverIcpMatches(workspaceId, campaignId);
 }
