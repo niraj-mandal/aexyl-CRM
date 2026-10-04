@@ -287,6 +287,28 @@ export class CrmService {
     });
   }
 
+  static async getOutboundIntelligence(workspaceId: string) {
+    const [campaigns, replies, messages, enrollments] = await Promise.all([
+      db.query.outboundCampaigns.findMany({ where: eq(outboundCampaigns.workspaceId, workspaceId), with: { enrollments: true } }),
+      db.query.outboundReplies.findMany({ where: eq(outboundReplies.workspaceId, workspaceId), limit: 1000 }),
+      db.query.outboundMessages.findMany({ where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.direction, "OUTBOUND")), limit: 2000 }),
+      db.query.outboundEnrollments.findMany({ where: eq(outboundEnrollments.workspaceId, workspaceId), limit: 2000 }),
+    ]);
+    const sent = messages.filter((m) => m.status === "SENT").length;
+    const positive = replies.filter((r) => r.intent === "HIGH" || r.intent === "MEDIUM").length;
+    const meetings = replies.filter((r) => r.intent === "HIGH").length;
+    const byIntent = replies.reduce<Record<string, number>>((a, r) => { a[r.intent] = (a[r.intent] || 0) + 1; return a; }, {});
+    const byObjection = replies.filter((r) => r.objection).reduce<Record<string, number>>((a, r) => { const k=r.objection!; a[k]=(a[k]||0)+1; return a; }, {});
+    const campaignStats = campaigns.map((c) => {
+      const ids = new Set(c.enrollments.map((e) => e.id));
+      const sentCount = messages.filter((m) => ids.has(m.enrollmentId) && m.status === "SENT").length;
+      const replyCount = replies.filter((r) => ids.has(r.enrollmentId)).length;
+      const positiveCount = replies.filter((r) => ids.has(r.enrollmentId) && (r.intent === "HIGH" || r.intent === "MEDIUM")).length;
+      return { id:c.id, name:c.name, status:c.status, enrolled:c.enrollments.length, sent:sentCount, replies:replyCount, positive:positiveCount, replyRate:sentCount ? Math.round(replyCount/sentCount*100) : 0, positiveRate:replyCount ? Math.round(positiveCount/replyCount*100) : 0 };
+    }).sort((a,b)=>b.positiveRate-a.positiveRate);
+    return { totals:{ campaigns:campaigns.length, enrollments:enrollments.length, sent, replies:replies.length, positive, meetings, replyRate:sent ? Math.round(replies.length/sent*100) : 0, positiveRate:replies.length ? Math.round(positive/replies.length*100) : 0 }, byIntent, byObjection, campaignStats };
+  }
+
   static async getOutboundInbox(workspaceId: string, limit = 100) {
     const [replies, messages] = await Promise.all([
       db.query.outboundReplies.findMany({
