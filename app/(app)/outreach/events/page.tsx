@@ -37,7 +37,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [filter, setFilter] = useState("NEW");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState("");\n  const [prepared, setPrepared] = useState<{ eventId: string; message: string; angle: string; reason: string } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -141,7 +141,17 @@ export default function EventsPage() {
                       <X className="h-4 w-4" /> Dismiss
                     </button>
                   </>}
-                  {filter === "OUTREACH_READY" && <Badge variant="secondary">READY FOR NEXT STEP</Badge>}
+                  {filter === "OUTREACH_READY" && (
+                    <button disabled={busy === event.id} onClick={async () => {
+                      setBusy(event.id);
+                      try {
+                        const result = await prepareEventOutreachAction(event.id, "EMAIL");
+                        setPrepared({ eventId: event.id, message: result.message, angle: result.angle, reason: result.reason });
+                      } finally { setBusy(null); }
+                    }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
+                      <Sparkles className="h-4 w-4" /> Prepare email
+                    </button>
+                  )}
                   {filter === "DISMISSED" && <Badge variant="outline">DISMISSED</Badge>}
                 </div>
               </div>
