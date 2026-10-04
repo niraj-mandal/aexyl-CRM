@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Bot, Flame, Radar, RefreshCw, TimerReset } from "lucide-react";
+import { ArrowUpRight, Bot, Check, Flame, Radar, RefreshCw, TimerReset } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Display, MonoLabel, PageTitle } from "@/components/ui/typography";
@@ -13,7 +13,7 @@ const iconFor: Record<string, any> = { HANDOFF: Flame, SIGNAL: Radar, FOLLOW_UP:
 
 export default function AgentCommandPage() {
   const [brief, setBrief] = useState<Brief | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);\n  const [done, setDone] = useState<string[]>([]);
   async function load() { setLoading(true); try { setBrief(await getAgentCommandBriefAction()); } finally { setLoading(false); } }
   useEffect(() => { void load(); }, []);
   return <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -25,7 +25,7 @@ export default function AgentCommandPage() {
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{[["HANDOFFS",brief?.counts.handoffs??0],["SIGNALS",brief?.counts.signals??0],["DUE",brief?.counts.due??0],["NURTURE",brief?.counts.nurture??0],["ACTIVE CAMPAIGNS",brief?.counts.activeCampaigns??0]].map(([label,count])=><GlassPanel key={String(label)} className="p-4"><MonoLabel>{label}</MonoLabel><div className="mt-2 text-2xl font-semibold">{count}</div></GlassPanel>)}</div>
       <GlassPanel className="p-6"><div className="flex items-center gap-2 border-b border-border-subtle pb-4"><Bot className="h-4 w-4 text-primary"/><PageTitle className="text-lg">Priority actions</PageTitle><Badge variant="primary">{brief?.actions.length??0}</Badge></div>
-      <div className="mt-4 space-y-2">{(brief?.actions??[]).map(action=>{const Icon=iconFor[action.type]??Bot;return <Link key={action.id} href={action.href} className="group flex items-center gap-4 rounded-2xl border border-border-subtle bg-surface-low p-4 transition hover:border-primary/40 hover:bg-primary/5"><div className="rounded-xl bg-primary/10 p-2.5"><Icon className="h-4 w-4 text-primary"/></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">{action.title}</span><Badge variant="outline">{action.type}</Badge></div><p className="mt-1 truncate text-xs text-text-secondary">{action.detail}</p></div><ArrowUpRight className="h-4 w-4 shrink-0 text-text-muted transition group-hover:text-primary"/></Link>})}{!brief?.actions.length&&<div className="rounded-xl border border-border-subtle bg-surface-low p-10 text-center text-sm text-text-muted">No urgent outbound actions. The system is quiet.</div>}</div></GlassPanel>
+      <div className="mt-4 space-y-2">{(brief?.actions??[]).map(action=>{const Icon=iconFor[action.type]??Bot;return <Link key={action.id} href={action.href} className="group flex items-center gap-4 rounded-2xl border border-border-subtle bg-surface-low p-4 transition hover:border-primary/40 hover:bg-primary/5"><div className="rounded-xl bg-primary/10 p-2.5"><Icon className="h-4 w-4 text-primary"/></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">{action.title}</span><Badge variant="outline">{action.type}</Badge></div><p className="mt-1 truncate text-xs text-text-secondary">{action.detail}</p></div><button type="button" onClick={(e) => { e.preventDefault(); setDone(v => v.includes(action.id) ? v.filter(x => x !== action.id) : [...v, action.id]); }} className={`rounded-lg border p-2 transition ${done.includes(action.id) ? "border-primary/30 bg-primary/10 text-primary" : "border-border-subtle text-text-muted hover:text-primary"}`} aria-label="Mark action reviewed">{done.includes(action.id) ? <Check className="h-4 w-4"/> : <span className="text-[10px] font-semibold">Done</span>}</button><ArrowUpRight className="h-4 w-4 shrink-0 text-text-muted transition group-hover:text-primary"/></Link>})}{!brief?.actions.length&&<div className="rounded-xl border border-border-subtle bg-surface-low p-10 text-center text-sm text-text-muted">No urgent outbound actions. The system is quiet.</div>}</div></GlassPanel>
     </>}
   </div>;
 }
