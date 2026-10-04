@@ -287,6 +287,39 @@ export class CrmService {
     });
   }
 
+  static async getAgentCommandBrief(workspaceId: string) {
+    const [highIntent, events, queue, nurture, campaigns] = await Promise.all([
+      this.getHighIntentOutboundReplies(workspaceId, 20),
+      this.getOutboundEvents(workspaceId, "NEW", 20),
+      this.getOutboundExecutionQueue(workspaceId, 50),
+      this.getOutboundNurtureQueue(workspaceId, 50),
+      this.getOutboundCampaigns(workspaceId),
+    ]);
+    const actions = [
+      ...highIntent.map((r) => ({
+        id: `handoff:${r.id}`, priority: 100, type: "HANDOFF", title: `High-intent reply from ${r.enrollment?.lead?.company?.name ?? "prospect"}`,
+        detail: r.body, href: "/outreach/inbox", entityId: r.id,
+      })),
+      ...events.map((e) => ({
+        id: `signal:${e.id}`, priority: Math.max(60, e.relevanceScore), type: "SIGNAL", title: e.title,
+        detail: e.company?.name ? `${e.company.name} · ${e.summary ?? "Review this business signal."}` : (e.summary ?? "Review this business signal."),
+        href: "/outreach/events", entityId: e.id,
+      })),
+      ...queue.map((q) => ({
+        id: `queue:${q.enrollmentId}`, priority: 75, type: "FOLLOW_UP", title: `Outbound action due for ${q.lead?.company?.name ?? "prospect"}`,
+        detail: `${q.campaign?.name ?? "Campaign"} · step ${q.step?.stepNumber ?? "—"} · ${q.intent ?? "review"}`,
+        href: "/outreach/queue", entityId: q.enrollmentId,
+      })),
+      ...nurture.map((q) => ({
+        id: `nurture:${q.enrollmentId}`, priority: 55, type: "NURTURE", title: `Nurture opportunity for ${q.lead?.company?.name ?? "prospect"}`,
+        detail: `${q.campaign?.name ?? "Campaign"} · timing / intent signal`,
+        href: "/outreach/nurture", entityId: q.enrollmentId,
+      })),
+    ].sort((a, b) => b.priority - a.priority).slice(0, 12);
+    const activeCampaigns = campaigns.filter((c) => c.status === "ACTIVE").length;
+    return { actions, counts: { handoffs: highIntent.length, signals: events.length, due: queue.length, nurture: nurture.length, activeCampaigns } };
+  }
+
   static async getOutboundIntelligence(workspaceId: string) {
     const [campaigns, replies, messages, enrollments] = await Promise.all([
       db.query.outboundCampaigns.findMany({ where: eq(outboundCampaigns.workspaceId, workspaceId), with: { enrollments: true } }),
