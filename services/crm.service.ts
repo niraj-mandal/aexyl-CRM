@@ -566,6 +566,17 @@ export class CrmService {
     });
   }
 
+  static async createDiscoveryLead(workspaceId: string, candidate: typeof outboundDiscoveryCandidates.$inferSelect) {
+    return db.transaction(async (tx) => {
+      let company = candidate.website ? (await tx.select().from(companies).where(and(eq(companies.workspaceId, workspaceId), eq(companies.website, candidate.website))).limit(1))[0] : undefined;
+      if (!company) company = (await tx.select().from(companies).where(and(eq(companies.workspaceId, workspaceId), sql`lower(${companies.name}) = lower(${candidate.companyName})`)).limit(1))[0];
+      if (!company) { [company] = await tx.insert(companies).values({ workspaceId, name: candidate.companyName, website: candidate.website || null, industry: candidate.industry || null, location: candidate.location || null }).returning(); }
+      let contact = candidate.contactEmail ? (await tx.select().from(contacts).where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.email, candidate.contactEmail))).limit(1))[0] : undefined;
+      if (!contact) { [contact] = await tx.insert(contacts).values({ workspaceId, companyId: company.id, firstName: candidate.contactFirstName || null, lastName: candidate.contactLastName || null, email: candidate.contactEmail || null, jobTitle: candidate.contactJobTitle || null, linkedinUrl: candidate.linkedinUrl || null }).returning(); }
+      const [lead] = await tx.insert(leads).values({ workspaceId, companyId: company.id, contactId: contact.id, source: "OUTBOUND_DISCOVERY", status: "NEW", temperature: candidate.fitScore >= 75 ? "HOT" : candidate.fitScore >= 55 ? "WARM" : "COLD", score: candidate.fitScore, notes: `Discovered from ${candidate.source}. ICP score: ${candidate.fitScore}/100.` }).returning();
+      return { company, contact, lead };
+    });
+  }
   static async createLead(workspaceId: string, data: Omit<typeof leads.$inferInsert, "workspaceId">) {
     const [lead] = await db.insert(leads)
       .values({ ...data, workspaceId })
