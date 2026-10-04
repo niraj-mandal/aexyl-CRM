@@ -86,13 +86,21 @@ Return JSON only: {"message":"...","angle":"...","reason":"..."}.`;
     if (result.ok && result.text) {
       const parsed = LlmService.parseJsonLoose(result.text);
       if (parsed && typeof parsed.message === "string") {
-        return {
-          eventId, leadId: event.leadId, channel,
-          message: parsed.message.slice(0, 1800),
+        if (!event.leadId || !event.campaignId) throw new Error("This signal needs an existing lead and campaign before an executable message can be prepared.");
+        const enrollment = await CrmService.enrollLeadInOutboundCampaign(workspaceId, event.campaignId, event.leadId);
+        if (!enrollment) throw new Error("Could not create or find the campaign enrollment.");
+        const body = parsed.message.slice(0, 1800);
+        const prepared = await CrmService.createPreparedOutboundMessage(workspaceId, {
+          enrollmentId: enrollment.id, stepId: null, leadId: event.leadId, channel, direction: "OUTBOUND",
+          status: "PREPARED", recipient: event.lead.contact?.email ?? null,
+          subject: `Quick thought for ${company}`, body,
+          metadata: { source: "EVENT_SIGNAL", eventId: event.id, eventType: event.type, eventTitle: event.title, generatedBy: "llm" },
+        });
+        return { eventId, leadId: event.leadId, channel, messageId: prepared.id, message: body,
           angle: typeof parsed.angle === "string" ? parsed.angle.slice(0, 300) : "Event-triggered outreach",
           reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 500) : "Grounded in the verified signal",
-          generatedBy: "llm" as const,
-        };
+          generatedBy: "llm" as const };
+
       }
     }
   }
@@ -101,9 +109,28 @@ Return JSON only: {"message":"...","angle":"...","reason":"..."}.`;
     ? `Hi ${contactName}, saw the recent update about ${company} — ${event.title.toLowerCase()}. Thought it might be a good time to connect. Would a quick chat be useful?`
     : `Hi ${contactName}, I saw the recent update about ${company} — ${event.title.toLowerCase()}. Thought it could be a timely reason to connect. Open to a quick conversation?`;
 
+  const finalMessage = fallback.slice(0, 1800);
+  if (!event.leadId || !event.campaignId) {
+    throw new Error("This signal needs an existing lead and campaign before an executable message can be prepared.");
+  }
+  const enrollment = await CrmService.enrollLeadInOutboundCampaign(workspaceId, event.campaignId, event.leadId);
+  if (!enrollment) throw new Error("Could not create or find the campaign enrollment.");
+  const prepared = await CrmService.createPreparedOutboundMessage(workspaceId, {
+    enrollmentId: enrollment.id,
+    stepId: null,
+    leadId: event.leadId,
+    channel,
+    direction: "OUTBOUND",
+    status: "PREPARED",
+    recipient: event.lead.contact?.email ?? null,
+    subject: `Quick thought for ${company}`,
+    body: finalMessage,
+    metadata: { source: "EVENT_SIGNAL", eventId: event.id, eventType: event.type, eventTitle: event.title, generatedBy: "deterministic" },
+  });
   return {
     eventId, leadId: event.leadId, channel,
-    message: fallback.slice(0, 1800),
+    messageId: prepared.id,
+    message: finalMessage,
     angle: "Event-triggered timing",
     reason: "Deterministic fallback using only the verified event title and CRM contact.",
     generatedBy: "deterministic" as const,
