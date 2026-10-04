@@ -38,3 +38,31 @@ export function normalizeExternalProspect(input: Partial<ExternalProspect>, sour
     source,
   };
 }
+
+export type DiscoveryQuery = { query: string; limit?: number };
+export type DiscoveryProvider = { search(query: DiscoveryQuery): Promise<Partial<ExternalProspect>[]> };
+
+/** Adapter for an approved external research service. The provider returns { prospects: [...] }. */
+export class HttpDiscoveryProvider implements DiscoveryProvider {
+  constructor(private readonly url: string, private readonly token?: string) {}
+  async search(query: DiscoveryQuery) {
+    const response = await fetch(this.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) },
+      body: JSON.stringify(query),
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`Discovery provider failed: ${response.status}`);
+    const data = await response.json() as { prospects?: Partial<ExternalProspect>[] };
+    return data.prospects || [];
+  }
+}
+export function getDiscoveryProvider() {
+  const url = process.env.AEXYL_DISCOVERY_PROVIDER_URL;
+  return url ? new HttpDiscoveryProvider(url, process.env.AEXYL_DISCOVERY_PROVIDER_TOKEN) : null;
+}
+export async function discoverExternalProspects(query: DiscoveryQuery) {
+  const provider = getDiscoveryProvider();
+  if (!provider) throw new Error("External discovery is not configured. Set AEXYL_DISCOVERY_PROVIDER_URL.");
+  return provider.search({ ...query, limit: Math.min(query.limit || 50, 100) });
+}
