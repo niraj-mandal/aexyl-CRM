@@ -945,3 +945,9 @@ export async function getOutboundInboxAction() {
   const { workspaceId } = await requireWorkspace();
   return CrmService.getOutboundInbox(workspaceId, 100);
 }
+
+
+export async function getOutboundIntelligenceAction() {
+  const { workspaceId } = await requireWorkspace();
+  return CrmService.getOutboundIntelligence(workspaceId);
+}
