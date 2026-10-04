@@ -18,6 +18,7 @@ import {
   FolderKanban, 
   Sparkles, 
   Bot,
+  Brain,
   BellRing, 
   Bell,
   Settings,
