@@ -311,6 +311,18 @@ export class CrmService {
     return run;
   }
 
+  static async getAgentByKey(workspaceId: string, agentKey: string) {
+    return db.query.agents.findFirst({ where: and(eq(agents.workspaceId, workspaceId), eq(agents.agentKey, agentKey)) });
+  }
+
+  static async getPendingAgentApprovals(workspaceId: string, limit = 50) {
+    return db.query.agentApprovals.findMany({
+      where: and(eq(agentApprovals.workspaceId, workspaceId), eq(agentApprovals.status, "PENDING")),
+      orderBy: [desc(agentApprovals.requestedAt)],
+      limit,
+    });
+  }
+
   static async getAgentRegistry(workspaceId: string) {
     return db.query.agents.findMany({ where: eq(agents.workspaceId, workspaceId), orderBy: [asc(agents.agentKey)] });
   }
