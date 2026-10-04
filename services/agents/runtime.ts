@@ -1,4 +1,5 @@
 import { CrmService } from "@/services/crm.service";
+import { getAgentTool } from "./tools";
 
 export type AgentRunRequest = {
   agentKey: string;
@@ -80,6 +81,37 @@ export async function requestAgentApproval(workspaceId: string, runId: string, t
     toolName, input: proposedArguments, output: { approvalId: approval.id }, status: "SUCCEEDED",
   });
   return { approvalRequired: true, approval, runId };
+}
+
+export async function executeAgentTool(workspaceId: string, runId: string, toolName: string, args: Record<string, unknown>) {
+  const run = await CrmService.getAgentRun(workspaceId, runId);
+  if (!run) throw new Error("Agent run not found.");
+  const registry = await CrmService.getAgentRegistry(workspaceId);
+  const agent = registry.find((a: any) => a.id === run.agentId);
+  if (!agent) throw new Error("Agent not found.");
+  const policy = evaluateAgentPolicy(agent, toolName);
+  if (!policy.allowed) throw new Error(policy.reason);
+  const tool = getAgentTool(toolName);
+  if (!tool) throw new Error("Agent tool is not registered.");
+  if (toolName === "outreach.prepare" && !policy.requiresApproval) throw new Error("Outbound preparation must remain approval-gated.");
+  const started = Date.now();
+  try {
+    const output = await tool.execute({ workspaceId, runId, agent }, args);
+    await CrmService.traceAgentRun(runId, {
+      stepNumber: (run.currentStep ?? 0) + 1, type: tool.readOnly ? "tool_read" : "tool_prepare",
+      summary: `Executed controlled tool: ${toolName}`, toolName, input: args, output,
+      latencyMs: Date.now() - started, status: "SUCCEEDED",
+    });
+    await CrmService.updateAgentRun(workspaceId, runId, { currentStep: (run.currentStep ?? 0) + 1, status: "RUNNING" });
+    return { output, policy };
+  } catch (error) {
+    await CrmService.traceAgentRun(runId, {
+      stepNumber: (run.currentStep ?? 0) + 1, type: "tool_error", summary: `Tool failed: ${toolName}`,
+      toolName, input: args, latencyMs: Date.now() - started, status: "FAILED", error: error instanceof Error ? error.message : String(error),
+    });
+    await CrmService.updateAgentRun(workspaceId, runId, { status: "FAILED", error: error instanceof Error ? error.message : String(error), completedAt: new Date() });
+    throw error;
+  }
 }
 
 export async function completeAgentRun(workspaceId: string, runId: string, result: Record<string, unknown>) {
