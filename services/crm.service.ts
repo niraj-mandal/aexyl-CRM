@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { companies, contacts, leads, deals, projects, tasks, outboundCampaigns, outboundSteps, outboundEnrollments, outboundMessages, outboundReplies } from "@/db/schema";
+import { companies, contacts, leads, deals, projects, tasks, outboundCampaigns, outboundSteps, outboundEnrollments, outboundMessages, outboundReplies, outboundEvents } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -374,6 +374,33 @@ export class CrmService {
     const [updated] = await db.update(outboundEnrollments)
       .set({ ...data, updatedAt: new Date() })
       .where(and(eq(outboundEnrollments.workspaceId, workspaceId), eq(outboundEnrollments.id, enrollmentId)))
+      .returning();
+    return updated;
+  }
+
+  static async getOutboundEvents(workspaceId: string, status?: string, limit = 100) {
+    return db.query.outboundEvents.findMany({
+      where: status
+        ? and(eq(outboundEvents.workspaceId, workspaceId), eq(outboundEvents.status, status))
+        : eq(outboundEvents.workspaceId, workspaceId),
+      orderBy: [desc(outboundEvents.relevanceScore), desc(outboundEvents.occurredAt), desc(outboundEvents.createdAt)],
+      limit,
+      with: {
+        company: { columns: { id: true, name: true, website: true, industry: true, location: true } },
+        lead: {
+          with: {
+            contact: { columns: { id: true, firstName: true, lastName: true, email: true, jobTitle: true } },
+          },
+        },
+        campaign: { columns: { id: true, name: true, status: true } },
+      },
+    });
+  }
+
+  static async updateOutboundEvent(workspaceId: string, eventId: string, data: Partial<typeof outboundEvents.$inferInsert>) {
+    const [updated] = await db.update(outboundEvents)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(outboundEvents.workspaceId, workspaceId), eq(outboundEvents.id, eventId)))
       .returning();
     return updated;
   }
