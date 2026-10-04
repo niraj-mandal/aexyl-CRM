@@ -969,3 +969,17 @@ export async function previewExternalProspectsAction(campaignId: string, prospec
     const p = prospect!; return { prospect: p, match: scoreExternalProspect(p, campaign.targetProfile) };
   }).sort((a,b) => b.match.score - a.match.score);
 }
+
+
+export async function getDiscoveryCandidatesAction(campaignId: string) {
+  const { workspaceId } = await requireWorkspace();
+  return CrmService.getOutboundDiscoveryCandidates(workspaceId, campaignId);
+}
+
+export async function reviewDiscoveryCandidateAction(candidateId: string, decision: "APPROVED" | "REJECTED") {
+  const { workspaceId, userId } = await requireWorkspace();
+  const candidate = await CrmService.updateOutboundDiscoveryCandidate(workspaceId, candidateId, { status: decision });
+  if (!candidate) throw new Error("Discovery candidate not found.");
+  await ActivityService.logAudit(workspaceId, userId, "REVIEW_DISCOVERY_CANDIDATE", "OUTBOUND_DISCOVERY", candidateId, { decision, campaignId: candidate.campaignId, fitScore: candidate.fitScore });
+  return candidate;
+}
