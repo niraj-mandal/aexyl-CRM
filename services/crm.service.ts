@@ -287,6 +287,21 @@ export class CrmService {
     });
   }
 
+  static async getOutboundInbox(workspaceId: string, limit = 100) {
+    const [replies, messages] = await Promise.all([
+      db.query.outboundReplies.findMany({
+        where: eq(outboundReplies.workspaceId, workspaceId),
+        orderBy: [desc(outboundReplies.receivedAt)], limit,
+        with: { enrollment: { with: { campaign: { columns: { id: true, name: true } }, lead: { with: { company: { columns: { id: true, name: true } }, contact: { columns: { id: true, firstName: true, lastName: true, email: true, jobTitle: true } } } } } } },
+      }),
+      db.query.outboundMessages.findMany({
+        where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.direction, "OUTBOUND")),
+        orderBy: [desc(outboundMessages.createdAt)], limit,
+      }),
+    ]);
+    return { replies, messages };
+  }
+
   static async getOutboundMessages(workspaceId: string, enrollmentId: string) {
     return db.query.outboundMessages.findMany({
       where: and(eq(outboundMessages.workspaceId, workspaceId), eq(outboundMessages.enrollmentId, enrollmentId)),
