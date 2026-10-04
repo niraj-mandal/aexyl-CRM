@@ -8,6 +8,7 @@ import { LocalLeadDiscoveryService } from "@/services/ai/local-lead-discovery.se
 import { CrmService } from "@/services/crm.service";
 import { LeadScoringService } from "@/services/sales/lead-scoring.service";
 import { ActivityService } from "@/services/activity.service";
+import { classifyObjection, buildObjectionDraft } from "@/services/outbound/objection-handler";
 import { revalidatePath } from "next/cache";
 
 export async function runPipelineStrategicAuditAction() {
@@ -915,4 +916,26 @@ export async function prepareNurtureAction(enrollmentId: string) {
     reason: prepared.reason,
     approvalRequired: true,
   };
+}
+
+
+export async function prepareOutboundObjectionAction(replyId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const reply = await CrmService.getOutboundReplyById(workspaceId, replyId);
+  if (!reply) throw new Error("Outbound reply not found.");
+  const analysis = classifyObjection(reply.body);
+  const contact = reply.enrollment?.lead?.contact;
+  const company = reply.enrollment?.lead?.company;
+  const campaign = reply.enrollment?.campaign;
+  const draft = buildObjectionDraft(contact?.firstName || "there", analysis.type, company?.name, campaign?.valueProp);
+  await CrmService.updateOutboundReply(workspaceId, replyId, {
+    objection: analysis.type,
+    recommendedAction: analysis.type === "TIMING" ? "REACTIVATE" : analysis.type === "OTHER" ? "REVIEW" : "HANDLE_OBJECTION",
+  });
+  await CrmService.updateOutboundEnrollmentState(workspaceId, reply.enrollmentId, {
+    objection: analysis.type,
+    timeline: analysis.type === "TIMING" ? "REACTIVATE" : null,
+  });
+  await ActivityService.logAudit(workspaceId, userId, "PREPARE_OBJECTION", "OUTBOUND_REPLY", replyId, { type: analysis.type, confidence: analysis.confidence });
+  return { replyId, analysis, draft, recipient: contact?.email || null, subject: campaign?.name ? `Re: ${campaign.name}` : "Re: your note", leadId: reply.leadId, enrollmentId: reply.enrollmentId, approvalRequired: true };
 }
