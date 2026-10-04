@@ -983,3 +983,22 @@ export async function reviewDiscoveryCandidateAction(candidateId: string, decisi
   await ActivityService.logAudit(workspaceId, userId, "REVIEW_DISCOVERY_CANDIDATE", "OUTBOUND_DISCOVERY", candidateId, { decision, campaignId: candidate.campaignId, fitScore: candidate.fitScore });
   return candidate;
 }
+
+
+export async function approveDiscoveryCandidateAction(candidateId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const candidate = await db.query.outboundDiscoveryCandidates.findFirst({ where: and(eq(outboundDiscoveryCandidates.id, candidateId), eq(outboundDiscoveryCandidates.workspaceId, workspaceId)) });
+  if (!candidate) throw new Error("Discovery candidate not found.");
+  if (candidate.status !== "PENDING") throw new Error("Candidate has already been reviewed.");
+  const lead = await CrmService.createLead(workspaceId, {
+    companyId: null,
+    contactId: null,
+    status: "NEW",
+    temperature: candidate.fitScore >= 75 ? "HOT" : candidate.fitScore >= 55 ? "WARM" : "COLD",
+    source: "OUTBOUND_DISCOVERY",
+    notes: `Discovered from ${candidate.source}. ICP score: ${candidate.fitScore}/100. ${candidate.reasons.join(" ")}`,
+  } as any);
+  await CrmService.updateOutboundDiscoveryCandidate(workspaceId, candidateId, { status: "APPROVED" });
+  await ActivityService.logAudit(workspaceId, userId, "APPROVE_DISCOVERY_CANDIDATE", "OUTBOUND_DISCOVERY", candidateId, { leadId: lead.id, campaignId: candidate.campaignId, fitScore: candidate.fitScore });
+  return { candidate, lead };
+}
