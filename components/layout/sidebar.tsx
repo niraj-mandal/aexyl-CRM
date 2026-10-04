@@ -84,6 +84,7 @@ const navSections: NavSection[] = [
       { name: "Executive Matrix", href: "/intelligence", icon: Sparkles, badge: "AI" },
       { name: "Attention Required", href: "/attention", icon: BellRing, badgeKey: "attention" },
       { name: "Aexyl Agents", href: "/agents", icon: Bot, badgeKey: "approvals" },
+      { name: "Agent Memory", href: "/agents/memory", icon: Brain },
     ]
   }
 ];
