@@ -552,6 +552,38 @@ export async function importDiscoveredLeadsAction(candidates: ImportLeadCandidat
 export type { DiscoveredLead };
 
 
+export async function getOutboundEventsAction(status?: string) {
+  const { workspaceId } = await requireWorkspace();
+  return await CrmService.getOutboundEvents(workspaceId, status, 100);
+}
+
+export async function promoteOutboundEventAction(eventId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const event = await CrmService.updateOutboundEvent(workspaceId, eventId, { status: "OUTREACH_READY" });
+  if (!event) throw new Error("Event not found.");
+  await ActivityService.logAudit(workspaceId, userId, "PROMOTE", "OUTBOUND_EVENT", event.id, {
+    status: "OUTREACH_READY",
+    via: "events_inbox",
+    type: event.type,
+    title: event.title,
+  });
+  revalidatePath("/outreach/events");
+  return event;
+}
+
+export async function dismissOutboundEventAction(eventId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const event = await CrmService.updateOutboundEvent(workspaceId, eventId, { status: "DISMISSED" });
+  if (!event) throw new Error("Event not found.");
+  await ActivityService.logAudit(workspaceId, userId, "DISMISS", "OUTBOUND_EVENT", event.id, {
+    via: "events_inbox",
+    type: event.type,
+    title: event.title,
+  });
+  revalidatePath("/outreach/events");
+  return event;
+}
+
 export async function getOutboundWorkspaceAction() {
   const { workspaceId } = await requireWorkspace();
   return await buildOutboundWorkspaceSnapshot(workspaceId);
