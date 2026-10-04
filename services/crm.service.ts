@@ -287,6 +287,30 @@ export class CrmService {
     });
   }
 
+  static async createAgentRun(workspaceId: string, agentId: string, data: Omit<typeof agentRuns.$inferInsert, "workspaceId" | "agentId">) {
+    const [run] = await db.insert(agentRuns).values({ ...data, workspaceId, agentId }).returning();
+    return run;
+  }
+
+  static async getAgentRun(workspaceId: string, runId: string) {
+    return db.query.agentRuns.findFirst({ where: and(eq(agentRuns.workspaceId, workspaceId), eq(agentRuns.id, runId)) });
+  }
+
+  static async traceAgentRun(runId: string, data: Omit<typeof agentTraces.$inferInsert, "runId">) {
+    const [trace] = await db.insert(agentTraces).values({ ...data, runId }).returning();
+    return trace;
+  }
+
+  static async createAgentApproval(workspaceId: string, data: Omit<typeof agentApprovals.$inferInsert, "workspaceId">) {
+    const [approval] = await db.insert(agentApprovals).values({ ...data, workspaceId }).returning();
+    return approval;
+  }
+
+  static async updateAgentRun(workspaceId: string, runId: string, data: Partial<typeof agentRuns.$inferInsert>) {
+    const [run] = await db.update(agentRuns).set(data).where(and(eq(agentRuns.workspaceId, workspaceId), eq(agentRuns.id, runId))).returning();
+    return run;
+  }
+
   static async getAgentRegistry(workspaceId: string) {
     return db.query.agents.findMany({ where: eq(agents.workspaceId, workspaceId), orderBy: [asc(agents.agentKey)] });
   }
