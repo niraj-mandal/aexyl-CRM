@@ -985,6 +985,17 @@ export async function reviewDiscoveryCandidateAction(candidateId: string, decisi
 }
 
 
+export async function approveDiscoveryCandidateAndEnrollAction(candidateId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const candidate = await db.query.outboundDiscoveryCandidates.findFirst({ where: and(eq(outboundDiscoveryCandidates.id, candidateId), eq(outboundDiscoveryCandidates.workspaceId, workspaceId)) });
+  if (!candidate) throw new Error("Discovery candidate not found.");
+  if (candidate.status !== "PENDING") throw new Error("Candidate has already been reviewed.");
+  const result = await CrmService.createDiscoveryLead(workspaceId, candidate);
+  const enrollment = await CrmService.enrollLeadInOutboundCampaign(workspaceId, candidate.campaignId, result.lead.id);
+  await CrmService.updateOutboundDiscoveryCandidate(workspaceId, candidateId, { status: "APPROVED" });
+  await ActivityService.logAudit(workspaceId, userId, "APPROVE_AND_ENROLL_DISCOVERY_CANDIDATE", "OUTBOUND_DISCOVERY", candidateId, { leadId: result.lead.id, companyId: result.company.id, contactId: result.contact.id, campaignId: candidate.campaignId, enrollmentId: enrollment.id, fitScore: candidate.fitScore });
+  return { candidate, ...result, enrollment };
+}
 export async function approveDiscoveryCandidateAction(candidateId: string) {
   const { workspaceId, userId } = await requireWorkspace();
   const candidate = await db.query.outboundDiscoveryCandidates.findFirst({ where: and(eq(outboundDiscoveryCandidates.id, candidateId), eq(outboundDiscoveryCandidates.workspaceId, workspaceId)) });
