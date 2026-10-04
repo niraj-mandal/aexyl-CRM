@@ -5,6 +5,7 @@ import { Megaphone, Pause, Play, Plus, RefreshCw, Sparkles } from "lucide-react"
 import { GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Display, MonoLabel, PageTitle } from "@/components/ui/typography";
+import { discoverIcpMatchesAction } from "@/app/actions/ai.actions";
 import {
   createOutboundCampaignAction,
   getOutboundCampaignsAction,
@@ -13,6 +14,7 @@ import {
 
 type Campaigns = Awaited<ReturnType<typeof getOutboundCampaignsAction>>;
 type Campaign = Campaigns[number];
+type Match = Awaited<ReturnType<typeof discoverIcpMatchesAction>>[number];
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaigns>([]);
@@ -21,6 +23,9 @@ export default function CampaignsPage() {
   const [name, setName] = useState("");
   const [targetProfile, setTargetProfile] = useState("");
   const [valueProp, setValueProp] = useState("");
+  const [selected, setSelected] = useState<Campaign | null>(null);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [discovering, setDiscovering] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -52,6 +57,11 @@ export default function CampaignsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const discover = async (campaign: Campaign) => {
+    setSelected(campaign); setDiscovering(true);
+    try { setMatches(await discoverIcpMatchesAction(campaign.id)); } finally { setDiscovering(false); }
   };
 
   const toggle = async (campaign: Campaign) => {
