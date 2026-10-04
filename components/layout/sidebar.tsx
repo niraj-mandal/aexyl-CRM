@@ -24,7 +24,8 @@ import {
   Megaphone,
   Clock3,
   Flame,
-  TimerReset
+  TimerReset,
+  Radar
 } from "lucide-react";
 import { useSidebarBadges } from "./sidebar-badges";
 import { SidebarBadge } from "./sidebar-badge";
@@ -64,6 +65,7 @@ const navSections: NavSection[] = [
       { name: "Deals", href: "/sales/deals", icon: TrendingUp },
       { name: "Outreach Engine", href: "/outreach", icon: Send },
       { name: "Campaigns", href: "/outreach/campaigns", icon: Megaphone },
+      { name: "Discovery", href: "/outreach/discovery", icon: Radar },
       { name: "Outbound Queue", href: "/outreach/queue", icon: Clock3 },
       { name: "Human Handoffs", href: "/outreach/handoffs", icon: Flame, badgeKey: "attention" },
       { name: "Nurture", href: "/outreach/nurture", icon: TimerReset },
