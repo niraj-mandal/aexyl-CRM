@@ -12,6 +12,7 @@ import { classifyObjection, buildObjectionDraft } from "@/services/outbound/obje
 import { discoverIcpMatches } from "@/services/outbound/icp-discovery";
 import { normalizeExternalProspect, scoreExternalProspect, type ExternalProspect } from "@/services/outbound/external-discovery";
 import { discoverExternalProspects } from "@/services/outbound/external-discovery";
+import { prepareEventOutreach } from "@/services/outbound/event-intelligence";
 import { revalidatePath } from "next/cache";
 
 export async function runPipelineStrategicAuditAction() {
@@ -551,6 +552,22 @@ export async function importDiscoveredLeadsAction(candidates: ImportLeadCandidat
 
 export type { DiscoveredLead };
 
+
+export async function prepareEventOutreachAction(
+  eventId: string,
+  channel: "EMAIL" | "LINKEDIN" | "WHATSAPP" = "EMAIL",
+) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const prepared = await prepareEventOutreach(workspaceId, eventId, channel);
+  await ActivityService.logAudit(workspaceId, userId, "PREPARE", "OUTBOUND_EVENT", eventId, {
+    via: "event_intelligence",
+    channel,
+    leadId: prepared.leadId,
+    generatedBy: prepared.generatedBy,
+  });
+  revalidatePath("/outreach/events");
+  return prepared;
+}
 
 export async function getOutboundEventsAction(status?: string) {
   const { workspaceId } = await requireWorkspace();
