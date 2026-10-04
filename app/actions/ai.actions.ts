@@ -1,3 +1,4 @@
+import { AgentMemoryService } from "@/agents/services/memory.service";
 import { sendRawEmail } from "@/services/email.service";
 import { LlmService } from "@/services/ai/llm.service";
 "use server";
@@ -1069,6 +1070,49 @@ export async function runAgentAction(input: { agentKey: string; objective: strin
 export async function getPendingAgentApprovalsAction() {
   const { workspaceId } = await requireWorkspace();
   return CrmService.getPendingAgentApprovals(workspaceId);
+}
+
+
+export async function getAgentMemoryAction(params?: {
+  scope?: string;
+  entityType?: string;
+  entityId?: string;
+  query?: string;
+  limit?: number;
+}) {
+  const { workspaceId } = await requireWorkspace();
+  return AgentMemoryService.recall(workspaceId, params as any);
+}
+
+export async function rememberAgentMemoryAction(input: {
+  scope: "workspace" | "agent" | "lead" | "deal" | "company" | "contact" | "project" | "task";
+  entityType?: string;
+  entityId?: string;
+  content: string;
+  importance?: number;
+  expiresAt?: string | null;
+}) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const memory = await AgentMemoryService.remember(workspaceId, {
+    ...input,
+    expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+  });
+  await ActivityService.logAudit(workspaceId, userId, "CREATE", "AGENT_MEMORY", memory.id, {
+    scope: memory.scope,
+    entityType: memory.entityType,
+    entityId: memory.entityId,
+  });
+  revalidatePath("/agents/memory");
+  return memory;
+}
+
+export async function forgetAgentMemoryAction(memoryId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const memory = await AgentMemoryService.forget(workspaceId, memoryId);
+  if (!memory) throw new Error("Memory not found.");
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "AGENT_MEMORY", memoryId, {});
+  revalidatePath("/agents/memory");
+  return memory;
 }
 
 export async function getAgentRegistryAction() {
