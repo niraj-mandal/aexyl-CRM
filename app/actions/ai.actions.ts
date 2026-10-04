@@ -11,6 +11,7 @@ import { ActivityService } from "@/services/activity.service";
 import { classifyObjection, buildObjectionDraft } from "@/services/outbound/objection-handler";
 import { discoverIcpMatches } from "@/services/outbound/icp-discovery";
 import { normalizeExternalProspect, scoreExternalProspect, type ExternalProspect } from "@/services/outbound/external-discovery";
+import { discoverExternalProspects } from "@/services/outbound/external-discovery";
 import { revalidatePath } from "next/cache";
 
 export async function runPipelineStrategicAuditAction() {
@@ -1005,4 +1006,16 @@ export async function approveDiscoveryCandidateAction(candidateId: string) {
   await CrmService.updateOutboundDiscoveryCandidate(workspaceId, candidateId, { status: "APPROVED" });
   await ActivityService.logAudit(workspaceId, userId, "APPROVE_DISCOVERY_CANDIDATE", "OUTBOUND_DISCOVERY", candidateId, { leadId: result.lead.id, companyId: result.company.id, contactId: result.contact.id, campaignId: candidate.campaignId, fitScore: candidate.fitScore });
   return { candidate, ...result };
+}
+
+
+export async function runExternalDiscoveryAction(campaignId: string, query: string, limit = 25) {
+  const { workspaceId } = await requireWorkspace();
+  const campaign = await CrmService.getOutboundCampaignById(workspaceId, campaignId);
+  if (!campaign) throw new Error("Campaign not found.");
+  const raw = await discoverExternalProspects({ query, limit });
+  return raw.map((input) => normalizeExternalProspect(input, "EXTERNAL_RESEARCH")).filter(Boolean).map((prospect) => {
+    const p = prospect!;
+    return { prospect: p, match: scoreExternalProspect(p, campaign.targetProfile) };
+  }).sort((a,b) => b.match.score - a.match.score);
 }
