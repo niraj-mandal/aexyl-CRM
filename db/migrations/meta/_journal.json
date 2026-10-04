@@ -36,6 +36,13 @@
       "when": 1791136400000,
       "tag": "0004_outbound_events",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791222800000,
+      "tag": "0005_agent_runtime",
+      "breakpoints": true
     }
   ]
 }
