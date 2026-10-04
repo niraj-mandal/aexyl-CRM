@@ -939,3 +939,9 @@ export async function prepareOutboundObjectionAction(replyId: string) {
   await ActivityService.logAudit(workspaceId, userId, "PREPARE_OBJECTION", "OUTBOUND_REPLY", replyId, { type: analysis.type, confidence: analysis.confidence });
   return { replyId, analysis, draft, recipient: contact?.email || null, subject: campaign?.name ? `Re: ${campaign.name}` : "Re: your note", leadId: reply.leadId, enrollmentId: reply.enrollmentId, approvalRequired: true };
 }
+
+
+export async function getOutboundInboxAction() {
+  const { workspaceId } = await requireWorkspace();
+  return CrmService.getOutboundInbox(workspaceId, 100);
+}
