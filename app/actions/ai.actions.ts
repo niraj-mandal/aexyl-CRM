@@ -1058,6 +1058,19 @@ Return JSON only: {"message":"...","reason":"..."}.`;
   return { replyId, messageId: prepared.id, channel: reply.channel, message, reason, approvalRequired: true };
 }
 
+export async function runAgentAction(input: { agentKey: string; objective: string; inputContext?: Record<string, unknown> }) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const { startAgentRun, completeAgentRun } = await import("@/services/agents/runtime");
+  const started = await startAgentRun(workspaceId, { ...input, triggerType: "manual" });
+  await ActivityService.logAudit(workspaceId, userId, "AGENT_RUN_STARTED", "AGENT_RUN", started.run.id, { agentKey: started.agent.agentKey, objective: input.objective });
+  return { runId: started.run.id, agent: started.agent, status: started.run.status, policy: started.policy };
+}
+
+export async function getPendingAgentApprovalsAction() {
+  const { workspaceId } = await requireWorkspace();
+  return CrmService.getPendingAgentApprovals(workspaceId);
+}
+
 export async function getAgentRegistryAction() {
   const { workspaceId } = await requireWorkspace();
   const existing = await CrmService.getAgentRegistry(workspaceId);
