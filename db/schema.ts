@@ -238,6 +238,14 @@ export const outboundDiscoveryCandidates = pgTable("outbound_discovery_candidate
   companyName: text("company_name").notNull(), website: text("website"), industry: text("industry"), location: text("location"), contactFirstName: text("contact_first_name"), contactLastName: text("contact_last_name"), contactEmail: text("contact_email"), contactJobTitle: text("contact_job_title"), linkedinUrl: text("linkedin_url"), source: text("source").notNull(), fitScore: integer("fit_score").default(0).notNull(), fitTier: text("fit_tier").default("POSSIBLE_FIT").notNull(), reasons: jsonb("reasons").$type<string[]>().default([]).notNull(), gaps: jsonb("gaps").$type<string[]>().default([]).notNull(), status: text("status").default("PENDING").notNull(), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [index("outbound_discovery_workspace_idx").on(t.workspaceId, t.status), index("outbound_discovery_campaign_idx").on(t.campaignId)]);
 
+export const outboundEvents = pgTable("outbound_events", {
+  id: uuid("id").primaryKey().defaultRandom(), workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  campaignId: uuid("campaign_id").references(() => outboundCampaigns.id), companyId: uuid("company_id").references(() => companies.id), leadId: uuid("lead_id").references(() => leads.id),
+  type: text("type").notNull(), title: text("title").notNull(), summary: text("summary"), source: text("source").notNull(), sourceUrl: text("source_url"),
+  confidence: integer("confidence").default(50).notNull(), relevanceScore: integer("relevance_score").default(0).notNull(), status: text("status").default("NEW").notNull(),
+  occurredAt: timestamp("occurred_at"), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [index("outbound_events_workspace_idx").on(t.workspaceId, t.status), index("outbound_events_company_idx").on(t.companyId, t.createdAt), index("outbound_events_campaign_idx").on(t.campaignId)]);
+
 // -----------------------------------------------------------------------------
 // WORKSPACE INVITES
 // -----------------------------------------------------------------------------
