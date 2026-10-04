@@ -1058,6 +1058,12 @@ Return JSON only: {"message":"...","reason":"..."}.`;
   return { replyId, messageId: prepared.id, channel: reply.channel, message, reason, approvalRequired: true };
 }
 
+export async function getAgentRegistryAction() {
+  const { workspaceId } = await requireWorkspace();
+  const existing = await CrmService.getAgentRegistry(workspaceId);
+  return existing.length ? existing : CrmService.seedAgentRegistry(workspaceId);
+}
+
 export async function getAgentCommandBriefAction() {
   const { workspaceId } = await requireWorkspace();
   return CrmService.getAgentCommandBrief(workspaceId);
