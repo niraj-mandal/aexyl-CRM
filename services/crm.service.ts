@@ -294,6 +294,25 @@ export class CrmService {
     });
   }
 
+  static async getOutboundReplyById(workspaceId: string, replyId: string) {
+    return db.query.outboundReplies.findFirst({
+      where: and(eq(outboundReplies.workspaceId, workspaceId), eq(outboundReplies.id, replyId)),
+      with: {
+        enrollment: {
+          with: {
+            campaign: { columns: { id: true, name: true, valueProp: true, targetProfile: true } },
+            lead: {
+              with: {
+                company: { columns: { id: true, name: true } },
+                contact: { columns: { id: true, firstName: true, lastName: true, email: true, jobTitle: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   static async createOutboundReply(workspaceId: string, data: Omit<typeof outboundReplies.$inferInsert, "workspaceId">) {
     const [reply] = await db.insert(outboundReplies).values({ ...data, workspaceId }).returning();
     return reply;
