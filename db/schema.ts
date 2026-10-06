@@ -170,6 +170,82 @@ export const activities = pgTable("activities", {
 });
 
 
+
+/**
+ * OUTBOUND OS
+ * Persistent campaign/enrollment state. Message sending remains behind the
+ * existing approval/integration layer.
+ */
+export const outboundCampaigns = pgTable("outbound_campaigns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status").default("DRAFT").notNull(), // DRAFT, ACTIVE, PAUSED, COMPLETED, ARCHIVED
+  targetProfile: text("target_profile"),
+  valueProp: text("value_prop"),
+  channels: jsonb("channels").$type<string[]>().default(["EMAIL"]).notNull(),
+  dailySendLimit: integer("daily_send_limit").default(25).notNull(),
+  approvalRequired: boolean("approval_required").default(true).notNull(),
+  createdById: uuid("created_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_campaigns_workspace_idx").on(t.workspaceId),
+  index("outbound_campaigns_status_idx").on(t.workspaceId, t.status),
+]);
+
+export const outboundSteps = pgTable("outbound_steps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  campaignId: uuid("campaign_id").references(() => outboundCampaigns.id).notNull(),
+  stepNumber: integer("step_number").notNull(),
+  channel: text("channel").notNull(), // EMAIL, LINKEDIN, WHATSAPP, CALL
+  delayDays: integer("delay_days").default(0).notNull(),
+  title: text("title").notNull(),
+  instructions: text("instructions"),
+  template: text("template"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_steps_campaign_idx").on(t.campaignId),
+  unique("outbound_steps_campaign_number_unique").on(t.campaignId, t.stepNumber),
+]);
+
+export const outboundEnrollments = pgTable("outbound_enrollments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  campaignId: uuid("campaign_id").references(() => outboundCampaigns.id).notNull(),
+  leadId: uuid("lead_id").references(() => leads.id).notNull(),
+  status: text("status").default("ACTIVE").notNull(), // ACTIVE, PAUSED, REPLIED, BOOKED, WON, LOST, UNSUBSCRIBED, COMPLETED
+  currentStep: integer("current_step").default(1).notNull(),
+  nextActionAt: timestamp("next_action_at"),
+  lastActionAt: timestamp("last_action_at"),
+  lastChannel: text("last_channel"),
+  intent: text("intent").default("UNKNOWN").notNull(), // UNKNOWN, LOW, MEDIUM, HIGH
+  objection: text("objection"),
+  timeline: text("timeline"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_enrollments_workspace_idx").on(t.workspaceId),
+  index("outbound_enrollments_campaign_idx").on(t.campaignId),
+  index("outbound_enrollments_next_action_idx").on(t.workspaceId, t.nextActionAt),
+  unique("outbound_enrollments_campaign_lead_unique").on(t.campaignId, t.leadId),
+]);
+
+export const outboundDiscoveryCandidates = pgTable("outbound_discovery_candidates", {
+  id: uuid("id").primaryKey().defaultRandom(), workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(), campaignId: uuid("campaign_id").references(() => outboundCampaigns.id).notNull(),
+  companyName: text("company_name").notNull(), website: text("website"), industry: text("industry"), location: text("location"), contactFirstName: text("contact_first_name"), contactLastName: text("contact_last_name"), contactEmail: text("contact_email"), contactJobTitle: text("contact_job_title"), linkedinUrl: text("linkedin_url"), source: text("source").notNull(), fitScore: integer("fit_score").default(0).notNull(), fitTier: text("fit_tier").default("POSSIBLE_FIT").notNull(), reasons: jsonb("reasons").$type<string[]>().default([]).notNull(), gaps: jsonb("gaps").$type<string[]>().default([]).notNull(), status: text("status").default("PENDING").notNull(), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [index("outbound_discovery_workspace_idx").on(t.workspaceId, t.status), index("outbound_discovery_campaign_idx").on(t.campaignId)]);
+
+export const outboundEvents = pgTable("outbound_events", {
+  id: uuid("id").primaryKey().defaultRandom(), workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  campaignId: uuid("campaign_id").references(() => outboundCampaigns.id), companyId: uuid("company_id").references(() => companies.id), leadId: uuid("lead_id").references(() => leads.id),
+  type: text("type").notNull(), title: text("title").notNull(), summary: text("summary"), source: text("source").notNull(), sourceUrl: text("source_url"),
+  confidence: integer("confidence").default(50).notNull(), relevanceScore: integer("relevance_score").default(0).notNull(), status: text("status").default("NEW").notNull(),
+  occurredAt: timestamp("occurred_at"), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [index("outbound_events_workspace_idx").on(t.workspaceId, t.status), index("outbound_events_company_idx").on(t.companyId, t.createdAt), index("outbound_events_campaign_idx").on(t.campaignId)]);
+
 // -----------------------------------------------------------------------------
 // WORKSPACE INVITES
 // -----------------------------------------------------------------------------
@@ -441,6 +517,75 @@ export const agentEvents = pgTable("agent_events", {
 // -----------------------------------------------------------------------------
 // RELATIONS
 // -----------------------------------------------------------------------------
+
+export const outboundCampaignsRelations = relations(outboundCampaigns, ({ one, many }) => ({
+  workspace: one(workspaces, { fields: [outboundCampaigns.workspaceId], references: [workspaces.id] }),
+  createdBy: one(users, { fields: [outboundCampaigns.createdById], references: [users.id] }),
+  steps: many(outboundSteps),
+  enrollments: many(outboundEnrollments),
+}));
+
+export const outboundStepsRelations = relations(outboundSteps, ({ one }) => ({
+  campaign: one(outboundCampaigns, { fields: [outboundSteps.campaignId], references: [outboundCampaigns.id] }),
+}));
+
+export const outboundMessages = pgTable("outbound_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  enrollmentId: uuid("enrollment_id").references(() => outboundEnrollments.id).notNull(),
+  stepId: uuid("step_id").references(() => outboundSteps.id),
+  leadId: uuid("lead_id").references(() => leads.id).notNull(),
+  channel: text("channel").notNull(),
+  direction: text("direction").notNull(), // OUTBOUND, INBOUND
+  status: text("status").default("PREPARED").notNull(), // PREPARED, SENT, FAILED, RECEIVED
+  recipient: text("recipient"),
+  subject: text("subject"),
+  body: text("body").notNull(),
+  providerMessageId: text("provider_message_id"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_messages_enrollment_idx").on(t.enrollmentId),
+  index("outbound_messages_workspace_idx").on(t.workspaceId, t.createdAt),
+]);
+
+export const outboundReplies = pgTable("outbound_replies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  enrollmentId: uuid("enrollment_id").references(() => outboundEnrollments.id).notNull(),
+  leadId: uuid("lead_id").references(() => leads.id).notNull(),
+  channel: text("channel").notNull(),
+  body: text("body").notNull(),
+  intent: text("intent").default("UNKNOWN").notNull(),
+  confidence: integer("confidence").default(0).notNull(),
+  objection: text("objection"),
+  timeline: text("timeline"),
+  recommendedAction: text("recommended_action"),
+  receivedAt: timestamp("received_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("outbound_replies_enrollment_idx").on(t.enrollmentId),
+]);
+
+export const outboundMessagesRelations = relations(outboundMessages, ({ one }) => ({
+  workspace: one(workspaces, { fields: [outboundMessages.workspaceId], references: [workspaces.id] }),
+  enrollment: one(outboundEnrollments, { fields: [outboundMessages.enrollmentId], references: [outboundEnrollments.id] }),
+  step: one(outboundSteps, { fields: [outboundMessages.stepId], references: [outboundSteps.id] }),
+  lead: one(leads, { fields: [outboundMessages.leadId], references: [leads.id] }),
+}));
+
+export const outboundRepliesRelations = relations(outboundReplies, ({ one }) => ({
+  workspace: one(workspaces, { fields: [outboundReplies.workspaceId], references: [workspaces.id] }),
+  enrollment: one(outboundEnrollments, { fields: [outboundReplies.enrollmentId], references: [outboundEnrollments.id] }),
+  lead: one(leads, { fields: [outboundReplies.leadId], references: [leads.id] }),
+}));
+
+export const outboundEnrollmentsRelations = relations(outboundEnrollments, ({ one }) => ({
+  workspace: one(workspaces, { fields: [outboundEnrollments.workspaceId], references: [workspaces.id] }),
+  campaign: one(outboundCampaigns, { fields: [outboundEnrollments.campaignId], references: [outboundCampaigns.id] }),
+  lead: one(leads, { fields: [outboundEnrollments.leadId], references: [leads.id] }),
+}));
 
 export const workspacesRelations = relations(workspaces, ({ many }) => ({
   members: many(workspaceMemberships),

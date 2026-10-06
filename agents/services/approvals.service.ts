@@ -11,6 +11,7 @@ import { agentApprovals, agents, agentRuns, incidents } from "@/db/schema";
 import { NotificationService } from "@/services/notification.service";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { getTool } from "../core/registry/tools";
+import { evaluateToolPolicy } from "../core/policies/engine";
 import { ActivityService } from "@/services/activity.service";
 
 export type ApprovalOutcome =
@@ -47,7 +48,8 @@ export async function approveAndExecute(params: {
       and(
         eq(agentApprovals.id, approvalId),
         eq(agentApprovals.workspaceId, workspaceId),
-        eq(agentApprovals.status, "PENDING")
+        eq(agentApprovals.status, "PENDING"),
+        sql`expires_at > now()`
       )
     )
     .returning();
@@ -70,6 +72,24 @@ export async function approveAndExecute(params: {
   if (!t) {
     await db.update(agentApprovals).set({ status: "CANCELLED", executionResult: { error: "tool no longer exists" } }).where(eq(agentApprovals.id, approvalId));
     return { ok: false, message: "Approved tool no longer exists." };
+  }
+
+  const agent = await db.query.agents.findFirst({
+    where: and(eq(agents.id, claimed.agentId), eq(agents.workspaceId, workspaceId)),
+  });
+  if (!agent) {
+    await db.update(agentApprovals).set({ status: "CANCELLED", executionResult: { error: "agent no longer exists" } }).where(eq(agentApprovals.id, approvalId));
+    return { ok: false, message: "Agent no longer exists." };
+  }
+  const policy = await evaluateToolPolicy({ workspaceId, agent, toolId: claimed.toolName });
+  if (!policy.allowed) {
+    await db.update(agentApprovals).set({ status: "CANCELLED", executionResult: { error: policy.reason } }).where(eq(agentApprovals.id, approvalId));
+    await ActivityService.logAudit(workspaceId, reviewedBy, "AGENT_ACTION_BLOCKED", "AGENT_APPROVAL", approvalId, {
+      toolName: claimed.toolName,
+      reason: policy.reason,
+      code: policy.code,
+    });
+    return { ok: false, message: "Execution blocked by current policy: " + policy.reason };
   }
 
   // Execute with the run context recorded on the approval.

@@ -18,9 +18,15 @@ import {
   FolderKanban, 
   Sparkles, 
   Bot,
+  Brain,
   BellRing, 
   Bell,
-  Settings
+  Settings,
+  Megaphone,
+  Clock3,
+  Flame,
+  TimerReset,
+  Radar
 } from "lucide-react";
 import { useSidebarBadges } from "./sidebar-badges";
 import { SidebarBadge } from "./sidebar-badge";
@@ -59,6 +65,11 @@ const navSections: NavSection[] = [
       { name: "Contacts", href: "/sales/contacts", icon: Contact },
       { name: "Deals", href: "/sales/deals", icon: TrendingUp },
       { name: "Outreach Engine", href: "/outreach", icon: Send },
+      { name: "Campaigns", href: "/outreach/campaigns", icon: Megaphone },
+      { name: "Discovery", href: "/outreach/discovery", icon: Radar },\n      { name: "Signals", href: "/outreach/events", icon: Radar },\n      { name: "Inbox", href: "/outreach/inbox", icon: MessageCircle },
+      { name: "Outbound Queue", href: "/outreach/queue", icon: Clock3 },
+      { name: "Human Handoffs", href: "/outreach/handoffs", icon: Flame, badgeKey: "attention" },
+      { name: "Nurture", href: "/outreach/nurture", icon: TimerReset },
     ]
   },
   {
@@ -74,6 +85,7 @@ const navSections: NavSection[] = [
       { name: "Executive Matrix", href: "/intelligence", icon: Sparkles, badge: "AI" },
       { name: "Attention Required", href: "/attention", icon: BellRing, badgeKey: "attention" },
       { name: "Aexyl Agents", href: "/agents", icon: Bot, badgeKey: "approvals" },
+      { name: "Agent Memory", href: "/agents/memory", icon: Brain },
     ]
   }
 ];

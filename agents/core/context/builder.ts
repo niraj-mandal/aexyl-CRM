@@ -5,7 +5,7 @@
  */
 import { CrmService } from "@/services/crm.service";
 import { AiAgentService } from "@/services/ai/ai-agent.service";
-import { retrieveRelevantMemory } from "../runtime/runtime";
+import { AgentMemoryService } from "@/agents/services/memory.service";
 
 export class AgentContextBuilder {
   static async build(params: {
@@ -37,9 +37,9 @@ export class AgentContextBuilder {
           nextFollowUpAt: l.nextFollowUpAt,
         }));
         const leadId = typeof inputContext.leadId === "string" ? inputContext.leadId : null;
-        const memories = leadId
-          ? await retrieveRelevantMemory({ workspaceId, entityType: "lead", entityId: leadId, limit: 4 })
-          : await retrieveRelevantMemory({ workspaceId, scope: undefined, limit: 3 } as never).catch(() => []);
+        const memories = await AgentMemoryService.buildContext(workspaceId, leadId
+          ? { entityType: "lead", entityId: leadId, limit: 4 }
+          : { limit: 3 });
         return {
           summary: `Loaded ${withAge.length} active leads${leadId ? " + focus lead detail" : ""}${memories.length ? ` + ${memories.length} memories` : ""}`,
           data: { leads: withAge.slice(0, 30), focusLeadId: leadId, memories: memories.map((m) => m.content) },
