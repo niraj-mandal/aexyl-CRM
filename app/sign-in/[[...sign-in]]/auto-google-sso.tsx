@@ -24,6 +24,20 @@ export function AutoGoogleSSO({ onFail }: { onFail: () => void }) {
   );
 }
 
+/** Same-origin `redirect_url` only (e.g. back to an invite link); never an external site. */
+function safeReturnPath(): string {
+  const raw = new URLSearchParams(window.location.search).get("redirect_url");
+  if (!raw) return "/";
+  try {
+    const target = new URL(raw, window.location.origin);
+    if (target.origin !== window.location.origin) return "/";
+    if (target.pathname.startsWith("/sign-in") || target.pathname.startsWith("/sso-callback")) return "/";
+    return target.pathname + target.search + target.hash;
+  } catch {
+    return "/";
+  }
+}
+
 function AutoGoogleSSOStart({ onFail }: { onFail: () => void }) {
   const clerk = useClerk();
   const started = useRef(false);
@@ -38,7 +52,7 @@ function AutoGoogleSSOStart({ onFail }: { onFail: () => void }) {
         const signIn = await clerk.client!.signIn.create({
           strategy: "oauth_google",
           redirectUrl: `${window.location.origin}/sso-callback`,
-          actionCompleteRedirectUrl: "/",
+          actionCompleteRedirectUrl: safeReturnPath(),
           // Forces Google's account picker every time.
           oidcPrompt: "select_account",
         });
