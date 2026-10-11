@@ -88,16 +88,24 @@ export function Sidebar() {
     <aside className="flex h-full w-[260px] flex-col bg-surface-lowest border-r border-border-subtle overflow-hidden select-none">
       {/* Brand Header */}
       <div className="flex h-16 items-center px-6 border-b border-border-subtle/50">
-        <Link href="/" className="flex items-center space-x-3 group">
+        <Link href="/" aria-label="AEXYL home" className="flex items-center gap-2.5 group">
+          <Image
+            src="/aexyl-symbol.png"
+            alt=""
+            width={259}
+            height={248}
+            priority
+            className="h-7 w-auto shrink-0 transition-transform group-hover:scale-105 group-hover:-rotate-3"
+          />
           <Image
             src="/aexyl-mark-white.png"
             alt="AEXYL"
             width={874}
             height={150}
             priority
-            className="h-3 w-auto transition-transform group-hover:scale-105"
+            className="h-3 w-auto"
           />
-          <span className="font-mono-code text-[10px] text-text-muted tracking-widest uppercase">OS v2.4</span>
+          <span className="ml-0.5 font-mono-code text-[10px] text-text-muted tracking-widest uppercase">OS v2.4</span>
         </Link>
       </div>
 
