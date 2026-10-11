@@ -162,26 +162,40 @@ export async function revokeInviteAction(inviteId: string) {
 
 /**
  * Accepts an invite by token. The signed-in user's verified email must match
- * the invited address. Creates the membership (single UPDATE guards double-accept).
+ * the invited address. Returns a result instead of throwing, because Next.js
+ * hides thrown server-action messages in production.
  */
-export async function acceptInviteAction(token: string) {
+export async function acceptInviteAction(
+  token: string,
+): Promise<{ ok: true; workspaceId: string } | { ok: false; error: string }> {
   const clerkId = (await auth()).userId;
-  if (!clerkId) throw new Error("Sign in to accept this invite");
+  if (!clerkId) return { ok: false, error: "Sign in to accept this invite." };
 
   const invite = await db.query.workspaceInvites.findFirst({
     where: eq(workspaceInvites.token, token),
   });
   if (!invite || invite.status !== "PENDING") {
-    throw new Error("This invite is not valid anymore");
+    return { ok: false, error: "This invite is not valid anymore." };
   }
   if (invite.expiresAt.getTime() < Date.now()) {
-    throw new Error("This invite has expired");
+    return { ok: false, error: "This invite has expired. Ask the owner for a new one." };
   }
 
   // Invite-only: the link is bound to the invited address, not to whoever holds it.
   const email = await getVerifiedPrimaryEmail();
   if (!email || email !== invite.email.trim().toLowerCase()) {
-    throw new Error(`This invite is for ${invite.email}. Sign in with that Google account to accept it.`);
+    return {
+      ok: false,
+      error: `This invite is for ${invite.email}, but you're signed in as ${email ?? "an unverified email"}. Sign out and sign in with ${invite.email}.`,
+    };
+  }
+
+  // Resolve the role before claiming, so a misconfigured workspace never burns the invite.
+  const roleId =
+    invite.roleId ??
+    (await db.query.roles.findFirst({ where: eq(roles.workspaceId, invite.workspaceId) }))?.id;
+  if (!roleId) {
+    return { ok: false, error: "Workspace has no role configured. Ask the owner to set one up." };
   }
 
   const { id: userId } = await ensureLocalUser(clerkId, email);
@@ -198,32 +212,16 @@ export async function acceptInviteAction(token: string) {
     .where(and(eq(workspaceInvites.id, invite.id), eq(workspaceInvites.status, "PENDING")))
     .returning();
 
-  if (!claimed) throw new Error("This invite was just used by someone else");
+  if (!claimed) return { ok: false, error: "This invite was already used." };
 
-  // If this user already belongs to the workspace (linked email), don't duplicate.
   const existingMembership = await db.query.workspaceMemberships.findFirst({
     where: and(
       eq(workspaceMemberships.workspaceId, invite.workspaceId),
       eq(workspaceMemberships.userId, userId)
     ),
   });
-
   if (!existingMembership) {
-    // Role from the invite; fall back to the workspace's default role.
-    const fallback = invite.roleId
-      ? null
-      : await db.query.roles.findFirst({
-          where: eq(roles.workspaceId, invite.workspaceId),
-        });
-    const roleId: string = invite.roleId ?? fallback?.id ?? "";
-    if (roleId === "") {
-      throw new Error("Workspace has no role configured — ask the owner to set one up");
-    }
-    await db.insert(workspaceMemberships).values({
-      workspaceId: invite.workspaceId,
-      userId,
-      roleId,
-    });
+    await db.insert(workspaceMemberships).values({ workspaceId: invite.workspaceId, userId, roleId });
   }
 
   await ActivityService.logAudit(invite.workspaceId, userId, "ACCEPT", "INVITE", invite.id, {
@@ -232,5 +230,5 @@ export async function acceptInviteAction(token: string) {
 
   revalidatePath("/settings");
   revalidatePath("/settings?tab=Team");
-  return { workspaceId: invite.workspaceId };
+  return { ok: true, workspaceId: invite.workspaceId };
 }

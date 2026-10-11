@@ -15,11 +15,15 @@ export function AcceptInviteButton({ token, workspaceName }: { token: string; wo
     setError(null);
     startTransition(async () => {
       try {
-        await acceptInviteAction(token);
+        const result = await acceptInviteAction(token);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
         setDone(true);
         setTimeout(() => router.push("/"), 1200);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to accept invite");
+      } catch {
+        setError("Something went wrong accepting the invite. Please try again.");
       }
     });
   };

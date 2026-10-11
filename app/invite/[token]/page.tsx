@@ -3,6 +3,8 @@ import { GlassPanel } from "@/components/ui/glass-card";
 import { MonoLabel, Body } from "@/components/ui/typography";
 import { Badge } from "@/components/ui/badge";
 import { auth } from "@clerk/nextjs/server";
+import { SignOutButton } from "@clerk/nextjs";
+import { getVerifiedPrimaryEmail } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { workspaceInvites } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -27,6 +29,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     },
   });
 
+  const signedInEmail = userId ? await getVerifiedPrimaryEmail() : null;
   const invalid = !invite || invite.status !== "PENDING";
   const expired = !invalid && invite.expiresAt.getTime() < new Date().getTime();
 
@@ -74,7 +77,19 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             </div>
 
             <div className="mt-6">
-              {userId ? (
+              {userId && signedInEmail !== invite.email.trim().toLowerCase() ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-danger">
+                    You&apos;re signed in as <span className="font-medium">{signedInEmail ?? "an unverified email"}</span>.
+                    This invite only works for <span className="font-medium">{invite.email}</span>.
+                  </p>
+                  <SignOutButton redirectUrl={`/sign-in?redirect_url=/invite/${token}`}>
+                    <button className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition">
+                      Sign out and switch to {invite.email}
+                    </button>
+                  </SignOutButton>
+                </div>
+              ) : userId ? (
                 <AcceptInviteButton token={token} workspaceName={invite.workspace?.name ?? "Aexyl"} />
               ) : (
                 <div className="space-y-3">
