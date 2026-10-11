@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Sparkles, Bot, Send, X, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo, CalendarClock, MapPin, SquareCheck, Square, Flame, Paperclip, FileSpreadsheet as SheetIcon, UserPlus, Building2, Handshake, Trash2, Brain, Target, MailPlus, Play, Search, BarChart3 } from "lucide-react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
+import { Sparkles, Bot, Send, X, Keyboard, Copy, Check, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo, CalendarClock, MapPin, SquareCheck, Square, Flame, Paperclip, FileSpreadsheet as SheetIcon, UserPlus, Building2, Handshake, Trash2, Brain, Target, MailPlus, Play, Search, BarChart3 } from "lucide-react";
 import {
   sendCopilotPromptAction,
   ingestSheetAction,
@@ -116,6 +116,9 @@ const WRITE_KINDS = new Set([
 ]);
 const isWriteKind = (t: string) => WRITE_KINDS.has(t);
 
+const noopSubscribe = () => () => {};
+const SHEET_FILE_RE = /\.(csv|xlsx|xls|tsv|txt)$/i;
+
 export function AiCopilotDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
@@ -127,6 +130,19 @@ export function AiCopilotDrawer() {
   const [sheet, setSheet] = useState<AttachedSheet | null>(null);
   const [sheetBusy, setSheetBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const isMac = useSyncExternalStore(
+    noopSubscribe,
+    () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
+    () => false,
+  );
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
+  // Sent-prompt history for ↑/↓ recall; index -1 means "not browsing".
+  const [sentHistory, setSentHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   // Arm→confirm timers: an armed proposal decays back to pending.
   const armTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -164,7 +180,11 @@ export function AiCopilotDrawer() {
   const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file
-    if (!file || sheetBusy) return;
+    if (file) await attachSheetFile(file);
+  };
+
+  const attachSheetFile = async (file: File) => {
+    if (sheetBusy) return;
     setMessages((prev) => [...prev, { role: "user", text: `📎 ${file.name}`, ephemeral: true }]);
     setSheetBusy(true);
     try {
@@ -204,6 +224,10 @@ export function AiCopilotDrawer() {
 
     // A pasted Google Sheets share link attaches the sheet instead of chatting.
     const trimmed = queryText.trim();
+    if (!userPrompt) {
+      setSentHistory((h) => (h[h.length - 1] === trimmed ? h : [...h, trimmed].slice(-50)));
+    }
+    setHistoryIndex(-1);
     if (SHEET_URL_RE.test(trimmed)) {
       if (!userPrompt) setPrompt("");
       await handleSheetUrl(trimmed);
@@ -731,11 +755,223 @@ export function AiCopilotDrawer() {
     }
   };
 
+  const busy = loading || discovering || sheetBusy;
+  const lastAssistantIdx = messages.findLastIndex((m) => m.role === "assistant" && m.text.trim());
+  const mod = isMac ?"⌘" : "Ctrl";
+  const alt = isMac ? "⌥" : "Alt";
+
+  const quickPrompts: { label: string; className: string; run: () => void }[] = [
+    { label: "☀️ Today", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20", run: () => handleSend("What should I do today?") },
+    { label: "⚡ Audit Risk", className: "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20", run: () => handleSend("Audit pipeline risk") },
+    { label: "🎯 Hot Leads", className: "bg-secondary/10 text-secondary border-secondary/30 hover:bg-secondary/20", run: () => handleSend("Summarize hot leads") },
+    { label: "🏢 Clients", className: "bg-tertiary/10 text-tertiary border-tertiary/30 hover:bg-tertiary/20", run: () => handleSend("Client account stats") },
+    { label: "🔎 Scrape Leads", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20", run: () => handleDiscover("B2B agencies that need automation services") },
+    { label: "➕ New Lead", className: "bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20", run: () => handleSend("Create a new lead") },
+    { label: "📨 Sequences", className: "bg-sky-500/10 text-sky-400 border-sky-500/30 hover:bg-sky-500/20", run: () => handleSend("Show my outreach sequences and BDR stats") },
+  ];
+
+  const shortcutList: { keys: string; action: string }[] = [
+    { keys: `${mod} J`, action: "Open / close the copilot (anywhere)" },
+    { keys: "Enter", action: "Send message" },
+    { keys: "Shift Enter", action: "New line" },
+    { keys: "↑ / ↓", action: "Previous / next sent message" },
+    { keys: `${alt} 1–${quickPrompts.length}`, action: "Run a quick prompt" },
+    { keys: `${alt} A`, action: "Attach a spreadsheet" },
+    { keys: `${mod} C`, action: "Copy selection (or the latest AI reply if nothing is selected)" },
+    { keys: `${mod} V`, action: "Paste into the message box (sheet files attach)" },
+    { keys: "Esc", action: "Close this panel / the copilot" },
+    { keys: `? or ${mod} /`, action: "Show these shortcuts" },
+    { keys: "Tab / Shift Tab", action: "Move between buttons" },
+  ];
+
+  const openCopilot = () => {
+    setShowShortcuts(false);
+    setIsOpen(true);
+  };
+  const closeCopilot = () => {
+    setShowShortcuts(false);
+    setIsOpen(false);
+  };
+
+  // Focus the input on open; return focus to the trigger on close.
+  useEffect(() => {
+    if (isOpen) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    } else if (wasOpen.current) {
+      triggerRef.current?.focus();
+    }
+    wasOpen.current = isOpen;
+  }, [isOpen]);
+
+  // Grow the textarea with its content, up to ~6 lines.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
+  }, [prompt, isOpen]);
+
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+
+  const copyMessage = async (idx: number) => {
+    const text = messages[idx]?.text;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1500);
+    } catch {
+      // Clipboard can be blocked (permissions/insecure context); selection-copy still works.
+    }
+  };
+
+  // Paste anywhere in the open panel lands in the message box; pasted sheet files attach.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const dialog = dialogRef.current;
+      if (!dialog || !e.clipboardData) return;
+      const target = e.target as HTMLElement | null;
+      if (target && !dialog.contains(target) && target !== document.body) return;
+
+      const file = Array.from(e.clipboardData.files).find((f) => SHEET_FILE_RE.test(f.name));
+      if (file) {
+        e.preventDefault();
+        void attachSheetFile(file);
+        return;
+      }
+
+      if (target === inputRef.current) return;
+      const text = e.clipboardData.getData("text");
+      if (!text) return;
+      e.preventDefault();
+      setHistoryIndex(-1);
+      setPrompt((p) => p + text);
+      inputRef.current?.focus();
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  });
+
+  // Re-subscribed every render so the handler always sees current state.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const modKey = e.metaKey || e.ctrlKey;
+
+      if (modKey && !e.shiftKey && !e.altKey && e.code === "KeyJ") {
+        e.preventDefault();
+        if (isOpen) closeCopilot();
+        else openCopilot();
+        return;
+      }
+      if (!isOpen) return;
+
+      const target = e.target as HTMLElement | null;
+      const typing = !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (showShortcuts) setShowShortcuts(false);
+        else closeCopilot();
+        return;
+      }
+      // Ctrl/⌘+C with nothing selected copies the latest AI reply; a real selection copies normally.
+      if (modKey && !e.shiftKey && !e.altKey && e.code === "KeyC") {
+        const selected = window.getSelection()?.toString() ?? "";
+        const inputHasSelection =
+          typing && target instanceof HTMLTextAreaElement && target.selectionStart !== target.selectionEnd;
+        if (!selected && !inputHasSelection) {
+          const lastReply = messages.map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === "assistant" && m.text.trim());
+          if (lastReply) {
+            e.preventDefault();
+            void copyMessage(lastReply.i);
+          }
+        }
+        return;
+      }
+      if ((modKey && e.key === "/") || (!typing && e.key === "?")) {
+        e.preventDefault();
+        setShowShortcuts((v) => !v);
+        return;
+      }
+      if (e.altKey && !modKey && /^Digit[1-9]$/.test(e.code)) {
+        const chip = quickPrompts[Number(e.code.slice(5)) - 1];
+        if (chip) {
+          e.preventDefault();
+          if (!busy) chip.run();
+        }
+        return;
+      }
+      if (e.altKey && !modKey && e.code === "KeyA") {
+        e.preventDefault();
+        if (!sheetBusy) fileInputRef.current?.click();
+        return;
+      }
+
+      // Keep Tab focus inside the open dialog.
+      const dialog = dialogRef.current;
+      if (e.key === "Tab" && dialog) {
+        const focusables = Array.from(
+          dialog.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], input:not([disabled]):not([type="file"]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((el) => el.offsetParent !== null);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || !dialog.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !dialog.contains(active))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSend();
+      return;
+    }
+    const el = e.currentTarget;
+    if (e.key === "ArrowUp" && sentHistory.length > 0 && el.selectionStart === 0 && el.selectionEnd === 0) {
+      if (historyIndex === -1 && prompt.trim() !== "") return;
+      e.preventDefault();
+      const prev = historyIndex === -1 ? sentHistory.length - 1 : Math.max(0, historyIndex - 1);
+      setHistoryIndex(prev);
+      setPrompt(sentHistory[prev]);
+      return;
+    }
+    if (e.key === "ArrowDown" && historyIndex !== -1 && el.selectionStart === el.value.length) {
+      e.preventDefault();
+      const next = historyIndex + 1;
+      if (next >= sentHistory.length) {
+        setHistoryIndex(-1);
+        setPrompt("");
+      } else {
+        setHistoryIndex(next);
+        setPrompt(sentHistory[next]);
+      }
+    }
+  };
+
+
   return (
     <>
       {/* Floating Trigger Button */}
       <button
-        onClick={() => setIsOpen(true)}
+        ref={triggerRef}
+        onClick={openCopilot}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-keyshortcuts="Control+J Meta+J"
+        title={`Open AI Copilot (${mod}+J)`}
         className="fixed bottom-6 right-6 z-50 flex items-center space-x-2 rounded-full bg-gradient-to-r from-primary via-indigo-600 to-tertiary px-4 py-3 text-xs font-bold text-white shadow-[0_0_25px_rgba(43,102,255,0.4)] hover:scale-105 hover:shadow-[0_0_35px_rgba(43,102,255,0.6)] transition-all duration-300 group"
       >
         <Sparkles className="h-4 w-4 animate-pulse group-hover:rotate-12 transition-transform" />
@@ -744,8 +980,19 @@ export function AiCopilotDrawer() {
 
       {/* Drawer Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-md bg-surface-lowest border-l border-border-subtle shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeCopilot();
+          }}
+        >
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="copilot-title"
+            className="relative w-full max-w-md bg-surface-lowest border-l border-border-subtle shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300"
+          >
 
             {/* Header */}
             <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-surface-elevated/40">
@@ -754,69 +1001,100 @@ export function AiCopilotDrawer() {
                   <Bot className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-semibold text-text-primary tracking-wide">AEXYL AI COPILOT</h3>
+                  <h3 id="copilot-title" className="text-xs font-semibold text-text-primary tracking-wide">AEXYL AI COPILOT</h3>
                   <span className="text-[10px] font-mono-code text-secondary flex items-center space-x-1">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-secondary animate-ping mr-1"></span>
                     {engine === "llm" ? "LLM REASONING ONLINE" : engine === "deterministic" ? "DETERMINISTIC ENGINE" : "AUTONOMOUS AGENT ACTIVE"}
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setShowShortcuts((s) => !s)}
+                  aria-label="Keyboard shortcuts"
+                  aria-expanded={showShortcuts}
+                  aria-keyshortcuts="Control+/ Meta+/ Shift+?"
+                  title={`Keyboard shortcuts (? or ${mod}+/)`}
+                  className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  <Keyboard className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={closeCopilot}
+                  aria-label="Close copilot"
+                  aria-keyshortcuts="Escape"
+                  title="Close (Esc)"
+                  className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
+            {showShortcuts && (
+              <div
+                role="region"
+                aria-label="Keyboard shortcuts"
+                className="absolute inset-x-3 top-16 z-10 rounded-xl border border-border-subtle bg-surface-elevated p-4 shadow-2xl"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-text-primary tracking-wide">KEYBOARD SHORTCUTS</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowShortcuts(false)}
+                    aria-label="Close keyboard shortcuts"
+                    className="p-0.5 rounded text-text-muted hover:text-text-primary"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <dl className="space-y-1.5">
+                  {shortcutList.map((s) => (
+                    <div key={s.keys} className="flex items-center justify-between gap-3 text-[11px]">
+                      <dt className="text-text-muted">{s.action}</dt>
+                      <dd className="flex shrink-0 gap-1">
+                        {s.keys.split(" ").map((k, i) => (
+                          <kbd
+                            key={i}
+                            className="rounded border border-border-subtle bg-surface-lowest px-1.5 py-0.5 font-mono-code text-[10px] text-text-primary"
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+
             {/* Quick Preset Prompt Chips */}
-            <div className="p-3 bg-surface-low/50 border-b border-border-subtle flex items-center gap-2 overflow-x-auto text-[10px]">
-              <button
-                onClick={() => handleSend("What should I do today?")}
-                className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 whitespace-nowrap hover:bg-emerald-500/20 transition-colors"
-              >
-                ☀️ Today
-              </button>
-              <button
-                onClick={() => handleSend("Audit pipeline risk")}
-                className="px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30 whitespace-nowrap hover:bg-primary/20 transition-colors"
-              >
-                ⚡ Audit Risk
-              </button>
-              <button
-                onClick={() => handleSend("Summarize hot leads")}
-                className="px-2.5 py-1 rounded-full bg-secondary/10 text-secondary border border-secondary/30 whitespace-nowrap hover:bg-secondary/20 transition-colors"
-              >
-                🎯 Hot Leads
-              </button>
-              <button
-                onClick={() => handleSend("Client account stats")}
-                className="px-2.5 py-1 rounded-full bg-tertiary/10 text-tertiary border border-tertiary/30 whitespace-nowrap hover:bg-tertiary/20 transition-colors"
-              >
-                🏢 Clients
-              </button>
-              <button
-                onClick={() => handleDiscover("B2B agencies that need automation services")}
-                className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 whitespace-nowrap hover:bg-emerald-500/20 transition-colors"
-              >
-                🔎 Scrape Leads
-              </button>
-              <button
-                onClick={() => handleSend("Create a new lead")}
-                className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 whitespace-nowrap hover:bg-purple-500/20 transition-colors"
-              >
-                ➕ New Lead
-              </button>
-              <button
-                onClick={() => handleSend("Show my outreach sequences and BDR stats")}
-                className="px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30 whitespace-nowrap hover:bg-sky-500/20 transition-colors"
-              >
-                📨 Sequences
-              </button>
+            <div role="toolbar" aria-label="Quick prompts" className="p-3 bg-surface-low/50 border-b border-border-subtle flex items-center gap-2 overflow-x-auto text-[10px]">
+              {quickPrompts.map((chip, i) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={chip.run}
+                  disabled={busy}
+                  aria-keyshortcuts={`Alt+${i + 1}`}
+                  title={`${alt}+${i + 1}`}
+                  className={`px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${chip.className}`}
+                >
+                  {chip.label}
+                </button>
+              ))}
             </div>
 
             {/* Chat History Container */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+            <div
+              role="log"
+              aria-live="polite"
+              aria-label="Conversation"
+              aria-busy={busy}
+              className="flex-1 p-4 overflow-y-auto space-y-4"
+            >
               {messages.map((m, idx) => (
                 <div
                   key={idx}
@@ -1082,11 +1360,23 @@ export function AiCopilotDrawer() {
                       </div>
                     )}
                   </div>
+                  {m.role === "assistant" && m.text.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => copyMessage(idx)}
+                      aria-label={copiedIdx === idx ? "Copied" : "Copy reply"}
+                      title={idx === lastAssistantIdx ? `Copy reply (${mod}+C with nothing selected)` : "Copy reply"}
+                      className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                    >
+                      {copiedIdx === idx ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      {copiedIdx === idx ? "Copied" : "Copy"}
+                    </button>
+                  )}
                 </div>
               ))}
 
-              {(loading || discovering || sheetBusy) && (
-                <div className="flex items-center space-x-2 text-xs text-text-muted">
+              {busy && (
+                <div role="status" className="flex items-center space-x-2 text-xs text-text-muted">
                   <Cpu className="h-4 w-4 animate-spin text-primary" />
                   <span>
                     {sheetBusy
@@ -1112,6 +1402,7 @@ export function AiCopilotDrawer() {
                     type="button"
                     onClick={() => setSheet(null)}
                     title="Detach sheet"
+                    aria-label={`Detach ${sheet.fileName}`}
                     className="ml-auto p-0.5 rounded text-text-muted hover:text-text-primary transition-colors"
                   >
                     <X className="h-3 w-3" />
@@ -1123,35 +1414,53 @@ export function AiCopilotDrawer() {
                   e.preventDefault();
                   handleSend();
                 }}
-                className="flex items-center space-x-2"
+                className="flex items-end space-x-2"
               >
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={sheetBusy}
-                  title="Attach a Google Sheet (.csv/.xlsx) or paste its share link"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-surface-lowest text-text-muted hover:text-primary hover:border-primary/40 disabled:opacity-50 transition-colors"
+                  aria-label="Attach a spreadsheet"
+                  aria-keyshortcuts="Alt+A"
+                  title={`Attach a Google Sheet (.csv/.xlsx) or paste its share link (${alt}+A)`}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-surface-lowest text-text-muted hover:text-primary hover:border-primary/40 disabled:opacity-50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   {sheetBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
                 </button>
-                <input
-                  type="text"
+                <textarea
+                  ref={inputRef}
+                  rows={1}
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                  onChange={(e) => {
+                    setHistoryIndex(-1);
+                    setPrompt(e.target.value);
+                  }}
+                  onKeyDown={onInputKeyDown}
+                  aria-label="Message the AI copilot"
+                  aria-describedby="copilot-input-hint"
                   placeholder="Create a lead, send an email, analyze intent…"
-                  className="flex-1 bg-surface-lowest border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-primary/60"
+                  className="flex-1 resize-none bg-surface-lowest border border-border-subtle rounded-lg px-3 py-2 text-xs leading-4 text-text-primary focus:outline-none focus:border-primary/60"
                 />
                 <button
                   type="submit"
-                  disabled={loading || discovering || sheetBusy || !prompt.trim()}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-50 hover:bg-primary/90 transition-colors"
+                  disabled={busy || !prompt.trim()}
+                  aria-label="Send message"
+                  aria-keyshortcuts="Enter"
+                  title="Send (Enter)"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-50 hover:bg-primary/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <Send className="h-3.5 w-3.5" />
                 </button>
               </form>
+              <p id="copilot-input-hint" className="mt-1.5 text-[9px] text-text-muted">
+                <kbd className="font-mono-code">Enter</kbd> send · <kbd className="font-mono-code">Shift+Enter</kbd> new line ·{" "}
+                <kbd className="font-mono-code">↑</kbd> last message · <kbd className="font-mono-code">?</kbd> all shortcuts
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
+                tabIndex={-1}
+                aria-hidden="true"
                 accept=".csv,.xlsx,.xls,.tsv,.txt"
                 className="hidden"
                 onChange={handleFilePick}
