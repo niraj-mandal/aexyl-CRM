@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Scratch/state dir used by agent tooling — contains downloaded vendor
+    // bundles that must not be linted as project source.
+    ".freebuff/**",
   ]),
 ]);
 

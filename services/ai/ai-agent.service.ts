@@ -1,5 +1,10 @@
 import { CrmService, ProjectService } from "../crm.service";
+import { COPILOT_SYSTEM_PROMPT } from "./copilot-persona";
 import { LlmService } from "./llm.service";
+import { SheetImportService, type SheetSession } from "./sheet-import.service";
+import { SequenceEngineService } from "./sequence-engine.service";
+import { BdrEngineService } from "./bdr-engine.service";
+import { IcpService } from "./icp.service";
 
 /** Client-executable copilot action payload (navigation, discovery, and write proposals). */
 export interface CopilotActionPayload {
@@ -27,15 +32,7 @@ export interface CopilotActionPayload {
 
 export interface CopilotAction {
   label: string;
-  actionType:
-    | "NAVIGATE"
-    | "UPDATE_DEAL_STAGE"
-    | "CREATE_TASK"
-    | "SEND_EMAIL"
-    | "RUN_SWEEP"
-    | "DISCOVER_LEADS"
-    | "DISCOVER_LOCAL_LEADS"
-    | "LOG_ACTIVITY";
+  actionType: string;
   payload: CopilotActionPayload;
 }
 
@@ -418,43 +415,137 @@ export class AiAgentService {
   static async processCopilotCommand(
     workspaceId: string,
     prompt: string,
-    history: CopilotTurn[] = []
+    history: CopilotTurn[] = [],
+    sheet: SheetSession | null = null
   ): Promise<CopilotResponse> {
     const snapshot = await AiAgentService.buildWorkspaceSnapshot(workspaceId);
+
+    // Spreadsheet flows sit BEFORE web discovery: "generate leads from the
+    // sheet" must never be hijacked by the discovery intent matcher. The
+    // import branch is deterministic — it works with or without an LLM.
+    if (AiAgentService.isSheetImportIntent(prompt, Boolean(sheet))) {
+      if (!sheet) {
+        return {
+          answer:
+            "No spreadsheet is attached to this session yet — attach the Google Sheet with the 📎 button (a .csv/.xlsx export) or paste its share link as a message, then ask me to add it to the leads.",
+          dataContext: { intent: "sheet_attach_needed" },
+        };
+      }
+      return AiAgentService.sheetImportResponse(sheet);
+    }
+    const mentionsSheet = AiAgentService.mentionsSheet(prompt);
 
     // Lead-discovery intent is detected before the LLM so it works with or
     // without a provider — the drawer executes DISCOVER_LEADS either way.
     if (AiAgentService.isDiscoveryIntent(prompt)) {
-      // "find gyms in Jorhat" / "scrape cafes in Mumbai" → OpenStreetMap local
-      // pipeline (category + city shape) when the prompt parses cleanly.
-      const local = AiAgentService.parseLocalDiscoveryIntent(prompt);
-      if (local) {
+      // A sheet was referenced but none is attached → honest attach hint.
+      if (mentionsSheet && !sheet) {
         return {
-          answer: `Local discovery via OpenStreetMap (free, no API key): I'll geocode ${local.city} and pull "${local.category}" businesses, then tier them by the missing-web-presence signal — no website AND no phone = Hot. You approve what enters the CRM.`,
-          suggestedActions: [
-            {
-              label: `📍 Find local ${local.category} in ${local.city}`,
-              actionType: "DISCOVER_LOCAL_LEADS",
-              payload: { category: local.category, city: local.city },
-            },
-            {
-              label: "🔎 Prefer broad web research instead",
-              actionType: "DISCOVER_LEADS",
-              payload: { query: prompt.trim().slice(0, 300) },
-            },
-          ],
-          dataContext: { intent: "local_lead_discovery", category: local.category, city: local.city },
+          answer:
+            "You referenced a spreadsheet, but none is attached — attach it with the 📎 button (or paste its share link) and I'll work from its rows.",
+          dataContext: { intent: "sheet_attach_needed" },
         };
       }
-      return AiAgentService.discoveryResponse(prompt, snapshot.llmAvailable);
+      // Sheet attached AND referenced → this is a read/analysis ask about the
+      // sheet, not a request to scrape the web. Fall through to the LLM (with
+      // the sheet context) or the sheet summary below.
+      if (!sheet) {
+        // "find gyms in Jorhat" / "scrape cafes in Mumbai" → OpenStreetMap local
+        // pipeline (category + city shape) when the prompt parses cleanly.
+        const local = AiAgentService.parseLocalDiscoveryIntent(prompt);
+        if (local) {
+          const isGoogleAsk = /\b(google\s*maps?|gmaps|google\s*places?|maps)\b/i.test(prompt);
+          return {
+            answer: isGoogleAsk
+              ? `Google Maps discovery: I'll search Google Places for "${local.category}" in ${local.city} — you'll get ratings, review counts, photos, and phone numbers. Results are tiered Hot/Warm/Cold. You approve what enters the CRM.`
+              : `Local discovery: I'll find "${local.category}" in ${local.city} and tier them Hot/Warm/Cold. Choose Google Maps (richer data: ratings, reviews) or OpenStreetMap (free, no key needed).`,
+            suggestedActions: [
+              {
+                label: `🗺️ Google Maps: ${local.category} in ${local.city}`,
+                actionType: "DISCOVER_GOOGLE_LEADS",
+                payload: { category: local.category, city: local.city },
+              },
+              {
+                label: `📍 OpenStreetMap (free): ${local.category} in ${local.city}`,
+                actionType: "DISCOVER_LOCAL_LEADS",
+                payload: { category: local.category, city: local.city },
+              },
+              {
+                label: "🔎 Broad web research instead",
+                actionType: "DISCOVER_LEADS",
+                payload: { query: prompt.trim().slice(0, 300) },
+              },
+            ],
+            dataContext: { intent: "local_lead_discovery", category: local.category, city: local.city },
+          };
+        }
+        return AiAgentService.discoveryResponse(prompt, snapshot.llmAvailable);
+      }
     }
 
     if (snapshot.llmAvailable) {
-      const llmResponse = await AiAgentService.llmCopilotResponse(prompt, snapshot, history);
+      const sheetBlock = sheet ? SheetImportService.buildSheetContextBlock(sheet) : null;
+      const llmResponse = await AiAgentService.llmCopilotResponse(prompt, snapshot, history, sheetBlock);
       if (llmResponse) return llmResponse;
     }
 
+    // Attached sheet, no LLM (or the LLM failed) → deterministic sheet summary.
+    if (sheet && mentionsSheet) return AiAgentService.sheetSummaryResponse(sheet);
+
     return AiAgentService.deterministicResponse(prompt, snapshot);
+  }
+
+  /** True when the prompt refers to a spreadsheet or its parts. */
+  private static mentionsSheet(prompt: string): boolean {
+    return /\b(sheet|sheets|spreadsheet|csv|excel|rows?|columns?|cells|attach(?:ed|ment)?|upload(?:ed|ing)?)\b/i.test(prompt);
+  }
+
+  /**
+   * True when the operator wants the attached spreadsheet's rows IN the CRM
+   * as leads. Requires an import verb + a lead target, plus either an
+   * explicit sheet reference or (when a sheet is attached) an all-quantifier
+   * paired with a data noun — so an attached sheet never hijacks ordinary
+   * writes like "add this lead to the pipeline".
+   */
+  private static isSheetImportIntent(prompt: string, hasSheet: boolean): boolean {
+    const q = prompt.toLowerCase();
+    const sheetRef = /\b(sheet|sheets|spreadsheet|csv|excel|rows?|columns?|cells|attach(?:ed|ment)?|upload(?:ed)?)\b/.test(q);
+    if (!sheetRef && !hasSheet) return false;
+    const verb = /\b(add|import|insert|upload|create|sync|push|load|migrate|bring|enter|put)\b/.test(q);
+    const target = /\bleads?\b/.test(q);
+    if (!verb || !target) return false;
+    if (sheetRef) return true;
+    const quantifier = /\b(all|every|everything|these|those)\b/.test(q);
+    const dataNoun = /\b(data|rows|entries|records|list|table)\b/.test(q);
+    return quantifier && dataNoun;
+  }
+
+  /** Deterministic import proposal — shown before the LLM so the ask works even on a flaky provider. */
+  private static sheetImportResponse(sheet: SheetSession): CopilotResponse {
+    const cols = sheet.headers.slice(0, 6).join(", ") + (sheet.headers.length > 6 ? ", …" : "");
+    return {
+      answer: `Spreadsheet attached: ${sheet.fileName} — ${sheet.rowCount} row${sheet.rowCount === 1 ? "" : "s"} × ${sheet.headers.length} columns (${cols}). Each row imports as one lead (company + contact), deduped by contact email and company website, so existing records are skipped. Nothing is written until you confirm the proposal below.`,
+      suggestedActions: [
+        { label: `📊 Import ${sheet.rowCount} rows as leads`, actionType: "IMPORT_SHEET_LEADS", payload: {} },
+      ],
+      dataContext: { intent: "sheet_import", rows: sheet.rowCount },
+    };
+  }
+
+  /** Read-side fallback (no LLM): a factual summary of the attached sheet. */
+  private static sheetSummaryResponse(sheet: SheetSession): CopilotResponse {
+    const first = (sheet.rows[0] ?? [])
+      .map((v, i) => `${sheet.headers[i] ?? `col ${i + 1}`}=${v || "blank"}`)
+      .slice(0, 8)
+      .join(", ");
+    return {
+      answer: `Attached spreadsheet "${sheet.fileName}": ${sheet.rowCount} row${sheet.rowCount === 1 ? "" : "s"} × ${sheet.headers.length} columns. Headers: ${sheet.headers.join(" · ")}. First row: ${first}. The full sheet is held server-side — ask me anything about it, or say "add all the data from the sheet to the leads" to import every row.`,
+      suggestedActions: [
+        { label: `📊 Import ${sheet.rowCount} rows as leads`, actionType: "IMPORT_SHEET_LEADS", payload: {} },
+        { label: "Open Leads board", actionType: "NAVIGATE", payload: { url: "/leads" } },
+      ],
+      dataContext: { intent: "sheet_summary", rows: sheet.rowCount },
+    };
   }
 
   /**
@@ -483,12 +574,26 @@ export class AiAgentService {
         prompt.trim()
       );
     if (!m) return null;
-    const category = m[1].replace(/\s+(businesses|companies|shops|stores|prospects|leads)$/i, "").trim();
-    const city = m[2].replace(/[?.!,]+$/, "").trim();
-    // Category must be noun-like (not a CRM question like "my deals in pipeline").
+    const category = AiAgentService.cleanDiscoveryToken(m[1])
+      .replace(/\s+(businesses|companies|shops|stores|prospects|leads)$/i, "")
+      .trim();
+    const city = AiAgentService.cleanDiscoveryToken(m[2]).trim();
     if (category.length < 2 || city.length < 2) return null;
     if (/\b(my|our|stale|hot|warm|deal|deals|pipeline|contact|contacts)\b/i.test(category)) return null;
     return { category: category.slice(0, 120), city: city.slice(0, 120) };
+  }
+
+  private static cleanDiscoveryToken(raw: string): string {
+    return raw
+      .replace(/[?.!,]+$/, "")
+      // Strip filter clauses: "who dont have website", "the ones without a website", etc.
+      .replace(/\s+(?:the\s+)?(?:ones?\s+)?(?:who|that|which|whose|where)\s+(?:don'?t|dont|do not|doesn'?t|doesnt|does not|have no|has no|lack|lacking|need|without|with no|having no|not having|are missing|is missing)\b.*$/i, "")
+      .replace(/\s+(?:the\s+)?(?:ones?\s+)?(?:without|with no|having no|not having|lacking|missing)\s+\w.*$/i, "")
+      // Strip source qualifiers: "on google maps", "from gmaps", "via openstreetmap"
+      .replace(/\s+(?:on|from|via|using|through|with)\s+(?:google|gmaps|osm|openstreetmap|open street map|maps|places|the internet|web).*$/i, "")
+      // Strip trailing filler: articles, pronouns, prepositions left over after other strips
+      .replace(/\s+(?:the|a|an|those|these|some|all|any|their|its|and|or|but|so|for|to|of|ones?)$/i, "")
+      .trim();
   }
 
   /** Builds the discovery intent answer without needing an LLM. */
@@ -514,13 +619,17 @@ export class AiAgentService {
 
   /** Live, compact snapshot of everything the copilot can reason about. */
   private static async buildWorkspaceSnapshot(workspaceId: string) {
-    const [deals, leads, companies, projects, openTasks] = await Promise.all([
+    const [deals, leads, companies, projects, openTasks, sequences, icpProfile] = await Promise.all([
       CrmService.getPipeline(workspaceId),
       CrmService.getLeads(workspaceId, 100),
       CrmService.getCompanies(workspaceId, 100),
       ProjectService.getProjects(workspaceId),
-      CrmService.getOpenTasks(workspaceId, 10),
+      CrmService.getOpenTasks(workspaceId, 15),
+      SequenceEngineService.getSequences(workspaceId).catch(() => []),
+      IcpService.getActiveProfile(workspaceId).catch(() => null),
     ]);
+    let bdrStats: Awaited<ReturnType<typeof BdrEngineService.getDashboardStats>> | null = null;
+    try { bdrStats = await BdrEngineService.getDashboardStats(workspaceId); } catch { /* non-critical */ }
 
     const num = (v: string | null | undefined) => parseFloat(v || "0") || 0;
     const DAY = 86_400_000;
@@ -559,6 +668,7 @@ export class AiAgentService {
         score: l.score,
         temperature: l.temperature,
         daysSinceContact: l.lastContactedAt ? Math.floor((now - new Date(l.lastContactedAt).getTime()) / DAY) : null,
+        nextFollowUpAt: l.nextFollowUpAt ? new Date(l.nextFollowUpAt).toISOString().slice(0, 10) : null,
       })),
       companies: companies.slice(0, 25).map((c) => ({
         name: c.name,
@@ -589,31 +699,36 @@ export class AiAgentService {
         companies: companies.length,
         projects: projects.length,
       },
+      sequences: sequences.slice(0, 10).map((s) => ({
+        name: s.name,
+        status: s.status,
+        channel: s.channel,
+        totalEnrolled: s.totalEnrolled,
+        totalReplied: s.totalReplied,
+        totalMeetings: s.totalMeetings,
+      })),
+      bdr: bdrStats ? {
+        activeSequences: bdrStats.sequences.activeSequences,
+        totalEnrolled: bdrStats.enrollments.active,
+        replyRate: bdrStats.replyRate,
+        meetingRate: bdrStats.meetingRate,
+        hotLeadCount: bdrStats.hotLeadCount,
+        recentSignals: bdrStats.signals.recentSignals,
+      } : null,
+      icpProfile: icpProfile ? {
+        businessDescription: icpProfile.businessDescription,
+        idealCustomerProfile: icpProfile.idealCustomerProfile,
+      } : null,
     };
   }
 
   private static async llmCopilotResponse(
     prompt: string,
     snapshot: Awaited<ReturnType<typeof AiAgentService.buildWorkspaceSnapshot>>,
-    history: CopilotTurn[]
+    history: CopilotTurn[],
+    sheetBlock: string | null = null
   ): Promise<CopilotResponse | null> {
-    const system = `You are Aexyl Copilot, the autonomous revenue-operations agent inside Aexyl, an agency CRM. You answer ANY question the operator asks: CRM analytics, sales strategy, general business questions, writing outreach copy, explaining metrics — everything.
-
-Rules:
-- Ground CRM answers in the LIVE WORKSPACE SNAPSHOT provided. Cite real names and numbers from it. Never invent deals, leads, or contacts.
-- The RECENT CONVERSATION transcript (when present) is prior context from this session. Resolve pronouns and short follow-ups ("that deal", "the second one", "why?") against it before falling back to the snapshot.
-- For non-CRM questions (general knowledge, strategy, copywriting), answer directly with your own knowledge — the snapshot is context, not a cage.
-- You may propose up to 3 executable actions. Allowed actionTypes and payloads ONLY:
-  - NAVIGATE: {url} — one of /, /my-day, /leads, /pipeline, /companies, /contacts, /deals, /outreach, /clients, /projects, /intelligence, /attention, /settings
-  - RUN_SWEEP: {} — schedules follow-ups for every stale lead
-  - DISCOVER_LEADS: {query, industry?, location?} — launches web lead discovery; use when the operator wants NEW prospects found/scraped/sourced
-  - DISCOVER_LOCAL_LEADS: {category, city} — launches OpenStreetMap local-business discovery tiered Hot/Warm/Cold on the missing-website/missing-phone signal; use for "find gyms in Jorhat"-shaped asks naming a concrete business category and a city
-  - UPDATE_DEAL_STAGE: {dealName, stage} — proposes moving a deal to QUALIFIED|CALL_BOOKED|PROPOSAL|NEGOTIATION|WON|LOST. dealName must exactly match a deal name from the snapshot.
-  - LOG_ACTIVITY: {leadName OR dealNameForActivity, activityType, title, description?} — proposes logging NOTE|CALL|EMAIL|MEETING|OUTREACH|FOLLOW_UP on a lead or deal from the snapshot.
-  - CREATE_TASK: {taskTitle, taskDescription?, priority?, dueInDays?, dealName?/leadName?} — proposes a task (priority LOW|MEDIUM|HIGH|URGENT, dueInDays 0-365).
-  Write actions are PROPOSALS ONLY — the operator sees a confirmation card and must click Confirm twice before anything executes. NEVER describe a proposal as done/created/moved — it is only SUGGESTED until the operator confirms (say "I can create…", "Proposed:…"). Reference entities by their exact snapshot names, never by ID. Only propose a write when the operator's intent is clear (asked for it, or explicitly agreed with your suggestion).
-- Be concise and operator-grade: direct answers first, numbers with $ and thousands separators, no filler, max ~140 words.
-Respond with a single JSON object: {"answer": "...", "suggestedActions": [{"label": "...", "actionType": "...", "payload": {}}]}`;
+    const system = COPILOT_SYSTEM_PROMPT;
 
     const transcript =
       history.length > 0
@@ -631,14 +746,18 @@ ${JSON.stringify(
     wonValue: snapshot.wonValue,
     winRatePct: snapshot.winRate,
     deals: snapshot.deals,
-    leads: snapshot.leads,        companies: snapshot.companies,
-        projects: snapshot.projects,
-        openTasks: snapshot.openTasks,
-      },
+    leads: snapshot.leads,
+    companies: snapshot.companies,
+    projects: snapshot.projects,
+    openTasks: snapshot.openTasks,
+    sequences: snapshot.sequences,
+    bdr: snapshot.bdr,
+    icpProfile: snapshot.icpProfile,
+  },
   null,
   1
 )}
-
+${sheetBlock ? `\n${sheetBlock}\n` : ""}
 OPERATOR QUESTION: ${prompt}`;
 
     const result = await LlmService.completeJson(system, user);
@@ -648,21 +767,21 @@ OPERATOR QUESTION: ${prompt}`;
 
     const rawActions = Array.isArray(parsed.suggestedActions) ? parsed.suggestedActions : [];
     const allowedTypes = new Set([
-      "NAVIGATE",
-      "RUN_SWEEP",
-      "DISCOVER_LEADS",
-      "DISCOVER_LOCAL_LEADS",
-      "UPDATE_DEAL_STAGE",
-      "LOG_ACTIVITY",
-      "CREATE_TASK",
+      "NAVIGATE", "RUN_SWEEP", "DISCOVER_LEADS", "DISCOVER_LOCAL_LEADS", "DISCOVER_GOOGLE_LEADS",
+      "UPDATE_DEAL_STAGE", "LOG_ACTIVITY", "CREATE_TASK", "CREATE_FOLLOW_UP", "IMPORT_SHEET_LEADS",
+      "CREATE_LEAD", "CREATE_DEAL", "CREATE_COMPANY", "CREATE_CONTACT",
+      "UPDATE_LEAD", "UPDATE_DEAL", "UPDATE_CONTACT", "UPDATE_COMPANY",
+      "DELETE_LEAD", "DELETE_DEAL", "SEND_EMAIL",
+      "ENROLL_SEQUENCE", "CREATE_SEQUENCE", "HANDLE_OBJECTION", "ANALYZE_INTENT",
+      "ENRICH_LEAD", "CAMPAIGN_ANALYTICS",
     ]);
     const allowedUrls = new Set([
       "/", "/my-day", "/leads", "/pipeline", "/companies", "/contacts", "/deals",
-      "/outreach", "/clients", "/projects", "/intelligence", "/attention", "/settings",
+      "/outreach", "/clients", "/projects", "/intelligence", "/attention", "/settings", "/bdr",
     ]);
     const suggestedActions: CopilotAction[] = [];
     for (const ra of rawActions) {
-      if (suggestedActions.length >= 3) break;
+      if (suggestedActions.length >= 4) break;
       if (typeof ra !== "object" || ra === null) continue;
       const a = ra as { label?: unknown; actionType?: unknown; payload?: unknown };
       if (typeof a.actionType !== "string" || !allowedTypes.has(a.actionType)) continue;
@@ -674,9 +793,7 @@ OPERATOR QUESTION: ${prompt}`;
       if (a.actionType === "DISCOVER_LEADS" && typeof payload.query !== "string") {
         payload.query = prompt.slice(0, 300);
       }
-      if (a.actionType === "DISCOVER_LOCAL_LEADS") {
-        // Model-invented category/city are sanitized; fall back to parsing the
-        // prompt itself so the action always carries usable parameters.
+      if (a.actionType === "DISCOVER_LOCAL_LEADS" || a.actionType === "DISCOVER_GOOGLE_LEADS") {
         const parsed = AiAgentService.parseLocalDiscoveryIntent(prompt);
         if (typeof payload.category !== "string" || payload.category.trim().length < 2) {
           payload.category = parsed?.category ?? prompt.slice(0, 120);
@@ -686,18 +803,27 @@ OPERATOR QUESTION: ${prompt}`;
         }
         if (payload.city.trim().length < 2) continue;
       }
-      // Write proposals: sanitize the string fields the executor will read.
-      if (a.actionType === "UPDATE_DEAL_STAGE" || a.actionType === "LOG_ACTIVITY" || a.actionType === "CREATE_TASK") {
-        for (const key of ["dealName", "leadName", "dealNameForActivity", "stage", "activityType", "title", "description", "taskTitle", "taskDescription", "priority"] as const) {
-          if (typeof payload[key] === "string") payload[key] = (payload[key] as string).slice(0, 300);
+      // Write proposals: sanitize string fields the executor will read.
+      if (allowedTypes.has(a.actionType) && a.actionType !== "NAVIGATE" && a.actionType !== "RUN_SWEEP" && a.actionType !== "DISCOVER_LEADS" && a.actionType !== "DISCOVER_LOCAL_LEADS" && a.actionType !== "DISCOVER_GOOGLE_LEADS" && a.actionType !== "ENRICH_LEAD" && a.actionType !== "CAMPAIGN_ANALYTICS") {
+        const stringFields = [
+          "dealName", "leadName", "dealNameForActivity", "stage", "activityType", "title", "description",
+          "taskTitle", "taskDescription", "priority", "companyName", "contactFirstName", "contactLastName",
+          "contactEmail", "contactJobTitle", "industry", "location", "website", "source", "expectedCloseDate",
+          "companySize", "phone", "leadStatus", "leadTemperature", "emailTo", "emailSubject", "emailBody",
+          "sequenceName", "sequenceId", "targetProfile", "valueProp", "objectionText",
+        ] as const;
+        for (const key of stringFields) {
+          if (typeof payload[key] === "string") payload[key] = (payload[key] as string).slice(0, 500);
         }
         if (typeof payload.dueInDays !== "number" || !Number.isFinite(payload.dueInDays)) delete payload.dueInDays;
+        if (typeof payload.dealValue !== "number" || !Number.isFinite(payload.dealValue)) delete payload.dealValue;
+        if (typeof payload.leadScore !== "number" || !Number.isFinite(payload.leadScore)) delete payload.leadScore;
       }
       suggestedActions.push({ label: a.label, actionType: a.actionType as CopilotAction["actionType"], payload });
     }
 
     return {
-      answer: parsed.answer.slice(0, 2000),
+      answer: parsed.answer.slice(0, 3000),
       suggestedActions,
       dataContext: { engine: "llm", model: LlmService.getStatus().model },
     };

@@ -12,6 +12,7 @@ import {
   reapStaleRuns,
 } from "@/agents/core/runtime/reaper";
 import { ensureWorkspaceAgents } from "@/agents/registry";
+import { DiscoveryOrchestrator } from "@/services/discovery/orchestrator";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +151,7 @@ export async function GET(req: Request) {
   let workspacesProcessed = 0;
   let eventsProcessed = 0;
   let followupsPublished = 0;
+  let discoveryRuns = 0;
 
   try {
     const systemUserId = await getSystemUserId();
@@ -173,6 +175,14 @@ export async function GET(req: Request) {
         await reapStaleRuns(ws.id);
         await detectFailureSpikes(ws.id);
 
+        // Daily discovery — idempotent, skips if already ran today
+        try {
+          const dr = await DiscoveryOrchestrator.runDaily(ws.id, systemUserId);
+          if (dr.status !== "SKIPPED") discoveryRuns++;
+        } catch (dErr) {
+          logger.error("cron tick discovery failed", { workspaceId: ws.id, error: dErr instanceof Error ? dErr.message : String(dErr) });
+        }
+
         workspacesProcessed += 1;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -193,6 +203,7 @@ export async function GET(req: Request) {
     workspacesProcessed,
     eventsProcessed,
     followupsPublished,
+    discoveryRuns,
     errors,
     durationMs: Date.now() - startedAt,
     time: new Date().toISOString(),

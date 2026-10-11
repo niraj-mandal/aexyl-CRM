@@ -4,23 +4,24 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
+import {
+  LayoutDashboard,
+  CalendarDays,
   CalendarRange,
-  Users, 
-  Kanban, 
-  Send, 
-  Briefcase, 
+  Users,
+  Kanban,
+  Send,
+  Briefcase,
   Building2,
   Contact,
   TrendingUp,
-  FolderKanban, 
-  Sparkles, 
+  FolderKanban,
+  Sparkles,
   Bot,
-  BellRing, 
+  BellRing,
   Bell,
-  Settings
+  Settings,
+  Zap,
 } from "lucide-react";
 import { useSidebarBadges } from "./sidebar-badges";
 import { SidebarBadge } from "./sidebar-badge";
@@ -59,6 +60,7 @@ const navSections: NavSection[] = [
       { name: "Contacts", href: "/sales/contacts", icon: Contact },
       { name: "Deals", href: "/sales/deals", icon: TrendingUp },
       { name: "Outreach Engine", href: "/outreach", icon: Send },
+      { name: "AI BDR", href: "/bdr", icon: Zap, badge: "AI" },
     ]
   },
   {

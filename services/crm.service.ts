@@ -104,6 +104,15 @@ export class CrmService {
     });
   }
 
+  /** Contact lookup by email (case-insensitive) — sheet-import dedupe identity. */
+  static async findContactByEmail(workspaceId: string, email: string) {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return null;
+    return db.query.contacts.findFirst({
+      where: and(eq(contacts.workspaceId, workspaceId), sql`lower(${contacts.email}) = ${trimmed}`),
+    });
+  }
+
   // --- Agent task management (copilot write-actions + operator to-dos) -------
 
   static async createTask(workspaceId: string, data: Omit<typeof tasks.$inferInsert, "workspaceId">) {

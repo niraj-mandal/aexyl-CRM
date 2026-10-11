@@ -109,7 +109,7 @@ export class LlmService {
       body: JSON.stringify({
         model,
         temperature: 0.4,
-        max_tokens: 900,
+        max_tokens: 1500,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
@@ -137,7 +137,7 @@ export class LlmService {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 900,
+        max_tokens: 1500,
         temperature: 0.4,
         system: `${system}\nRespond with a single JSON object and nothing else.`,
         messages: [{ role: "user", content: user }],

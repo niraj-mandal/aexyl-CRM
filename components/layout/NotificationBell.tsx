@@ -41,9 +41,14 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
-    refresh();
+    // First fetch is deferred to a macrotask so it never runs synchronously
+    // inside the effect (avoids cascading renders during commit).
+    const initial = setTimeout(refresh, 0);
     const t = setInterval(refresh, 30_000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(t);
+    };
   }, []);
 
   const markAll = async () => {

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, jsonb, primaryKey, integer, numeric, boolean, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, jsonb, primaryKey, integer, numeric, boolean, index, unique, real } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // -----------------------------------------------------------------------------
@@ -13,6 +13,7 @@ export const workspaces = pgTable("workspaces", {
   sweepEnabled: boolean("sweep_enabled").default(true).notNull(),
   sweepFollowUpDays: integer("sweep_follow_up_days").default(2).notNull(),
   staleLeadDays: integer("stale_lead_days").default(7).notNull(),
+  discoveryConfig: jsonb("discovery_config").$type<{ location?: string; category?: string; dailyTarget?: number }>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -439,6 +440,186 @@ export const agentEvents = pgTable("agent_events", {
 ]);
 
 // -----------------------------------------------------------------------------
+// PHASE 7: AI BDR ENGINE
+// -----------------------------------------------------------------------------
+
+export const icpProfiles = pgTable("icp_profiles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  businessDescription: text("business_description").notNull(),
+  website: text("website"),
+  targetLocation: text("target_location"),
+  idealCustomerProfile: jsonb("ideal_customer_profile").$type<{
+    industry: string; size: string; stage: string; region: string;
+  }[]>().default([]).notNull(),
+  topBuyerRoles: jsonb("top_buyer_roles").$type<string[]>().default([]).notNull(),
+  keyPainPoints: jsonb("key_pain_points").$type<string[]>().default([]).notNull(),
+  sampleCompanies: jsonb("sample_companies").$type<{
+    name: string; initial: string; industry?: string;
+  }[]>().default([]).notNull(),
+  sampleBuyers: jsonb("sample_buyers").$type<{
+    name: string; role: string; company: string;
+  }[]>().default([]).notNull(),
+  personalizedOpener: text("personalized_opener"),
+  openerTargetRole: text("opener_target_role"),
+  status: text("status").default("DRAFT").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("icp_profiles_workspace_idx").on(t.workspaceId),
+]);
+
+export const outreachSequences = pgTable("outreach_sequences", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  icpProfileId: uuid("icp_profile_id").references(() => icpProfiles.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  channel: text("channel").default("MULTI").notNull(),
+  status: text("status").default("DRAFT").notNull(),
+  totalEnrolled: integer("total_enrolled").default(0).notNull(),
+  totalReplied: integer("total_replied").default(0).notNull(),
+  totalMeetings: integer("total_meetings").default(0).notNull(),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("outreach_sequences_workspace_idx").on(t.workspaceId),
+]);
+
+export const sequenceSteps = pgTable("sequence_steps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sequenceId: uuid("sequence_id").references(() => outreachSequences.id, { onDelete: "cascade" }).notNull(),
+  stepNumber: integer("step_number").notNull(),
+  channel: text("channel").notNull(),
+  subject: text("subject"),
+  body: text("body").notNull(),
+  delayDays: integer("delay_days").default(0).notNull(),
+  conditions: jsonb("conditions").$type<{ onlyIfNoReply?: boolean; onlyIfOpened?: boolean }>().default({}).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("sequence_steps_sequence_idx").on(t.sequenceId),
+]);
+
+export const sequenceEnrollments = pgTable("sequence_enrollments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  sequenceId: uuid("sequence_id").references(() => outreachSequences.id, { onDelete: "cascade" }).notNull(),
+  leadId: uuid("lead_id").references(() => leads.id).notNull(),
+  contactId: uuid("contact_id").references(() => contacts.id),
+  status: text("status").default("ACTIVE").notNull(),
+  currentStep: integer("current_step").default(0).notNull(),
+  nextStepAt: timestamp("next_step_at"),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("sequence_enrollments_workspace_idx").on(t.workspaceId),
+  index("sequence_enrollments_sequence_idx").on(t.sequenceId),
+  index("sequence_enrollments_next_step_idx").on(t.nextStepAt),
+]);
+
+export const sequenceEvents = pgTable("sequence_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  enrollmentId: uuid("enrollment_id").references(() => sequenceEnrollments.id, { onDelete: "cascade" }).notNull(),
+  stepId: uuid("step_id").references(() => sequenceSteps.id).notNull(),
+  type: text("type").notNull(),
+  metadata: jsonb("metadata"),
+  occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+}, (t) => [
+  index("sequence_events_enrollment_idx").on(t.enrollmentId),
+]);
+
+export const intentSignals = pgTable("intent_signals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  leadId: uuid("lead_id").references(() => leads.id),
+  contactId: uuid("contact_id").references(() => contacts.id),
+  signalType: text("signal_type").notNull(),
+  score: integer("score").default(0).notNull(),
+  source: text("source"),
+  metadata: jsonb("metadata"),
+  occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+}, (t) => [
+  index("intent_signals_workspace_idx").on(t.workspaceId),
+  index("intent_signals_lead_idx").on(t.leadId),
+]);
+
+// -----------------------------------------------------------------------------
+// PHASE 8: DISCOVERY ENGINE
+// -----------------------------------------------------------------------------
+
+export const discoveryBatches = pgTable("discovery_batches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  runId: text("run_id").notNull(),
+  location: text("location").notNull(),
+  category: text("category").notNull(),
+  provider: text("provider").default("overpass").notNull(),
+  targetCount: integer("target_count").default(5).notNull(),
+  discoveredCount: integer("discovered_count").default(0).notNull(),
+  qualifiedCount: integer("qualified_count").default(0).notNull(),
+  createdCount: integer("created_count").default(0).notNull(),
+  skippedCount: integer("skipped_count").default(0).notNull(),
+  failedCount: integer("failed_count").default(0).notNull(),
+  status: text("status").default("RUNNING").notNull(),
+  config: jsonb("config"),
+  errors: jsonb("errors").$type<string[]>(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("discovery_batches_workspace_idx").on(t.workspaceId),
+  index("discovery_batches_run_id_idx").on(t.runId),
+  index("discovery_batches_status_idx").on(t.status),
+]);
+
+export const discoveryCandidates = pgTable("discovery_candidates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id).notNull(),
+  batchId: uuid("batch_id").references(() => discoveryBatches.id, { onDelete: "cascade" }).notNull(),
+  externalId: text("external_id"),
+  source: text("source").default("overpass").notNull(),
+  businessName: text("business_name").notNull(),
+  normalizedName: text("normalized_name").notNull(),
+  category: text("category"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  country: text("country"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  phone: text("phone"),
+  normalizedPhone: text("normalized_phone"),
+  website: text("website"),
+  normalizedDomain: text("normalized_domain"),
+  sourceUrl: text("source_url"),
+  discoveredAt: timestamp("discovered_at").defaultNow().notNull(),
+  websiteStatus: text("website_status"),
+  websiteUrl: text("website_url"),
+  websiteCheckedAt: timestamp("website_checked_at"),
+  websiteCheckReason: text("website_check_reason"),
+  fitScore: integer("fit_score").default(0).notNull(),
+  opportunityScore: integer("opportunity_score").default(0).notNull(),
+  qualificationStatus: text("qualification_status").default("PENDING").notNull(),
+  reasons: jsonb("reasons").$type<string[]>(),
+  gaps: jsonb("gaps").$type<string[]>(),
+  discoveryMetadata: jsonb("discovery_metadata"),
+  leadId: uuid("lead_id").references(() => leads.id),
+  companyId: uuid("company_id").references(() => companies.id),
+  rejectedReason: text("rejected_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("discovery_candidates_workspace_idx").on(t.workspaceId),
+  index("discovery_candidates_batch_idx").on(t.batchId),
+  index("discovery_candidates_status_idx").on(t.qualificationStatus),
+  index("discovery_candidates_normalized_name_idx").on(t.workspaceId, t.normalizedName),
+  unique("discovery_candidates_external_id_uniq").on(t.workspaceId, t.source, t.externalId),
+]);
+
+// -----------------------------------------------------------------------------
 // RELATIONS
 // -----------------------------------------------------------------------------
 
@@ -453,6 +634,8 @@ export const workspacesRelations = relations(workspaces, ({ many }) => ({
   projects: many(projects),
   tasks: many(tasks),
   agents: many(agents),
+  discoveryBatches: many(discoveryBatches),
+  discoveryCandidates: many(discoveryCandidates),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -673,9 +856,61 @@ export const workspaceInvitesRelations = relations(workspaceInvites, ({ one }) =
   acceptedBy: one(users, { fields: [workspaceInvites.acceptedById], references: [users.id], relationName: "inviteAcceptedBy" }),
 }));
 
+// --- BDR relations ---
+
+export const icpProfilesRelations = relations(icpProfiles, ({ one, many }) => ({
+  workspace: one(workspaces, { fields: [icpProfiles.workspaceId], references: [workspaces.id] }),
+  sequences: many(outreachSequences),
+}));
+
+export const outreachSequencesRelations = relations(outreachSequences, ({ one, many }) => ({
+  workspace: one(workspaces, { fields: [outreachSequences.workspaceId], references: [workspaces.id] }),
+  icpProfile: one(icpProfiles, { fields: [outreachSequences.icpProfileId], references: [icpProfiles.id] }),
+  createdByUser: one(users, { fields: [outreachSequences.createdBy], references: [users.id] }),
+  steps: many(sequenceSteps),
+  enrollments: many(sequenceEnrollments),
+}));
+
+export const sequenceStepsRelations = relations(sequenceSteps, ({ one }) => ({
+  sequence: one(outreachSequences, { fields: [sequenceSteps.sequenceId], references: [outreachSequences.id] }),
+}));
+
+export const sequenceEnrollmentsRelations = relations(sequenceEnrollments, ({ one, many }) => ({
+  workspace: one(workspaces, { fields: [sequenceEnrollments.workspaceId], references: [workspaces.id] }),
+  sequence: one(outreachSequences, { fields: [sequenceEnrollments.sequenceId], references: [outreachSequences.id] }),
+  lead: one(leads, { fields: [sequenceEnrollments.leadId], references: [leads.id] }),
+  contact: one(contacts, { fields: [sequenceEnrollments.contactId], references: [contacts.id] }),
+  events: many(sequenceEvents),
+}));
+
+export const sequenceEventsRelations = relations(sequenceEvents, ({ one }) => ({
+  enrollment: one(sequenceEnrollments, { fields: [sequenceEvents.enrollmentId], references: [sequenceEnrollments.id] }),
+  step: one(sequenceSteps, { fields: [sequenceEvents.stepId], references: [sequenceSteps.id] }),
+}));
+
+export const intentSignalsRelations = relations(intentSignals, ({ one }) => ({
+  workspace: one(workspaces, { fields: [intentSignals.workspaceId], references: [workspaces.id] }),
+  lead: one(leads, { fields: [intentSignals.leadId], references: [leads.id] }),
+  contact: one(contacts, { fields: [intentSignals.contactId], references: [contacts.id] }),
+}));
+
 export const projectsRelations = relations(projects, ({ one }) => ({
   workspace: one(workspaces, { fields: [projects.workspaceId], references: [workspaces.id] }),
   company: one(companies, { fields: [projects.companyId], references: [companies.id] }),
   deal: one(deals, { fields: [projects.dealId], references: [deals.id] }),
   owner: one(users, { fields: [projects.ownerId], references: [users.id], relationName: "projectOwner" }),
+}));
+
+// --- Discovery Engine relations ---
+
+export const discoveryBatchesRelations = relations(discoveryBatches, ({ one, many }) => ({
+  workspace: one(workspaces, { fields: [discoveryBatches.workspaceId], references: [workspaces.id] }),
+  candidates: many(discoveryCandidates),
+}));
+
+export const discoveryCandidatesRelations = relations(discoveryCandidates, ({ one }) => ({
+  workspace: one(workspaces, { fields: [discoveryCandidates.workspaceId], references: [workspaces.id] }),
+  batch: one(discoveryBatches, { fields: [discoveryCandidates.batchId], references: [discoveryBatches.id] }),
+  lead: one(leads, { fields: [discoveryCandidates.leadId], references: [leads.id] }),
+  company: one(companies, { fields: [discoveryCandidates.companyId], references: [companies.id] }),
 }));

@@ -25,12 +25,16 @@ export function LeadForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm<
+    z.input<typeof leadSchema>,
+    unknown,
+    LeadFormValues
+  >({
     resolver: zodResolver(leadSchema),
     defaultValues: { temperature: "COLD" }
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: LeadFormValues) => {
     setIsSubmitting(true);
     setError(null);
     try {
@@ -58,8 +62,8 @@ export function LeadForm({ onSuccess }: { onSuccess?: () => void }) {
 
       if (onSuccess) onSuccess();
       router.push(`/sales/leads/${lead.id}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to create lead. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create lead. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

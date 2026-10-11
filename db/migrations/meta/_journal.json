@@ -8,6 +8,27 @@
       "when": 1789903589468,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791224955082,
+      "tag": "0001_safe_chimera",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791406950199,
+      "tag": "0002_late_madripoor",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791738749085,
+      "tag": "0003_mysterious_magik",
+      "breakpoints": true
     }
   ]
 }

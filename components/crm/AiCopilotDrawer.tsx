@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Sparkles, Bot, Send, X, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo, MapPin, SquareCheck, Square, Flame } from "lucide-react";
+import { Sparkles, Bot, Send, X, ArrowRight, Cpu, Download, CheckCircle2, Globe, Mail, Phone, Loader2, Zap, Ban, PenLine, ListTodo, CalendarClock, MapPin, SquareCheck, Square, Flame, Paperclip, FileSpreadsheet as SheetIcon, UserPlus, Building2, Handshake, Trash2, Brain, Target, MailPlus, Play, Search, BarChart3 } from "lucide-react";
 import {
   sendCopilotPromptAction,
+  ingestSheetAction,
   discoverLeadsAction,
   discoverLocalLeadsAction,
+  discoverGooglePlacesAction,
+  enrichLeadAction,
+  getCampaignAnalyticsAction,
   importDiscoveredLeadAction,
   importDiscoveredLeadsAction,
   executeCopilotWriteAction,
   type ImportLeadCandidate,
   type CopilotWriteResult,
+  type IngestSheetResult,
 } from "@/app/actions/ai.actions";
 import { queueStaleFollowUpsAction } from "@/app/actions/crm.actions";
 import { useRouter } from "next/navigation";
@@ -29,6 +34,31 @@ interface DiscoveryLead {
   sourceUrl: string | null;
   fitScore: number;
   fitReason: string;
+}
+
+/** Google Places discovery result — richer than OSM with ratings and reviews. */
+interface GooglePlacesLead {
+  companyName: string;
+  website: string | null;
+  industry: string | null;
+  location: string | null;
+  phone: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  openingHours: string | null;
+  lat: number | null;
+  lng: number | null;
+  placeId: string;
+  googleMapsUrl: string | null;
+  priceLevel: string | null;
+  priority: "Hot" | "Warm" | "Cold";
+  priorityReason: string;
+  suggestedHook: string | null;
+  sourceQuery: string;
+  sourceUrl: string | null;
+  fitScore: number;
+  businessStatus: string | null;
+  types: string[];
 }
 
 /** Local (OpenStreetMap) discovery result — distinct shape from web-search leads. */
@@ -58,14 +88,32 @@ interface ChatMessage {
   actions?: { label: string; actionType: string; payload: Record<string, unknown> }[];
   leads?: DiscoveryLead[];
   localLeads?: LocalDiscoveryLead[];
+  googlePlacesLeads?: GooglePlacesLead[];
   notes?: string[];
   /** Excluded from copilot memory (UI-only scaffolding). */
   ephemeral?: boolean;
 }
 
+/** Server-held spreadsheet attachment — rows live server-side; the client keeps only ids and counts. */
+interface AttachedSheet {
+  sheetId: string;
+  fileName: string;
+  headers: string[];
+  rowCount: number;
+}
+
+/** A whole-message Google Sheets share link is ingested as an attachment, not sent to the LLM. */
+const SHEET_URL_RE = /^https?:\/\/(?:www\.)?docs\.google\.com\/spreadsheets\/\S+$/i;
+
 type ImportState = "idle" | "importing" | "imported" | "error";
 
-const WRITE_KINDS = new Set(["UPDATE_DEAL_STAGE", "LOG_ACTIVITY", "CREATE_TASK"]);
+const WRITE_KINDS = new Set([
+  "UPDATE_DEAL_STAGE", "LOG_ACTIVITY", "CREATE_TASK", "CREATE_FOLLOW_UP", "IMPORT_SHEET_LEADS",
+  "CREATE_LEAD", "CREATE_DEAL", "CREATE_COMPANY", "CREATE_CONTACT",
+  "UPDATE_LEAD", "UPDATE_DEAL", "UPDATE_CONTACT", "UPDATE_COMPANY",
+  "DELETE_LEAD", "DELETE_DEAL", "SEND_EMAIL",
+  "ENROLL_SEQUENCE", "CREATE_SEQUENCE", "HANDLE_OBJECTION", "ANALYZE_INTENT",
+]);
 const isWriteKind = (t: string) => WRITE_KINDS.has(t);
 
 export function AiCopilotDrawer() {
@@ -76,12 +124,15 @@ export function AiCopilotDrawer() {
   const [engine, setEngine] = useState<"llm" | "deterministic" | null>(null);
   const [importStates, setImportStates] = useState<Record<string, { state: ImportState; message?: string }>>({});
   const [writeStates, setWriteStates] = useState<Record<string, { state: "pending" | "armed" | "executing" | "done" | "declined" | "error"; message?: string }>>({});
+  const [sheet, setSheet] = useState<AttachedSheet | null>(null);
+  const [sheetBusy, setSheetBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Arm→confirm timers: an armed proposal decays back to pending.
   const armTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      text: "Hello, Operator. I am Aexyl Copilot — your autonomous revenue agent. I answer anything about your pipeline, and I can hunt new leads across the open web: ask me to \"find 6 dental clinics in Austin\" or \"scrape SaaS agencies needing automation\".",
+      text: "Hello, Operator. I am AEXYL — your AI CRM Copilot with full CRM control. I can create leads, deals, companies & contacts, update any record, send emails, manage outreach sequences, handle objections, analyze intent, and discover new prospects — all through natural language. Try: \"create a lead for Acme Corp\", \"move the Tesla deal to negotiation\", \"email john@acme.com a follow-up\", or \"find gyms in Austin\".",
       ephemeral: true,
     },
   ]);
@@ -91,9 +142,73 @@ export function AiCopilotDrawer() {
   const setImport = (key: string, state: ImportState, message?: string) =>
     setImportStates((prev) => ({ ...prev, [key]: { state, message } }));
 
+  const applySheetResult = (res: IngestSheetResult) => {
+    if (!res.success || !res.sheetId) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: `Couldn't attach the sheet: ${res.error ?? "unknown error."}`, ephemeral: true },
+      ]);
+      return;
+    }
+    setSheet({ sheetId: res.sheetId, fileName: res.fileName ?? "sheet", headers: res.headers ?? [], rowCount: res.rowCount ?? 0 });
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        text: `📊 Attached ${res.fileName} — ${res.rowCount} row${res.rowCount === 1 ? "" : "s"} × ${res.headers?.length ?? 0} columns.${res.truncated ? " (parsed up to the size cap)" : ""} Ask what's in it, or say "add all the data from the sheet to the leads" to import every row.`,
+        ephemeral: true,
+      },
+    ]);
+  };
+
+  const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file || sheetBusy) return;
+    setMessages((prev) => [...prev, { role: "user", text: `📎 ${file.name}`, ephemeral: true }]);
+    setSheetBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      applySheetResult(await ingestSheetAction(fd));
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Couldn't read that file — export it again from Google Sheets as .csv or .xlsx.", ephemeral: true },
+      ]);
+    } finally {
+      setSheetBusy(false);
+    }
+  };
+
+  const handleSheetUrl = async (url: string) => {
+    setMessages((prev) => [...prev, { role: "user", text: `📎 ${url}`, ephemeral: true }]);
+    setSheetBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("url", url);
+      applySheetResult(await ingestSheetAction(fd));
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Couldn't fetch that sheet — make sure it's shared as 'Anyone with the link'.", ephemeral: true },
+      ]);
+    } finally {
+      setSheetBusy(false);
+    }
+  };
+
   const handleSend = async (userPrompt?: string) => {
     const queryText = userPrompt || prompt;
-    if (!queryText.trim() || loading || discovering) return;
+    if (!queryText.trim() || loading || discovering || sheetBusy) return;
+
+    // A pasted Google Sheets share link attaches the sheet instead of chatting.
+    const trimmed = queryText.trim();
+    if (SHEET_URL_RE.test(trimmed)) {
+      if (!userPrompt) setPrompt("");
+      await handleSheetUrl(trimmed);
+      return;
+    }
 
     // Conversation memory: the last 10 real turns (excluding UI-only messages)
     // so follow-ups like "why that one?" resolve against prior context.
@@ -107,7 +222,7 @@ export function AiCopilotDrawer() {
     setLoading(true);
 
     try {
-      const res = await sendCopilotPromptAction(queryText, history);
+      const res = await sendCopilotPromptAction(queryText, history, sheet?.sheetId);
       const dc = (res.dataContext ?? {}) as { engine?: string };
       if (dc.engine === "llm") setEngine("llm");
       else if (dc.engine === "deterministic") setEngine("deterministic");
@@ -214,6 +329,195 @@ export function AiCopilotDrawer() {
       ]);
     } finally {
       setDiscovering(false);
+    }
+  };
+
+  const handleDiscoverGoogle = async (category: string, city: string) => {
+    if (!category.trim() || !city.trim() || discovering) return;
+    setMessages((prev) => [...prev, { role: "user", text: `🗺️ Google Maps: ${category.trim()} in ${city.trim()}` }]);
+    setPrompt("");
+    setDiscovering(true);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", text: "Searching for businesses — this may take up to 2 minutes if the Google Maps scraper is running…", ephemeral: true },
+    ]);
+
+    try {
+      const res = await discoverGooglePlacesAction(category, city, 10);
+      if (!res.success || res.leads.length === 0) {
+        const hint = `No businesses found for "${category}" in "${city}". Try a broader category (e.g. "restaurant" instead of "vegan cafe"), check the city name, or try a larger nearby city. For richer data (ratings, reviews), add GOOGLE_PLACES_API_KEY to .env.local.`;
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: hint },
+        ]);
+        return;
+      }
+      // Check if the response has Google-specific fields (rating with a value) vs free scraper/OSM
+      const hasRealRatings = res.leads[0] && "rating" in res.leads[0] && (res.leads[0] as GooglePlacesLead).rating != null;
+      if ("rating" in (res.leads[0] ?? {})) {
+        const hot = (res.leads as GooglePlacesLead[]).filter((l) => l.priority === "Hot").length;
+        const source = hasRealRatings ? "Google Maps" : "OpenStreetMap";
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: `Found ${res.leads.length} business${res.leads.length === 1 ? "" : "es"} via ${source} — ${hot} Hot (no website). Select and import to your CRM.`,
+            googlePlacesLeads: res.leads as GooglePlacesLead[],
+            notes: res.notes,
+          },
+        ]);
+      } else {
+        const hot = (res.leads as LocalDiscoveryLead[]).filter((l) => l.priority === "Hot").length;
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: `Found ${res.leads.length} local business${res.leads.length === 1 ? "" : "es"} — ${hot} Hot.`,
+            localLeads: res.leads as LocalDiscoveryLead[],
+            notes: res.notes,
+          },
+        ]);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Business discovery failed. Try again or check your internet connection." },
+      ]);
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const googleToCandidate = (l: GooglePlacesLead): ImportLeadCandidate => ({
+    companyName: l.companyName,
+    website: l.website,
+    industry: l.industry,
+    location: l.location,
+    size: null,
+    description: l.priorityReason,
+    emails: [],
+    phones: l.phone ? [l.phone] : [],
+    linkedin: null,
+    fitScore: l.fitScore,
+    sourceQuery: l.sourceQuery,
+    sourceUrl: l.sourceUrl,
+    placeId: l.placeId,
+    rating: l.rating,
+    reviewCount: l.reviewCount,
+    priority: l.priority,
+    priorityReason: l.priorityReason,
+    hook: l.suggestedHook,
+  });
+
+  const handleImportGoogle = async (lead: GooglePlacesLead) => {
+    const key = lead.placeId;
+    if (importStates[key]?.state === "importing" || importStates[key]?.state === "imported") return;
+    setImport(key, "importing");
+    try {
+      const res = await importDiscoveredLeadAction(googleToCandidate(lead));
+      if (res.success) {
+        setImport(key, "imported", `Score ${res.score} · in CRM`);
+        router.refresh();
+      } else {
+        setImport(key, "error", res.error ?? "Import failed");
+      }
+    } catch {
+      setImport(key, "error", "Import failed");
+    }
+  };
+
+  const handleImportAllGoogle = async (leads: GooglePlacesLead[]) => {
+    const fresh = leads.filter((l) => {
+      const st = importStates[l.placeId]?.state;
+      return st !== "imported" && st !== "importing" && st !== "error";
+    });
+    if (fresh.length === 0) return;
+    for (const l of fresh) setImport(l.placeId, "importing");
+    try {
+      const res = await importDiscoveredLeadsAction(fresh.map(googleToCandidate));
+      res.results.forEach((r, i) => {
+        const key = fresh[i]?.placeId ?? r.companyName;
+        if (r.ok) setImport(key, "imported", "In CRM");
+        else setImport(key, "error", r.error ?? "Import failed");
+      });
+      if (res.imported > 0) router.refresh();
+    } catch {
+      for (const l of fresh) setImport(l.placeId, "error", "Import failed");
+    }
+  };
+
+  const handleEnrichLead = async (companyName: string, website: string | null, location: string | null, industry: string | null) => {
+    setMessages((prev) => [...prev, { role: "user", text: `🔍 Enrich: ${companyName}` }]);
+    setLoading(true);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", text: `Scraping ${website ?? companyName} for emails, decision makers, and social links…`, ephemeral: true },
+    ]);
+    try {
+      const res = await enrichLeadAction({ companyName, website, location, industry });
+      const parts: string[] = [];
+      if (res.companyDescription) parts.push(`**About:** ${res.companyDescription}`);
+      if (res.emails.length > 0) {
+        const personal = res.emails.filter((e) => e.isPersonal);
+        const generic = res.emails.filter((e) => !e.isPersonal);
+        if (personal.length > 0) parts.push(`**Personal emails:** ${personal.map((e) => e.address).join(", ")}`);
+        if (generic.length > 0) parts.push(`**Generic emails:** ${generic.map((e) => e.address).join(", ")}`);
+      }
+      if (res.people.length > 0) {
+        parts.push("**Decision makers:**");
+        for (const p of res.people) {
+          let line = `• ${p.name}`;
+          if (p.role) line += ` — ${p.role}`;
+          if (p.email) line += ` (${p.email})`;
+          if (p.linkedinUrl) line += ` [LinkedIn](${p.linkedinUrl})`;
+          line += ` [${p.confidence}]`;
+          parts.push(line);
+        }
+      }
+      if (Object.keys(res.socials).length > 0) {
+        parts.push(`**Social:** ${Object.entries(res.socials).map(([k, v]) => `[${k}](${v})`).join(" · ")}`);
+      }
+      if (res.techSignals.length > 0) parts.push(`**Tech stack:** ${res.techSignals.join(", ")}`);
+      if (res.employeeEstimate) parts.push(`**Team size:** ~${res.employeeEstimate} employees`);
+      if (parts.length === 0 && res.notes.length > 0) parts.push(res.notes.join(" "));
+      if (parts.length === 0) parts.push("No additional data found — the website may block scraping or have limited public info.");
+      setMessages((prev) => [...prev, { role: "assistant", text: parts.join("\n"), notes: res.notes }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", text: "Enrichment failed — the website may be unreachable." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCampaignAnalytics = async () => {
+    setMessages((prev) => [...prev, { role: "user", text: "📊 Campaign Analytics" }]);
+    setLoading(true);
+    try {
+      const data = await getCampaignAnalyticsAction();
+      const parts: string[] = [];
+      parts.push(`**Sequences:** ${data.totalSequences} total (${data.activeSequences} active)`);
+      parts.push(`**Enrolled:** ${data.totalEnrolled} · **Replied:** ${data.totalReplied} (${data.overallReplyRate}%) · **Meetings:** ${data.totalMeetings} (${data.overallMeetingRate}%)`);
+      if (data.topSequences.length > 0) {
+        parts.push("\n**Top sequences:**");
+        for (const s of data.topSequences) {
+          parts.push(`• ${s.name} — ${s.enrolled} enrolled, ${s.replyRate}% reply, ${s.meetingRate}% meeting`);
+        }
+      }
+      if (data.conversionFunnel.length > 0) {
+        parts.push("\n**Lead funnel:**");
+        for (const step of data.conversionFunnel) {
+          parts.push(`• ${step.stage}: ${step.count} (${step.percentage}%)`);
+        }
+      }
+      if (data.insights.length > 0) {
+        parts.push("\n**Insights:**");
+        for (const insight of data.insights) parts.push(`• ${insight}`);
+      }
+      setMessages((prev) => [...prev, { role: "assistant", text: parts.join("\n") }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", text: "Could not load campaign analytics." }]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -350,6 +654,27 @@ export function AiCopilotDrawer() {
       return;
     }
 
+    if (action.actionType === "DISCOVER_GOOGLE_LEADS") {
+      const category = typeof action.payload?.category === "string" ? action.payload.category : "";
+      const city = typeof action.payload?.city === "string" ? action.payload.city : "";
+      if (category && city) await handleDiscoverGoogle(category, city);
+      return;
+    }
+
+    if (action.actionType === "ENRICH_LEAD") {
+      const companyName = typeof action.payload?.companyName === "string" ? action.payload.companyName : "";
+      const website = typeof action.payload?.website === "string" ? action.payload.website : null;
+      const location = typeof action.payload?.location === "string" ? action.payload.location : null;
+      const industry = typeof action.payload?.industry === "string" ? action.payload.industry : null;
+      if (companyName) await handleEnrichLead(companyName, website, location, industry);
+      return;
+    }
+
+    if (action.actionType === "CAMPAIGN_ANALYTICS") {
+      await handleCampaignAnalytics();
+      return;
+    }
+
     if (action.actionType === "NAVIGATE" && typeof action.payload?.url === "string") {
       router.push(action.payload.url);
       setIsOpen(false);
@@ -447,6 +772,12 @@ export function AiCopilotDrawer() {
             {/* Quick Preset Prompt Chips */}
             <div className="p-3 bg-surface-low/50 border-b border-border-subtle flex items-center gap-2 overflow-x-auto text-[10px]">
               <button
+                onClick={() => handleSend("What should I do today?")}
+                className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 whitespace-nowrap hover:bg-emerald-500/20 transition-colors"
+              >
+                ☀️ Today
+              </button>
+              <button
                 onClick={() => handleSend("Audit pipeline risk")}
                 className="px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30 whitespace-nowrap hover:bg-primary/20 transition-colors"
               >
@@ -469,6 +800,18 @@ export function AiCopilotDrawer() {
                 className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 whitespace-nowrap hover:bg-emerald-500/20 transition-colors"
               >
                 🔎 Scrape Leads
+              </button>
+              <button
+                onClick={() => handleSend("Create a new lead")}
+                className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 whitespace-nowrap hover:bg-purple-500/20 transition-colors"
+              >
+                ➕ New Lead
+              </button>
+              <button
+                onClick={() => handleSend("Show my outreach sequences and BDR stats")}
+                className="px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30 whitespace-nowrap hover:bg-sky-500/20 transition-colors"
+              >
+                📨 Sequences
               </button>
             </div>
 
@@ -581,6 +924,15 @@ export function AiCopilotDrawer() {
                       />
                     )}
 
+                    {m.googlePlacesLeads && m.googlePlacesLeads.length > 0 && (
+                      <GooglePlacesBlock
+                        leads={m.googlePlacesLeads}
+                        importStates={importStates}
+                        onImport={handleImportGoogle}
+                        onImportAll={handleImportAllGoogle}
+                      />
+                    )}
+
                     {m.notes && m.notes.length > 0 && (
                       <p className="mt-2 text-[10px] text-text-muted italic">{m.notes.join(" ")}</p>
                     )}
@@ -603,12 +955,38 @@ export function AiCopilotDrawer() {
                                       ? "border-red-500/40 bg-red-500/10"
                                       : wState === "declined"
                                         ? "border-border-subtle bg-surface-lowest opacity-60"
-                                        : "border-amber-500/40 bg-amber-500/5"
+                                        : act.actionType.startsWith("DELETE_")
+                                          ? "border-red-500/40 bg-red-500/5"
+                                          : act.actionType === "SEND_EMAIL"
+                                            ? "border-sky-500/40 bg-sky-500/5"
+                                            : act.actionType.startsWith("CREATE_") && act.actionType !== "CREATE_TASK" && act.actionType !== "CREATE_FOLLOW_UP"
+                                              ? "border-emerald-500/40 bg-emerald-500/5"
+                                              : "border-amber-500/40 bg-amber-500/5"
                                 }`}
                               >
                                 <div className="flex items-start gap-2">
                                   {act.actionType === "CREATE_TASK" ? (
                                     <ListTodo className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
+                                  ) : act.actionType === "CREATE_FOLLOW_UP" ? (
+                                    <CalendarClock className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
+                                  ) : act.actionType === "IMPORT_SHEET_LEADS" ? (
+                                    <SheetIcon className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
+                                  ) : act.actionType === "CREATE_LEAD" || act.actionType === "CREATE_CONTACT" ? (
+                                    <UserPlus className="h-3.5 w-3.5 mt-0.5 text-emerald-400 shrink-0" />
+                                  ) : act.actionType === "CREATE_COMPANY" ? (
+                                    <Building2 className="h-3.5 w-3.5 mt-0.5 text-emerald-400 shrink-0" />
+                                  ) : act.actionType === "CREATE_DEAL" ? (
+                                    <Handshake className="h-3.5 w-3.5 mt-0.5 text-emerald-400 shrink-0" />
+                                  ) : act.actionType === "DELETE_LEAD" || act.actionType === "DELETE_DEAL" ? (
+                                    <Trash2 className="h-3.5 w-3.5 mt-0.5 text-red-400 shrink-0" />
+                                  ) : act.actionType === "SEND_EMAIL" ? (
+                                    <MailPlus className="h-3.5 w-3.5 mt-0.5 text-sky-400 shrink-0" />
+                                  ) : act.actionType === "ANALYZE_INTENT" || act.actionType === "HANDLE_OBJECTION" ? (
+                                    <Brain className="h-3.5 w-3.5 mt-0.5 text-purple-400 shrink-0" />
+                                  ) : act.actionType === "ENROLL_SEQUENCE" || act.actionType === "CREATE_SEQUENCE" ? (
+                                    <Play className="h-3.5 w-3.5 mt-0.5 text-sky-400 shrink-0" />
+                                  ) : act.actionType.startsWith("UPDATE_") ? (
+                                    <Target className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
                                   ) : (
                                     <PenLine className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
                                   )}
@@ -625,6 +1003,44 @@ export function AiCopilotDrawer() {
                                     </p>
                                   </div>
                                 </div>
+
+                                {/* Spreadsheet import: server-provided preview of the first rows */}
+                                {act.actionType === "IMPORT_SHEET_LEADS" && Array.isArray(act.payload.preview) && (
+                                  <div className="mt-2 rounded border border-border-subtle bg-surface-lowest overflow-x-auto">
+                                    <table className="w-full text-[9px] font-mono-code">
+                                      <thead>
+                                        <tr className="text-text-muted">
+                                          {(Array.isArray(act.payload.headers) ? act.payload.headers : []).slice(0, 3).map((h, hi) => (
+                                            <th key={hi} className="px-1.5 py-1 text-left font-semibold border-b border-border-subtle max-w-[90px] truncate">
+                                              {String(h)}
+                                            </th>
+                                          ))}
+                                          {Array.isArray(act.payload.headers) && act.payload.headers.length > 3 && (
+                                            <th className="px-1 py-1 text-left font-normal text-text-muted/70">+{act.payload.headers.length - 3}</th>
+                                          )}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(act.payload.preview as string[][]).slice(0, 5).map((row, ri) => (
+                                          <tr key={ri} className="border-b border-border-subtle/40 last:border-0">
+                                            {row.slice(0, 3).map((cell, ci) => (
+                                              <td key={ci} className="px-1.5 py-1 text-text-primary max-w-[90px] truncate">
+                                                {cell || <span className="text-text-muted/50">—</span>}
+                                              </td>
+                                            ))}
+                                            {row.length > 3 && <td className="px-1 py-1 text-text-muted/70">+{row.length - 3}</td>}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                    {typeof act.payload.rowCount === "number" && act.payload.rowCount > 5 && (
+                                      <p className="px-1.5 py-1 text-[9px] text-text-muted">
+                                        … {act.payload.rowCount - 5} more rows — every row imports on confirm.
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+
                                 {wState !== "done" && wState !== "declined" && (
                                   <div className="mt-2 grid grid-cols-2 gap-2">
                                     <button
@@ -669,16 +1085,39 @@ export function AiCopilotDrawer() {
                 </div>
               ))}
 
-              {(loading || discovering) && (
+              {(loading || discovering || sheetBusy) && (
                 <div className="flex items-center space-x-2 text-xs text-text-muted">
                   <Cpu className="h-4 w-4 animate-spin text-primary" />
-                  <span>{discovering ? "Scanning the web for prospects…" : "Synthesizing CRM telemetry context..."}</span>
+                  <span>
+                    {sheetBusy
+                      ? "Reading spreadsheet…"
+                      : discovering
+                        ? "Scanning the web for prospects…"
+                        : "Synthesizing CRM telemetry context..."}
+                  </span>
                 </div>
               )}
             </div>
 
             {/* Input Bar */}
             <div className="p-3 border-t border-border-subtle bg-surface-elevated/30">
+              {sheet && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[10px]">
+                  <SheetIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span className="font-semibold text-text-primary truncate">{sheet.fileName}</span>
+                  <span className="font-mono-code text-text-muted shrink-0">
+                    {sheet.rowCount} rows · {sheet.headers.length} cols
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSheet(null)}
+                    title="Detach sheet"
+                    className="ml-auto p-0.5 rounded text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -686,21 +1125,37 @@ export function AiCopilotDrawer() {
                 }}
                 className="flex items-center space-x-2"
               >
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sheetBusy}
+                  title="Attach a Google Sheet (.csv/.xlsx) or paste its share link"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-surface-lowest text-text-muted hover:text-primary hover:border-primary/40 disabled:opacity-50 transition-colors"
+                >
+                  {sheetBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                </button>
                 <input
                   type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Ask anything, or: find dermatology clinics in Miami…"
+                  placeholder="Create a lead, send an email, analyze intent…"
                   className="flex-1 bg-surface-lowest border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-primary/60"
                 />
                 <button
                   type="submit"
-                  disabled={loading || discovering || !prompt.trim()}
+                  disabled={loading || discovering || sheetBusy || !prompt.trim()}
                   className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-50 hover:bg-primary/90 transition-colors"
                 >
                   <Send className="h-3.5 w-3.5" />
                 </button>
               </form>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,.tsv,.txt"
+                className="hidden"
+                onChange={handleFilePick}
+              />
             </div>
 
           </div>
@@ -710,7 +1165,7 @@ export function AiCopilotDrawer() {
   );
 }
 
-const TIER_STYLE: Record<LocalDiscoveryLead["priority"], string> = {
+const TIER_STYLE: Record<string, string> = {
   Hot: "bg-tertiary/15 text-tertiary border-tertiary/40",
   Warm: "bg-sky-500/15 text-sky-400 border-sky-500/40",
   Cold: "bg-surface-high text-text-muted border-border-subtle",
@@ -826,6 +1281,138 @@ function LocalLeadsBlock({
                   <p className="mt-1 text-[9px] text-text-muted/80">{lead.priorityReason}</p>
                   {lead.suggestedHook && (
                     <p className="mt-0.5 text-[10px] text-secondary italic" title="AI-suggested outreach angle — a guess, not a fact. Verify before use.">
+                      Suggested angle (AI): {lead.suggestedHook}
+                    </p>
+                  )}
+                  {st === "error" && <p className="mt-0.5 text-[10px] text-red-400">{importStates[key]?.message}</p>}
+                </div>
+                <button
+                  onClick={() => onImport(lead)}
+                  disabled={st === "importing" || st === "imported"}
+                  className={`shrink-0 self-center rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
+                    st === "imported"
+                      ? "text-emerald-400"
+                      : st === "importing"
+                        ? "text-text-muted"
+                        : "bg-primary/20 border border-primary/40 text-primary hover:bg-primary/30"
+                  }`}
+                >
+                  {st === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : st === "imported" ? <CheckCircle2 className="h-3 w-3" /> : "Import"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GooglePlacesBlock({
+  leads,
+  importStates,
+  onImport,
+  onImportAll,
+}: {
+  leads: GooglePlacesLead[];
+  importStates: Record<string, { state: ImportState; message?: string }>;
+  onImport: (lead: GooglePlacesLead) => void;
+  onImportAll: (leads: GooglePlacesLead[]) => void;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(leads.map((l) => l.placeId)));
+  const [bulkState, setBulkState] = useState<"idle" | "importing" | "done">("idle");
+
+  const importable = leads.filter((l) => {
+    const st = importStates[l.placeId]?.state;
+    return st !== "imported" && st !== "importing";
+  });
+  const selectedFresh = leads.filter((l) => selected.has(l.placeId) && importStates[l.placeId]?.state !== "imported");
+  const importedCount = leads.filter((l) => importStates[l.placeId]?.state === "imported").length;
+  const allDone = importedCount === leads.length;
+
+  const toggle = (id: string) => {
+    setSelected((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
+
+  const importSelected = async () => {
+    if (selectedFresh.length === 0 || bulkState === "importing") return;
+    setBulkState("importing");
+    await onImportAll(selectedFresh);
+    setBulkState("done");
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-sky-500/30 bg-sky-500/5 p-2">
+      <div className="flex items-center justify-between px-1 pb-2">
+        <button
+          onClick={() => setSelected(allDone ? new Set() : new Set(importable.map((l) => l.placeId)))}
+          disabled={allDone || importable.length === 0}
+          className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
+        >
+          {selected.size > 0 && !allDone ? <SquareCheck className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5" />}
+          Select all ({selected.size}/{leads.length})
+        </button>
+        <button
+          onClick={importSelected}
+          disabled={selectedFresh.length === 0 || bulkState === "importing"}
+          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
+        >
+          {bulkState === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+          {allDone ? "All in CRM" : `Import ${selectedFresh.length}`}
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
+        {leads.map((lead) => {
+          const key = lead.placeId;
+          const st = importStates[key]?.state ?? "idle";
+          const isSelected = selected.has(key) && st !== "imported" && st !== "importing";
+          return (
+            <div
+              key={key}
+              className={`rounded-lg border p-2 transition-colors ${
+                st === "imported" ? "border-emerald-500/40 bg-emerald-500/10" : isSelected ? "border-primary/40 bg-surface-lowest" : "border-border-subtle bg-surface-lowest"
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                {st !== "imported" && (
+                  <button onClick={() => toggle(key)} className="mt-0.5 shrink-0" aria-label={`Select ${lead.companyName}`}>
+                    {isSelected ? <SquareCheck className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5 text-text-muted" />}
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold text-text-primary truncate">{lead.companyName}</p>
+                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold font-mono-code ${TIER_STYLE[lead.priority]}`}>
+                      {lead.priority === "Hot" ? <Flame className="mr-0.5 inline h-2.5 w-2.5" /> : null}{lead.priority.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-text-muted truncate">{lead.location ?? "—"}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+                    {lead.rating != null && (
+                      <span className="inline-flex items-center gap-0.5">
+                        <span className="text-amber-400">★</span> {lead.rating.toFixed(1)}
+                        {lead.reviewCount != null && <span className="text-text-muted/70">({lead.reviewCount})</span>}
+                      </span>
+                    )}
+                    {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{lead.phone}</span>}
+                    {lead.openingHours && <span title={lead.openingHours}>🕒 {lead.openingHours.slice(0, 24)}</span>}
+                    {lead.website ? (
+                      <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
+                        <Globe className="h-2.5 w-2.5" />site
+                      </a>
+                    ) : (
+                      <span className="text-tertiary">no website</span>
+                    )}
+                    {lead.googleMapsUrl && (
+                      <a href={lead.googleMapsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
+                        <MapPin className="h-2.5 w-2.5" />maps
+                      </a>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[9px] text-text-muted/80">{lead.priorityReason}</p>
+                  {lead.suggestedHook && (
+                    <p className="mt-0.5 text-[10px] text-secondary italic" title="AI-suggested outreach angle — verify before use.">
                       Suggested angle (AI): {lead.suggestedHook}
                     </p>
                   )}

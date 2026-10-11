@@ -91,7 +91,7 @@ export function planFromModel(raw: unknown): AgentPlan {
     }),
     confidence: parsed.confidence,
     confidenceEvidence: parsed.confidenceEvidence.slice(0, 5),
-    requiresApproval: parsed.actions.some((a) => a.requiresApproval) ?? false,
+    requiresApproval: parsed.actions.some((a) => a.requiresApproval),
   };
 }
 

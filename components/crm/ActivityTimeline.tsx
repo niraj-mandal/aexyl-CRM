@@ -1,8 +1,8 @@
 import { formatDistanceToNow } from "date-fns";
-import { MessageSquare, Phone, Mail, Calendar, ArrowRightLeft, Sparkles, StickyNote } from "lucide-react";
+import { MessageSquare, Phone, Mail, Calendar, ArrowRightLeft, Sparkles, StickyNote, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, LucideIcon> = {
   NOTE: StickyNote,
   CALL: Phone,
   EMAIL: Mail,
@@ -13,7 +13,16 @@ const iconMap: Record<string, any> = {
   STATUS_CHANGE: Sparkles,
 };
 
-export function ActivityTimeline({ activities }: { activities: any[] }) {
+interface TimelineActivity {
+  id: string;
+  type: string;
+  title: string;
+  description?: string | null;
+  occurredAt: string | Date;
+  actor?: { firstName: string | null; lastName: string | null } | null;
+}
+
+export function ActivityTimeline({ activities }: { activities: TimelineActivity[] }) {
   if (!activities || activities.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-text-muted">

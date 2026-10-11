@@ -3,12 +3,55 @@ import { db } from "@/db";
 import { users, workspaces, roles, workspaceMemberships } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export async function requireWorkspace() {
+type WorkspaceContext = {
+  userId: string;
+  workspaceId: string;
+  clerkId: string;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+// The DB is a cross-region round trip (~280ms each), and every server action
+// calls this, so cache the resolved identity briefly per process.
+const CONTEXT_TTL_MS = 60_000;
+const contextCache = new Map<string, { value: WorkspaceContext; expiresAt: number }>();
+
+export async function requireWorkspace(): Promise<WorkspaceContext> {
   const { userId: clerkId } = await auth();
   if (!clerkId) {
     throw new Error("Unauthorized");
   }
 
+  const cached = contextCache.get(clerkId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const [existing] = await db
+    .select({
+      userId: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      workspaceId: workspaceMemberships.workspaceId,
+    })
+    .from(users)
+    .innerJoin(workspaceMemberships, eq(workspaceMemberships.userId, users.id))
+    .where(eq(users.clerkId, clerkId))
+    .limit(1);
+
+  const value = existing
+    ? {
+        userId: existing.userId,
+        workspaceId: existing.workspaceId,
+        clerkId,
+        firstName: existing.firstName ?? null,
+        lastName: existing.lastName ?? null,
+      }
+    : await provisionWorkspaceContext(clerkId);
+
+  contextCache.set(clerkId, { value, expiresAt: Date.now() + CONTEXT_TTL_MS });
+  return value;
+}
+
+async function provisionWorkspaceContext(clerkId: string): Promise<WorkspaceContext> {
   // Check if user exists in database
   let dbUser = await db.query.users.findFirst({
     where: eq(users.clerkId, clerkId),
