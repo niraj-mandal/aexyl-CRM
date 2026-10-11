@@ -1,3 +1,6 @@
+import { and, eq, isNotNull } from "drizzle-orm";
+import { db } from "@/db";
+import { contacts, discoveryCandidates, leads as leadsTable } from "@/db/schema";
 import { CrmService, ProjectService } from "../crm.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-persona";
 import { LlmService, type LlmImage } from "./llm.service";
@@ -66,6 +69,9 @@ export interface PipelineAudit {
     openDealsCount: number;
     stalledDealsCount: number;
     dealStalenessIndex: string;
+    contactableLeadsCount: number;
+    readyToContactCount: number;
+    followUpsDueCount: number;
     totalRevenueAtRisk: number;
     openPipelineValue: number;
     highPriorityLeadsCount: number;
@@ -111,7 +117,8 @@ export class AiAgentService {
     const wonDeals = deals.filter((d) => d.stage === "WON");
 
     const num = (v: string | null | undefined) => parseFloat(v || "0") || 0;
-    const money = (n: number) => "$" + n.toLocaleString();
+    const money = (n: number) => "₹" + n.toLocaleString("en-IN");
+    const HIGH_VALUE_DEAL = 100_000;
 
     // Detect stalled open deals (no update in last 7 days)
     const stalledDeals = openDeals.filter(
@@ -131,7 +138,7 @@ export class AiAgentService {
       (d) => d.expectedCloseDate && new Date(d.expectedCloseDate).getTime() < now
     );
 
-    const highValueOpenDeals = openDeals.filter((d) => num(d.value) > 50000);
+    const highValueOpenDeals = openDeals.filter((d) => num(d.value) >= HIGH_VALUE_DEAL);
     const totalRevenueAtRisk = stalledDeals.reduce((acc, d) => acc + num(d.value), 0);
     const openPipelineValue = openDeals.reduce((acc, d) => acc + num(d.value), 0);
 
@@ -162,8 +169,75 @@ export class AiAgentService {
         ? ((hotLeads.length / activeLeads.length) * 100).toFixed(0) + "%"
         : "0%";
 
+    // Contact sources live on the contact row or on the discovery record that created the lead.
+    const [contactRows, candidateRows] = await Promise.all([
+      db
+        .select({ leadId: leadsTable.id, phone: contacts.phone, email: contacts.email })
+        .from(leadsTable)
+        .leftJoin(contacts, eq(contacts.id, leadsTable.contactId))
+        .where(eq(leadsTable.workspaceId, workspaceId)),
+      db
+        .select({ leadId: discoveryCandidates.leadId, phone: discoveryCandidates.phone, meta: discoveryCandidates.discoveryMetadata })
+        .from(discoveryCandidates)
+        .where(and(eq(discoveryCandidates.workspaceId, workspaceId), isNotNull(discoveryCandidates.leadId))),
+    ]);
+    const contactableIds = new Set<string>();
+    for (const r of contactRows) if (r.phone || r.email) contactableIds.add(r.leadId);
+    for (const r of candidateRows) {
+      const meta = (r.meta ?? {}) as { email?: string | null; socials?: unknown[] };
+      if (r.leadId && (r.phone || meta.email || (Array.isArray(meta.socials) && meta.socials.length > 0))) {
+        contactableIds.add(r.leadId);
+      }
+    }
+    const contactableLeads = activeLeads.filter((l) => contactableIds.has(l.id));
+    const unreachableLeads = activeLeads.filter((l) => !contactableIds.has(l.id));
+    const readyToContact = contactableLeads.filter((l) => !l.lastContactedAt);
+    const followUpsDue = activeLeads.filter(
+      (l) => l.lastContactedAt && (!l.nextFollowUpAt || new Date(l.nextFollowUpAt).getTime() < now)
+    );
+
     // --- Insights, derived from actual conditions ---------------------------
     const insights: AuditInsight[] = [];
+
+    if (readyToContact.length > 0) {
+      const names = readyToContact.slice(0, 3).map((l) => l.company?.name).filter(Boolean).join(", ");
+      insights.push({
+        id: "LEAD-01",
+        preset: "Ready to Contact",
+        title: `${readyToContact.length} lead${readyToContact.length > 1 ? "s" : ""} with contact details, never contacted`,
+        severity: "HIGH",
+        description: `Your quickest wins: a phone, email or social profile is on file but nobody has reached out yet${names ? ` (e.g. ${names})` : ""}. Write a pitch and send it.`,
+        actionLabel: "Write Pitches",
+        detailUrl: "/outreach",
+      });
+    }
+
+    if (followUpsDue.length > 0) {
+      const noDate = followUpsDue.filter((l) => !l.nextFollowUpAt).length;
+      insights.push({
+        id: "LEAD-02",
+        preset: "Follow-up Discipline",
+        title: `${followUpsDue.length} contacted lead${followUpsDue.length > 1 ? "s" : ""} need a follow-up`,
+        severity: "WARNING",
+        description: noDate === followUpsDue.length
+          ? `You reached out, but no follow-up date is set. Most replies come after the second or third touch, so schedule the next one.`
+          : `${followUpsDue.length - noDate} follow-up${followUpsDue.length - noDate === 1 ? " is" : "s are"} overdue and ${noDate} contacted lead${noDate === 1 ? " has" : "s have"} no follow-up date.`,
+        actionLabel: "Review Leads",
+        detailUrl: "/sales/leads",
+      });
+    }
+
+    if (unreachableLeads.length > 0) {
+      insights.push({
+        id: "LEAD-03",
+        preset: "Contactability",
+        title: `${unreachableLeads.length} of ${activeLeads.length} active leads have no contact details`,
+        severity: activeLeads.length > 0 && unreachableLeads.length > activeLeads.length * 0.5 ? "WARNING" : "NORMAL",
+        description: `No phone, email or social profile is on file for these. Look them up on Google Maps or Instagram before outreach, or point discovery at a city or category with richer listings.`,
+        actionLabel: "Open Lead Discovery",
+        detailUrl: "/bdr",
+      });
+    }
 
     if (stalledDeals.length > 0) {
       const worst = [...stalledDeals].sort(
@@ -174,7 +248,7 @@ export class AiAgentService {
         id: "OPT-01",
         preset: "Pipeline Velocity",
         title: `${stalledDeals.length} stalled deal${stalledDeals.length > 1 ? "s" : ""} need follow-up`,
-        severity: totalRevenueAtRisk > 50000 ? "HIGH" : "WARNING",
+        severity: totalRevenueAtRisk >= HIGH_VALUE_DEAL ? "HIGH" : "WARNING",
         description: `${money(totalRevenueAtRisk)} of open pipeline has had no activity in 7+ days. Oldest: "${worst.name}" (${worst.company?.name || "No company"}) — idle ${daysIdle} day${daysIdle === 1 ? "" : "s"} in ${worst.stage.replace("_", " ").toLowerCase()}.`,
         actionLabel: "Review Stalled Deals",
         detailUrl: "/sales/pipeline",
@@ -213,7 +287,9 @@ export class AiAgentService {
         preset: "Lead Hygiene",
         title: `${staleLeads.length} lead${staleLeads.length > 1 ? "s" : ""} with no recent contact`,
         severity: activeLeads.length > 0 && staleLeads.length > activeLeads.length * 0.5 ? "HIGH" : "WARNING",
-        description: neverTouched > 0
+        description: neverTouched === staleLeads.length
+          ? `None of ${neverTouched === 1 ? "this lead" : `these ${neverTouched} leads`} has been contacted yet. First touches drive the fastest conversion lift.`
+          : neverTouched > 0
           ? `${neverTouched} active lead${neverTouched === 1 ? " has" : "s have"} never been contacted; the rest have gone 7+ days quiet. First follow-ups drive the fastest conversion lift.`
           : `All of these leads have gone 7+ days without contact. Re-engage before they cool further.`,
         actionLabel: "Review Leads",
@@ -226,7 +302,7 @@ export class AiAgentService {
       insights.push({
         id: "OPT-05",
         preset: "Risk Friction",
-        title: `${highValueOpenDeals.length} high-value deal${highValueOpenDeals.length > 1 ? "s" : ""} in play (>$50K)`,
+        title: `${highValueOpenDeals.length} high-value deal${highValueOpenDeals.length > 1 ? "s" : ""} in play (₹1L+)`,
         severity: "WARNING",
         description: `${money(highValueOpenDeals.reduce((a, d) => a + num(d.value), 0))} concentrated in high-value deals. Largest: "${top.name}" (${top.company?.name || "No company"}) at ${money(num(top.value))} in ${top.stage.replace("_", " ").toLowerCase()}.`,
         actionLabel: "Review High-Value Deals",
@@ -267,6 +343,9 @@ export class AiAgentService {
         openDealsCount: openDeals.length,
         stalledDealsCount: stalledDeals.length,
         dealStalenessIndex: staleIndex,
+        contactableLeadsCount: contactableLeads.length,
+        readyToContactCount: readyToContact.length,
+        followUpsDueCount: followUpsDue.length,
         totalRevenueAtRisk,
         openPipelineValue,
         highPriorityLeadsCount: hotLeads.length,

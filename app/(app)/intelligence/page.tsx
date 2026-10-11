@@ -112,7 +112,7 @@ export default function IntelligencePage() {
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
               <MonoLabel>REVENUE AT RISK</MonoLabel>
               <div className={`mt-2 text-2xl font-bold ${m.totalRevenueAtRisk > 0 ? "text-tertiary" : "text-secondary"}`}>
-                ${m.totalRevenueAtRisk.toLocaleString()}
+                ₹{m.totalRevenueAtRisk.toLocaleString("en-IN")}
               </div>
               <p className="mt-1 text-[11px] text-text-muted">Stalled deal value</p>
             </div>
@@ -120,7 +120,7 @@ export default function IntelligencePage() {
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
               <MonoLabel>OPEN PIPELINE</MonoLabel>
               <div className="mt-2 text-2xl font-bold text-primary">
-                ${m.openPipelineValue.toLocaleString()}
+                ₹{m.openPipelineValue.toLocaleString("en-IN")}
               </div>
               <p className="mt-1 text-[11px] text-text-muted">{m.openDealsCount} open deals · avg age {m.avgDealAgeDays}d</p>
             </div>
@@ -132,6 +132,32 @@ export default function IntelligencePage() {
                 <span className="text-sm font-medium text-text-muted ml-2">{m.hotLeadRatio}</span>
               </div>
               <p className="mt-1 text-[11px] text-text-muted">Score ≥ 70 or temperature HOT</p>
+            </div>
+          </div>
+
+          <MonoLabel className="block mt-6 mb-3 text-secondary">LEAD OUTREACH</MonoLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
+              <MonoLabel>CONTACTABLE LEADS</MonoLabel>
+              <div className="mt-2 text-2xl font-bold text-text-primary">
+                {m.contactableLeadsCount}
+                <span className="text-sm font-medium text-text-muted ml-2">of {m.activeLeadsCount}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-text-muted">Phone, email or social on file</p>
+            </div>
+            <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
+              <MonoLabel>READY TO CONTACT</MonoLabel>
+              <div className={`mt-2 text-2xl font-bold ${m.readyToContactCount > 0 ? "text-primary" : "text-secondary"}`}>
+                {m.readyToContactCount}
+              </div>
+              <p className="mt-1 text-[11px] text-text-muted">Contact details, never contacted</p>
+            </div>
+            <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
+              <MonoLabel>FOLLOW-UPS DUE</MonoLabel>
+              <div className={`mt-2 text-2xl font-bold ${m.followUpsDueCount > 0 ? "text-tertiary" : "text-secondary"}`}>
+                {m.followUpsDueCount}
+              </div>
+              <p className="mt-1 text-[11px] text-text-muted">Contacted, next touch overdue or unset</p>
             </div>
           </div>
         </GlassPanel>
@@ -178,7 +204,7 @@ export default function IntelligencePage() {
               <PageTitle className="text-base">Stalled Deals — 7+ Days Without Activity</PageTitle>
             </div>
             <Badge variant="tertiary" className="font-mono-code text-[10px]">
-              ${audit.metrics.totalRevenueAtRisk.toLocaleString()} AT RISK
+              ₹{audit.metrics.totalRevenueAtRisk.toLocaleString("en-IN")} AT RISK
             </Badge>
           </div>
           <div className="mt-4 space-y-3">
@@ -191,7 +217,7 @@ export default function IntelligencePage() {
                       {deal.company} · {deal.stage.replace("_", " ")} · idle {deal.daysSinceUpdate}d
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-tertiary">${deal.value.toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-tertiary">₹{deal.value.toLocaleString("en-IN")}</span>
                 </div>
               </Link>
             ))}
@@ -221,7 +247,7 @@ export default function IntelligencePage() {
                       {deal.company} · {deal.stage.replace("_", " ")} · expected {new Date(deal.expectedCloseDate).toLocaleDateString()}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-primary">${deal.value.toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-primary">₹{deal.value.toLocaleString("en-IN")}</span>
                 </div>
               </Link>
             ))}
