@@ -18,9 +18,12 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 
 export default function CommandCenter() {
   const { stats, connected, error } = useRealtimeTelemetry();
+  // Clerk's live user object re-renders as soon as the profile name is edited.
+  const { user: clerkUser } = useUser();
 
   const stageCounts = stats?.stageCounts ?? {};
   const stages = ["QUALIFIED", "CALL_BOOKED", "PROPOSAL", "NEGOTIATION", "WON"];
@@ -31,7 +34,7 @@ export default function CommandCenter() {
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-border-subtle/50">
         <div>
           <MonoLabel className="text-primary block mb-1">COMMAND CENTER // EXECUTIVE TELEMETRY</MonoLabel>
-          <Display>Welcome back, {stats?.user?.firstName ?? "Operator"}.</Display>
+          <Display>Welcome back, {clerkUser?.firstName || stats?.user?.firstName || "Operator"}.</Display>
         </div>
         <div className="flex items-center space-x-3">
           <Badge variant={connected ? "secondary" : "outline"} className="font-mono-code text-[11px]">
