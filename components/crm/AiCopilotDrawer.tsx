@@ -90,8 +90,50 @@ interface ChatMessage {
   localLeads?: LocalDiscoveryLead[];
   googlePlacesLeads?: GooglePlacesLead[];
   notes?: string[];
+  /** Screenshot thumbnails (data URLs) shown in a user message. */
+  images?: string[];
   /** Excluded from copilot memory (UI-only scaffolding). */
   ephemeral?: boolean;
+}
+
+/** A screenshot staged in the input bar, already resized for upload. */
+interface PendingImage {
+  id: string;
+  name: string;
+  mediaType: "image/jpeg" | "image/png";
+  data: string;
+  dataUrl: string;
+}
+
+const MAX_IMAGES = 3;
+const MAX_IMAGE_EDGE = 1600;
+const MAX_IMAGE_B64 = 1_300_000;
+
+/** Downscales a screenshot so its longest edge is ≤1600px and it fits the upload cap. */
+async function prepareImage(file: File): Promise<PendingImage | null> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  // PNG keeps screenshot text crisp; fall back to JPEG when PNG is too large.
+  let dataUrl = canvas.toDataURL("image/png");
+  let mediaType: PendingImage["mediaType"] = "image/png";
+  for (const quality of [0.92, 0.85, 0.75, 0.6]) {
+    if (dataUrl.length - dataUrl.indexOf(",") - 1 <= MAX_IMAGE_B64) break;
+    dataUrl = canvas.toDataURL("image/jpeg", quality);
+    mediaType = "image/jpeg";
+  }
+  const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  if (data.length > MAX_IMAGE_B64) return null;
+  return { id: crypto.randomUUID(), name: file.name || "screenshot", mediaType, data, dataUrl };
 }
 
 /** Server-held spreadsheet attachment — rows live server-side; the client keeps only ids and counts. */
@@ -131,6 +173,9 @@ export function AiCopilotDrawer() {
   const [sheetBusy, setSheetBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const isMac = useSyncExternalStore(
     noopSubscribe,
     () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
@@ -178,9 +223,12 @@ export function AiCopilotDrawer() {
   };
 
   const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = ""; // allow re-picking the same file
-    if (file) await attachSheetFile(file);
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length > 0) await addImages(images);
+    const sheetFile = files.find((f) => SHEET_FILE_RE.test(f.name));
+    if (sheetFile) await attachSheetFile(sheetFile);
   };
 
   const attachSheetFile = async (file: File) => {
@@ -218,8 +266,26 @@ export function AiCopilotDrawer() {
     }
   };
 
+  const addImages = async (files: File[]) => {
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+    const room = MAX_IMAGES - pendingImages.length;
+    if (room <= 0) {
+      setImageError(`You can attach up to ${MAX_IMAGES} screenshots per message.`);
+      return;
+    }
+    setImageError(null);
+    const prepared = await Promise.all(imageFiles.slice(0, room).map((f) => prepareImage(f).catch(() => null)));
+    const ok = prepared.filter((p): p is PendingImage => p !== null);
+    if (ok.length < Math.min(imageFiles.length, room)) setImageError("Some images couldn't be read or are too large.");
+    else if (imageFiles.length > room) setImageError(`Only the first ${room} image(s) were added (limit ${MAX_IMAGES}).`);
+    setPendingImages((prev) => [...prev, ...ok]);
+    inputRef.current?.focus();
+  };
+
   const handleSend = async (userPrompt?: string) => {
-    const queryText = userPrompt || prompt;
+    const images = userPrompt ? [] : pendingImages;
+    const queryText = userPrompt || prompt || (images.length > 0 ? "What does this screenshot show, and what should I do about it?" : "");
     if (!queryText.trim() || loading || discovering || sheetBusy) return;
 
     // A pasted Google Sheets share link attaches the sheet instead of chatting.
@@ -228,7 +294,7 @@ export function AiCopilotDrawer() {
       setSentHistory((h) => (h[h.length - 1] === trimmed ? h : [...h, trimmed].slice(-50)));
     }
     setHistoryIndex(-1);
-    if (SHEET_URL_RE.test(trimmed)) {
+    if (images.length === 0 && SHEET_URL_RE.test(trimmed)) {
       if (!userPrompt) setPrompt("");
       await handleSheetUrl(trimmed);
       return;
@@ -241,12 +307,24 @@ export function AiCopilotDrawer() {
       .slice(-10)
       .map((m) => ({ role: m.role, text: m.text }));
 
-    setMessages((prev) => [...prev, { role: "user", text: queryText }]);
-    if (!userPrompt) setPrompt("");
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: queryText, images: images.length > 0 ? images.map((i) => i.dataUrl) : undefined },
+    ]);
+    if (!userPrompt) {
+      setPrompt("");
+      setPendingImages([]);
+      setImageError(null);
+    }
     setLoading(true);
 
     try {
-      const res = await sendCopilotPromptAction(queryText, history, sheet?.sheetId);
+      const res = await sendCopilotPromptAction(
+        queryText,
+        history,
+        sheet?.sheetId,
+        images.map((i) => ({ mediaType: i.mediaType, data: i.data })),
+      );
       const dc = (res.dataContext ?? {}) as { engine?: string };
       if (dc.engine === "llm") setEngine("llm");
       else if (dc.engine === "deterministic") setEngine("deterministic");
@@ -776,9 +854,9 @@ export function AiCopilotDrawer() {
     { keys: "Shift Enter", action: "New line" },
     { keys: "↑ / ↓", action: "Previous / next sent message" },
     { keys: `${alt} 1–${quickPrompts.length}`, action: "Run a quick prompt" },
-    { keys: `${alt} A`, action: "Attach a spreadsheet" },
+    { keys: `${alt} A`, action: "Attach a screenshot or spreadsheet" },
     { keys: `${mod} C`, action: "Copy selection (or the latest AI reply if nothing is selected)" },
-    { keys: `${mod} V`, action: "Paste into the message box (sheet files attach)" },
+    { keys: `${mod} V`, action: "Paste text, a screenshot, or a sheet file" },
     { keys: "Esc", action: "Close this panel / the copilot" },
     { keys: `? or ${mod} /`, action: "Show these shortcuts" },
     { keys: "Tab / Shift Tab", action: "Move between buttons" },
@@ -833,6 +911,17 @@ export function AiCopilotDrawer() {
       if (!dialog || !e.clipboardData) return;
       const target = e.target as HTMLElement | null;
       if (target && !dialog.contains(target) && target !== document.body) return;
+
+      // Screenshots (e.g. Win+Shift+S / PrtScn / Cmd+Ctrl+Shift+4) arrive as image clipboard items.
+      const pastedImages = Array.from(e.clipboardData.items)
+        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((f): f is File => f !== null);
+      if (pastedImages.length > 0) {
+        e.preventDefault();
+        void addImages(pastedImages);
+        return;
+      }
 
       const file = Array.from(e.clipboardData.files).find((f) => SHEET_FILE_RE.test(f.name));
       if (file) {
@@ -991,7 +1080,24 @@ export function AiCopilotDrawer() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="copilot-title"
-            className="relative w-full max-w-md bg-surface-lowest border-l border-border-subtle shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300"
+            className={`relative w-full max-w-md bg-surface-lowest border-l shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300 ${dragOver ? "border-primary ring-2 ring-primary/40" : "border-border-subtle"}`}
+            onDragOver={(e) => {
+              if (Array.from(e.dataTransfer.items).some((i) => i.kind === "file")) {
+                e.preventDefault();
+                setDragOver(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const files = Array.from(e.dataTransfer.files);
+              void addImages(files);
+              const sheetFile = files.find((f) => SHEET_FILE_RE.test(f.name));
+              if (sheetFile) void attachSheetFile(sheetFile);
+            }}
           >
 
             {/* Header */}
@@ -1109,6 +1215,19 @@ export function AiCopilotDrawer() {
                         : "bg-surface-elevated border border-border-subtle text-text-primary rounded-bl-none shadow-sm"
                     }`}
                   >
+                    {m.images && m.images.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {m.images.map((src, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element -- local data: URL preview
+                          <img
+                            key={i}
+                            src={src}
+                            alt={`Attached screenshot ${i + 1}`}
+                            className="max-h-40 max-w-full rounded-md border border-white/20 object-contain bg-black/20"
+                          />
+                        ))}
+                      </div>
+                    )}
                     {m.text}
 
                     {/* Discovery result cards */}
@@ -1391,6 +1510,29 @@ export function AiCopilotDrawer() {
 
             {/* Input Bar */}
             <div className="p-3 border-t border-border-subtle bg-surface-elevated/30">
+              {pendingImages.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2" aria-label="Screenshots to send">
+                  {pendingImages.map((img) => (
+                    <div key={img.id} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- local data: URL preview */}
+                      <img
+                        src={img.dataUrl}
+                        alt={img.name}
+                        className="h-14 w-14 rounded-md border border-border-subtle object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPendingImages((prev) => prev.filter((p) => p.id !== img.id))}
+                        aria-label={`Remove ${img.name}`}
+                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-surface-high text-text-primary border border-border-subtle hover:bg-red-500/80"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {imageError && <p role="alert" className="mb-2 text-[10px] text-danger">{imageError}</p>}
               {sheet && (
                 <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[10px]">
                   <SheetIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -1420,9 +1562,9 @@ export function AiCopilotDrawer() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={sheetBusy}
-                  aria-label="Attach a spreadsheet"
+                  aria-label="Attach a screenshot or spreadsheet"
                   aria-keyshortcuts="Alt+A"
-                  title={`Attach a Google Sheet (.csv/.xlsx) or paste its share link (${alt}+A)`}
+                  title={`Attach a screenshot or a Google Sheet (.csv/.xlsx) — or just paste / drop it (${alt}+A)`}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-surface-lowest text-text-muted hover:text-primary hover:border-primary/40 disabled:opacity-50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   {sheetBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
@@ -1443,7 +1585,7 @@ export function AiCopilotDrawer() {
                 />
                 <button
                   type="submit"
-                  disabled={busy || !prompt.trim()}
+                  disabled={busy || (!prompt.trim() && pendingImages.length === 0)}
                   aria-label="Send message"
                   aria-keyshortcuts="Enter"
                   title="Send (Enter)"
@@ -1461,7 +1603,8 @@ export function AiCopilotDrawer() {
                 type="file"
                 tabIndex={-1}
                 aria-hidden="true"
-                accept=".csv,.xlsx,.xls,.tsv,.txt"
+                accept=".csv,.xlsx,.xls,.tsv,.txt,image/png,image/jpeg,image/webp,image/gif"
+                multiple
                 className="hidden"
                 onChange={handleFilePick}
               />

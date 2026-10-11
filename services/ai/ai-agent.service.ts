@@ -1,6 +1,6 @@
 import { CrmService, ProjectService } from "../crm.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-persona";
-import { LlmService } from "./llm.service";
+import { LlmService, type LlmImage } from "./llm.service";
 import { SheetImportService, type SheetSession } from "./sheet-import.service";
 import { SequenceEngineService } from "./sequence-engine.service";
 import { BdrEngineService } from "./bdr-engine.service";
@@ -374,34 +374,6 @@ export class AiAgentService {
   /**
    * Generates a 3-touch AI outreach campaign sequence.
    */
-  static async generateOutreachSequence(targetProfile: string, valueProp: string) {
-    const company = targetProfile.split(" ")[0] || "your team";
-
-    return {
-      subject: `Accelerating velocity for ${company}`,
-      sequence: [
-        {
-          step: 1,
-          channel: "EMAIL",
-          title: "Initial Priority Value Proposition",
-          body: `Hi, noticed your team's focus on ${valueProp}. Most operations leaders we partner with see an immediate 28% velocity increase when integrating automated telemetry pipelines.\n\nWould you be open to a 10-minute preview this Thursday?`,
-        },
-        {
-          step: 2,
-          channel: "LINKEDIN",
-          title: "InMail Touchpoint",
-          body: `Hi! Following up on my email regarding ${valueProp} optimization. Thought you'd appreciate this quick benchmark case study for ${company}.`,
-        },
-        {
-          step: 3,
-          channel: "PHONE_SCRIPT",
-          title: "Direct Follow-Up Call",
-          body: `"Hi, calling from Aexyl regarding our automation preview for ${company}. Reaching out to see if Thursday morning works for a 10-min overview..."`,
-        },
-      ],
-    };
-  }
-
   /** Processes natural language agentic copilot queries against CRM context.
    *
    * Two tiers:
@@ -416,9 +388,30 @@ export class AiAgentService {
     workspaceId: string,
     prompt: string,
     history: CopilotTurn[] = [],
-    sheet: SheetSession | null = null
+    sheet: SheetSession | null = null,
+    images: LlmImage[] = []
   ): Promise<CopilotResponse> {
     const snapshot = await AiAgentService.buildWorkspaceSnapshot(workspaceId);
+
+    // Screenshots need a vision model; keyword intents can't see them, so skip straight to it.
+    if (images.length > 0) {
+      if (!LlmService.getVisionStatus().available) {
+        return {
+          answer:
+            "I can't read screenshots yet — no vision-capable AI is configured. Add OPENROUTER_API_KEY (or OPENAI_API_KEY) to the environment, then try again.",
+          dataContext: { intent: "vision_unavailable" },
+        };
+      }
+      const sheetBlock = sheet ? SheetImportService.buildSheetContextBlock(sheet) : null;
+      const visionResponse = await AiAgentService.llmCopilotResponse(prompt, snapshot, history, sheetBlock, images);
+      return (
+        visionResponse ?? {
+          answer:
+            "I couldn't read that screenshot right now — the free vision model may be busy. Please try again in a moment.",
+          dataContext: { intent: "vision_failed" },
+        }
+      );
+    }
 
     // Spreadsheet flows sit BEFORE web discovery: "generate leads from the
     // sheet" must never be hijacked by the discovery intent matcher. The
@@ -726,7 +719,8 @@ export class AiAgentService {
     prompt: string,
     snapshot: Awaited<ReturnType<typeof AiAgentService.buildWorkspaceSnapshot>>,
     history: CopilotTurn[],
-    sheetBlock: string | null = null
+    sheetBlock: string | null = null,
+    images: LlmImage[] = []
   ): Promise<CopilotResponse | null> {
     const system = COPILOT_SYSTEM_PROMPT;
 
@@ -757,10 +751,14 @@ ${JSON.stringify(
   null,
   1
 )}
-${sheetBlock ? `\n${sheetBlock}\n` : ""}
+${sheetBlock ? `\n${sheetBlock}\n` : ""}${
+      images.length > 0
+        ? `\nATTACHED SCREENSHOT(S): ${images.length} image(s) follow. Read them carefully and use what they show to answer. Only state what is actually visible; say so if something is unreadable.\n`
+        : ""
+    }
 OPERATOR QUESTION: ${prompt}`;
 
-    const result = await LlmService.completeJson(system, user);
+    const result = await LlmService.completeJson(system, user, images);
     if (!result.ok || !result.text) return null;
     const parsed = LlmService.parseJsonLoose(result.text);
     if (!parsed || typeof parsed.answer !== "string" || parsed.answer.length === 0) return null;

@@ -18,6 +18,7 @@ import {
 import { SheetImportService, type SheetParseResult } from "@/services/ai/sheet-import.service";
 import { LeadImportService, type ImportLeadCandidate } from "@/services/ai/lead-import.service";
 import { revalidatePath } from "next/cache";
+import type { LlmImage } from "@/services/ai/llm.service";
 
 /** Re-exported for existing consumers (drawer); implementation lives in services/ai/lead-import. */
 export type { ImportLeadCandidate } from "@/services/ai/lead-import.service";
@@ -35,17 +36,38 @@ export async function enrichLeadAiAction(leadId: string) {
   return await AiAgentService.enrichAndScoreLead(workspaceId, leadId);
 }
 
-export async function generateOutreachSequenceAction(targetProfile: string, valueProp: string) {
-  return await AiAgentService.generateOutreachSequence(targetProfile, valueProp);
-}
-
 interface HistoryTurnInput {
   role?: unknown;
   text?: unknown;
 }
 
-export async function sendCopilotPromptAction(prompt: string, history: HistoryTurnInput[] = [], sheetId?: string) {
+const COPILOT_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const COPILOT_MAX_IMAGES = 3;
+const COPILOT_MAX_IMAGE_B64 = 1_400_000; // ~1MB decoded per image
+
+/** Trust nothing from the client: only well-formed, size-capped base64 images pass. */
+function sanitizeCopilotImages(images: unknown): LlmImage[] {
+  if (!Array.isArray(images)) return [];
+  const out: LlmImage[] = [];
+  for (const img of images.slice(0, COPILOT_MAX_IMAGES)) {
+    const mediaType = (img as { mediaType?: unknown })?.mediaType;
+    const data = (img as { data?: unknown })?.data;
+    if (typeof mediaType !== "string" || !COPILOT_IMAGE_TYPES.has(mediaType)) continue;
+    if (typeof data !== "string" || data.length === 0 || data.length > COPILOT_MAX_IMAGE_B64) continue;
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data)) continue;
+    out.push({ mediaType: mediaType as LlmImage["mediaType"], data });
+  }
+  return out;
+}
+
+export async function sendCopilotPromptAction(
+  prompt: string,
+  history: HistoryTurnInput[] = [],
+  sheetId?: string,
+  images?: { mediaType: string; data: string }[]
+) {
   const { workspaceId, userId } = await requireWorkspace();
+  const safeImages = sanitizeCopilotImages(images);
 
   // Optional attached spreadsheet: the client only presents an id — the rows
   // live in a server-held session bound to THIS workspace + user (30-min TTL).
@@ -70,7 +92,7 @@ export async function sendCopilotPromptAction(prompt: string, history: HistoryTu
     }))
     .filter((t) => t.text.trim().length > 0);
 
-  const response = await AiAgentService.processCopilotCommand(workspaceId, prompt, safeHistory, sheet);
+  const response = await AiAgentService.processCopilotCommand(workspaceId, prompt, safeHistory, sheet, safeImages);
 
   // Arm any write-proposals: replace client-visible payloads with unforgeable,
   // single-use tokens. The client never carries the proposal content.
