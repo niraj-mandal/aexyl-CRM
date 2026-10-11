@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/health',
   // Machine caller: authenticates via its own CRON_SECRET bearer check.
   '/api/cron/tick',
+  '/api/cron/discovery',
   // Brevo webhook: authenticates via its own token query-param check.
   '/api/webhooks/brevo',
 ]);

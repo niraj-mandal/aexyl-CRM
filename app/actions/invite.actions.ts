@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { workspaceInvites, workspaceMemberships, users, roles, workspaces } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireWorkspace, getVerifiedPrimaryEmail, ensureLocalUser } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
 import { sendInviteEmail, isEmailConfigured } from "@/services/email.service";
 import { revalidatePath } from "next/cache";
@@ -161,9 +161,8 @@ export async function revokeInviteAction(inviteId: string) {
 }
 
 /**
- * Accepts an invite by token. Works for signed-in users and completes the
- * Clerk identity link for first-timers via requireWorkspace's provisioning.
- * Creates the membership transactionally (single UPDATE guards double-accept).
+ * Accepts an invite by token. The signed-in user's verified email must match
+ * the invited address. Creates the membership (single UPDATE guards double-accept).
  */
 export async function acceptInviteAction(token: string) {
   const clerkId = (await auth()).userId;
@@ -179,8 +178,13 @@ export async function acceptInviteAction(token: string) {
     throw new Error("This invite has expired");
   }
 
-  // Provision/link the local user + default workspace membership plumbing.
-  const { userId } = await requireWorkspace();
+  // Invite-only: the link is bound to the invited address, not to whoever holds it.
+  const email = await getVerifiedPrimaryEmail();
+  if (!email || email !== invite.email.trim().toLowerCase()) {
+    throw new Error(`This invite is for ${invite.email}. Sign in with that Google account to accept it.`);
+  }
+
+  const { id: userId } = await ensureLocalUser(clerkId, email);
 
   // Claim the invite atomically: the status UPDATE only succeeds once.
   const [claimed] = await db

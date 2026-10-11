@@ -4,12 +4,17 @@ import { CommandPalette } from "@/components/layout/command-palette";
 import { AiCopilotDrawer } from "@/components/crm/AiCopilotDrawer";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { hasWorkspaceAccess } from "@/lib/auth/workspace";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
   
   if (!user) {
     redirect("/sign-in");
+  }
+
+  if (!(await hasWorkspaceAccess())) {
+    redirect("/no-access");
   }
 
   return (
