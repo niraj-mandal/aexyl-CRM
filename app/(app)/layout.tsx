@@ -4,7 +4,7 @@ import { CommandPalette } from "@/components/layout/command-palette";
 import { AiCopilotDrawer } from "@/components/crm/AiCopilotDrawer";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { hasWorkspaceAccess } from "@/lib/auth/workspace";
+import { hasWorkspaceAccess, syncProfileName } from "@/lib/auth/workspace";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
@@ -16,6 +16,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!(await hasWorkspaceAccess())) {
     redirect("/no-access");
   }
+
+  await syncProfileName({ firstName: user.firstName, lastName: user.lastName });
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-text-primary antialiased font-sans">

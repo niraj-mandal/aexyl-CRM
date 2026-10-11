@@ -113,6 +113,27 @@ export async function requireWorkspace(): Promise<WorkspaceContext> {
   return value;
 }
 
+/**
+ * Keeps the local name in step with the Clerk profile (edited via "Manage
+ * account"), so the CRM shows the current name. Writes only when it changed.
+ */
+export async function syncProfileName(profile: { firstName: string | null; lastName: string | null }) {
+  const ctx = await requireWorkspace();
+  const firstName = profile.firstName?.trim() || null;
+  const lastName = profile.lastName?.trim() || null;
+  if (!firstName) return;
+  if (firstName === ctx.firstName && (lastName ?? "") === (ctx.lastName ?? "")) return;
+
+  await db
+    .update(users)
+    .set({ firstName, lastName: lastName ?? "", updatedAt: new Date() })
+    .where(eq(users.id, ctx.userId));
+  contextCache.set(ctx.clerkId, {
+    value: { ...ctx, firstName, lastName: lastName ?? "" },
+    expiresAt: Date.now() + CONTEXT_TTL_MS,
+  });
+}
+
 /** Non-throwing check for layouts: is the signed-in user allowed in? */
 export async function hasWorkspaceAccess(): Promise<boolean> {
   try {
