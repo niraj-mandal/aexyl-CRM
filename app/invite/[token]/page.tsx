@@ -40,7 +40,24 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           <UserPlus className="h-7 w-7" />
         </div>
 
-        {invalid || expired ? (
+        {invite?.status === "AWAITING_APPROVAL" || invite?.status === "REJECTED" ? (
+          <>
+            <h1 className="mt-5 text-lg font-semibold text-text-primary">
+              {invite.status === "REJECTED" ? "Request not approved" : "Waiting for approval"}
+            </h1>
+            <Body className="mt-2 text-sm">
+              {invite.status === "REJECTED"
+                ? "The workspace owner didn't approve this request. Contact them if you think this is a mistake."
+                : `You've accepted the invite for ${invite.email}. The owner has been notified and will approve your access shortly — then open the CRM.`}
+            </Body>
+            <Link
+              href="/"
+              className="mt-6 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition"
+            >
+              Open the CRM
+            </Link>
+          </>
+        ) : invalid || expired ? (
           <>
             <h1 className="mt-5 text-lg font-semibold text-text-primary">
               {expired ? "This invite has expired" : "Invite not found"}

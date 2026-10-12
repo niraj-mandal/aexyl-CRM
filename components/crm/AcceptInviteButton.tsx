@@ -8,7 +8,7 @@ import { acceptInviteAction } from "@/app/actions/invite.actions";
 export function AcceptInviteButton({ token, workspaceName }: { token: string; workspaceName: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<"joined" | "awaiting" | null>(null);
   const [pending, startTransition] = useTransition();
 
   const accept = () => {
@@ -20,7 +20,11 @@ export function AcceptInviteButton({ token, workspaceName }: { token: string; wo
           setError(result.error);
           return;
         }
-        setDone(true);
+        if (result.awaitingApproval) {
+          setDone("awaiting");
+          return;
+        }
+        setDone("joined");
         setTimeout(() => router.push("/"), 1200);
       } catch {
         setError("Something went wrong accepting the invite. Please try again.");
@@ -28,7 +32,20 @@ export function AcceptInviteButton({ token, workspaceName }: { token: string; wo
     });
   };
 
-  if (done) {
+  if (done === "awaiting") {
+    return (
+      <div className="space-y-1">
+        <p className="flex items-center justify-center text-sm font-medium text-secondary">
+          <CheckCircle2 className="mr-2 h-4 w-4" /> Request sent
+        </p>
+        <p className="text-xs text-text-muted">
+          The {workspaceName} owner has been notified. You&apos;ll get access as soon as they approve — then just open the CRM.
+        </p>
+      </div>
+    );
+  }
+
+  if (done === "joined") {
     return (
       <p className="flex items-center justify-center text-sm font-medium text-secondary">
         <CheckCircle2 className="mr-2 h-4 w-4" /> You&apos;re in — taking you to {workspaceName}…

@@ -182,7 +182,7 @@ export const workspaceInvites = pgTable("workspace_invites", {
   token: text("token").notNull().unique(), // url-safe random secret; the only capability needed to accept
   roleId: uuid("role_id").references(() => roles.id),
   invitedById: uuid("invited_by_id").references(() => users.id).notNull(),
-  status: text("status").default("PENDING").notNull(), // PENDING, ACCEPTED, REVOKED
+  status: text("status").default("PENDING").notNull(), // PENDING, AWAITING_APPROVAL, ACCEPTED, REJECTED, REVOKED
   acceptedById: uuid("accepted_by_id").references(() => users.id),
   acceptedAt: timestamp("accepted_at"),
   expiresAt: timestamp("expires_at").notNull(),

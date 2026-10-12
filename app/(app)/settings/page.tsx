@@ -5,7 +5,7 @@ import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { auditLogs, workspaceMemberships, workspaceInvites, workspaces } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { InviteForm, PendingInviteRow } from "@/components/crm/InviteManager";
+import { InviteForm, PendingInviteRow, JoinRequestRow } from "@/components/crm/InviteManager";
 import { getEmailProvider, isEmailConfigured } from "@/services/email.service";
 import { LlmService } from "@/services/ai/llm.service";
 import { currentUser } from "@clerk/nextjs/server";
@@ -53,7 +53,7 @@ export default async function SettingsPage({
     ? ((tab ?? "Workspace") as SettingsTab)
     : "Workspace";
 
-  const [workspace, memberships, auditRows, pendingInvites, clerkUser] = await Promise.all([
+  const [workspace, memberships, auditRows, pendingInvites, clerkUser, joinRequests] = await Promise.all([
     db.query.workspaces.findFirst({
       where: eq(workspaces.id, workspaceId),
     }),
@@ -76,6 +76,11 @@ export default async function SettingsPage({
       with: { invitedBy: { columns: { firstName: true, lastName: true } } },
     }),
     currentUser(),
+    db.query.workspaceInvites.findMany({
+      where: and(eq(workspaceInvites.workspaceId, workspaceId), eq(workspaceInvites.status, "AWAITING_APPROVAL")),
+      orderBy: [desc(workspaceInvites.acceptedAt)],
+      with: { acceptedBy: { columns: { firstName: true, lastName: true, email: true } } },
+    }),
   ]);
 
   if (!workspace) throw new Error("Workspace not found");
@@ -178,6 +183,27 @@ export default async function SettingsPage({
                 <SectionTitle className="mb-2">Invite a teammate</SectionTitle>
                 <InviteForm />
               </div>
+
+              {joinRequests.length > 0 && (
+                <div className="mb-6 space-y-2">
+                  <SectionTitle className="mb-2">Waiting for approval ({joinRequests.length})</SectionTitle>
+                  <Body className="text-xs">
+                    These people accepted an invite with the invited Google account. Check each one is who you expect before approving.
+                  </Body>
+                  {joinRequests.map((r) => (
+                    <JoinRequestRow
+                      key={r.id}
+                      request={{
+                        id: r.id,
+                        email: r.email,
+                        name: [r.acceptedBy?.firstName, r.acceptedBy?.lastName].filter(Boolean).join(" ") || null,
+                        signedInEmail: r.acceptedBy?.email ?? null,
+                        acceptedAt: (r.acceptedAt ?? r.updatedAt).toISOString(),
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
 
               {pendingInvites.length > 0 && (
                 <div className="mb-6 space-y-2">

@@ -7,9 +7,11 @@ import { eq, and, desc } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { requireWorkspace, getVerifiedPrimaryEmail, ensureLocalUser } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
+import { NotificationService } from "@/services/notification.service";
 import { sendInviteEmail, isEmailConfigured } from "@/services/email.service";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { publicAppOrigin } from "@/lib/app-url";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -86,9 +88,9 @@ export async function createInviteAction(input: { email: string }) {
       where: eq(workspaces.id, workspaceId),
       columns: { name: true },
     });
-    // Prefer explicit env, else derive from the live request so links are
-    // correct on any host/port (dev ports change between restarts).
-    let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    // Always the production site (never a protected preview URL); the live
+    // request host is only a fallback for local dev, where ports change.
+    let baseUrl = publicAppOrigin();
     if (!baseUrl) {
       const h = await headers();
       const host = h.get("host");
@@ -162,12 +164,13 @@ export async function revokeInviteAction(inviteId: string) {
 
 /**
  * Accepts an invite by token. The signed-in user's verified email must match
- * the invited address. Returns a result instead of throwing, because Next.js
- * hides thrown server-action messages in production.
+ * the invited address. Accepting creates a join request: the invitee gets no
+ * access until a workspace member approves it in Settings → Team.
+ * Returns a result instead of throwing (Next.js hides thrown messages in production).
  */
 export async function acceptInviteAction(
   token: string,
-): Promise<{ ok: true; workspaceId: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; workspaceId: string; awaitingApproval: boolean } | { ok: false; error: string }> {
   const clerkId = (await auth()).userId;
   if (!clerkId) return { ok: false, error: "Sign in to accept this invite." };
 
@@ -190,45 +193,111 @@ export async function acceptInviteAction(
     };
   }
 
-  // Resolve the role before claiming, so a misconfigured workspace never burns the invite.
-  const roleId =
-    invite.roleId ??
-    (await db.query.roles.findFirst({ where: eq(roles.workspaceId, invite.workspaceId) }))?.id;
-  if (!roleId) {
-    return { ok: false, error: "Workspace has no role configured. Ask the owner to set one up." };
-  }
-
-  const { id: userId } = await ensureLocalUser(clerkId, email);
+  const dbUser = await ensureLocalUser(clerkId, email);
+  const existingMembership = await db.query.workspaceMemberships.findFirst({
+    where: and(eq(workspaceMemberships.workspaceId, invite.workspaceId), eq(workspaceMemberships.userId, dbUser.id)),
+  });
 
   // Claim the invite atomically: the status UPDATE only succeeds once.
   const [claimed] = await db
     .update(workspaceInvites)
     .set({
-      status: "ACCEPTED",
-      acceptedById: userId,
+      status: existingMembership ? "ACCEPTED" : "AWAITING_APPROVAL",
+      acceptedById: dbUser.id,
       acceptedAt: new Date(),
       updatedAt: new Date(),
     })
     .where(and(eq(workspaceInvites.id, invite.id), eq(workspaceInvites.status, "PENDING")))
     .returning();
-
   if (!claimed) return { ok: false, error: "This invite was already used." };
 
-  const existingMembership = await db.query.workspaceMemberships.findFirst({
-    where: and(
-      eq(workspaceMemberships.workspaceId, invite.workspaceId),
-      eq(workspaceMemberships.userId, userId)
-    ),
-  });
-  if (!existingMembership) {
-    await db.insert(workspaceMemberships).values({ workspaceId: invite.workspaceId, userId, roleId });
+  await ActivityService.logAudit(invite.workspaceId, dbUser.id, "ACCEPT", "INVITE", invite.id, { email: invite.email });
+
+  if (existingMembership) {
+    revalidatePath("/settings");
+    return { ok: true, workspaceId: invite.workspaceId, awaitingApproval: false };
   }
 
-  await ActivityService.logAudit(invite.workspaceId, userId, "ACCEPT", "INVITE", invite.id, {
-    email: invite.email,
+  const name = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ").trim();
+  await NotificationService.notifyWorkspace({
+    workspaceId: invite.workspaceId,
+    type: "TEAM",
+    title: `${name || invite.email} accepted your invite — approve to give access`,
+    body: `${name ? `${name} (${invite.email})` : invite.email} signed in with the invited Google account and is waiting for approval. Check it's the right person, then approve or reject in Settings → Team.`,
+    link: "/settings?tab=Team",
+    dedupeKey: `join-request-${invite.id}`,
   });
 
   revalidatePath("/settings");
-  revalidatePath("/settings?tab=Team");
-  return { ok: true, workspaceId: invite.workspaceId };
+  return { ok: true, workspaceId: invite.workspaceId, awaitingApproval: true };
+}
+
+/** Invitees who accepted and are waiting for a member to approve them. */
+export async function getJoinRequestsAction() {
+  const { workspaceId } = await requireWorkspace();
+  return db.query.workspaceInvites.findMany({
+    where: and(eq(workspaceInvites.workspaceId, workspaceId), eq(workspaceInvites.status, "AWAITING_APPROVAL")),
+    orderBy: [desc(workspaceInvites.acceptedAt)],
+    with: {
+      acceptedBy: { columns: { id: true, firstName: true, lastName: true, email: true } },
+      invitedBy: { columns: { firstName: true, lastName: true } },
+    },
+  });
+}
+
+export async function approveJoinRequestAction(inviteId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+
+  const [approved] = await db
+    .update(workspaceInvites)
+    .set({ status: "ACCEPTED", updatedAt: new Date() })
+    .where(and(
+      eq(workspaceInvites.id, String(inviteId)),
+      eq(workspaceInvites.workspaceId, workspaceId),
+      eq(workspaceInvites.status, "AWAITING_APPROVAL"),
+    ))
+    .returning();
+  if (!approved?.acceptedById) return { ok: false as const, error: "Request not found or already handled." };
+
+  const roleId =
+    approved.roleId ?? (await db.query.roles.findFirst({ where: eq(roles.workspaceId, workspaceId) }))?.id;
+  if (!roleId) return { ok: false as const, error: "Workspace has no role configured." };
+
+  const existing = await db.query.workspaceMemberships.findFirst({
+    where: and(eq(workspaceMemberships.workspaceId, workspaceId), eq(workspaceMemberships.userId, approved.acceptedById)),
+  });
+  if (!existing) {
+    await db.insert(workspaceMemberships).values({ workspaceId, userId: approved.acceptedById, roleId });
+  }
+
+  await ActivityService.logAudit(workspaceId, userId, "APPROVE", "INVITE", approved.id, { email: approved.email });
+  await NotificationService.notify({
+    workspaceId,
+    userId: approved.acceptedById,
+    type: "TEAM",
+    title: "Your access was approved — welcome to Aexyl",
+    body: "You can now use the CRM.",
+    link: "/",
+  });
+
+  revalidatePath("/settings");
+  return { ok: true as const };
+}
+
+export async function rejectJoinRequestAction(inviteId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const [rejected] = await db
+    .update(workspaceInvites)
+    .set({ status: "REJECTED", updatedAt: new Date() })
+    .where(and(
+      eq(workspaceInvites.id, String(inviteId)),
+      eq(workspaceInvites.workspaceId, workspaceId),
+      eq(workspaceInvites.status, "AWAITING_APPROVAL"),
+    ))
+    .returning();
+  if (!rejected) return { ok: false as const, error: "Request not found or already handled." };
+
+  await ActivityService.logAudit(workspaceId, userId, "REJECT", "INVITE", rejected.id, { email: rejected.email });
+  revalidatePath("/settings");
+  return { ok: true as const };
 }

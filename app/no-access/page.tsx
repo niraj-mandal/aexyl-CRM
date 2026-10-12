@@ -21,6 +21,11 @@ export default async function NoAccessPage() {
 
   // Only the verified owner of the invited address is shown their own invite link.
   const verifiedEmail = await getVerifiedPrimaryEmail();
+  const awaitingApproval = verifiedEmail
+    ? await db.query.workspaceInvites.findFirst({
+        where: and(eq(workspaceInvites.email, verifiedEmail), eq(workspaceInvites.status, "AWAITING_APPROVAL")),
+      })
+    : null;
   const pendingInvite = verifiedEmail
     ? await db.query.workspaceInvites.findFirst({
         where: and(
@@ -38,7 +43,15 @@ export default async function NoAccessPage() {
         <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-xl bg-danger/10 text-danger">
           <ShieldAlert className="h-7 w-7" />
         </div>
-        {pendingInvite ? (
+        {awaitingApproval ? (
+          <>
+            <h1 className="mt-5 text-lg font-semibold text-text-primary">Waiting for approval</h1>
+            <Body className="mt-2 text-sm">
+              You accepted the invite as <span className="font-medium text-text-primary">{email}</span>. The workspace owner
+              has been notified — refresh this page once they approve your access.
+            </Body>
+          </>
+        ) : pendingInvite ? (
           <>
             <h1 className="mt-5 text-lg font-semibold text-text-primary">You have a pending invite</h1>
             <Body className="mt-2 text-sm">
