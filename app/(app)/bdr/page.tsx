@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { Display, PageTitle, MonoLabel } from "@/components/ui/typography";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +35,14 @@ import {
 
 type Tab = "overview" | "icp" | "discovery" | "sequences" | "reactivation";
 
-export default function BdrPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(["overview"]));
+const TAB_KEYS: Tab[] = ["overview", "icp", "discovery", "sequences", "reactivation"];
+
+export default function BdrPage({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
+  // Deep links such as notifications open a specific tab: /bdr?tab=discovery
+  const requested = use(searchParams).tab;
+  const initialTab = TAB_KEYS.find((t) => t === requested) ?? "overview";
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>([initialTab]));
 
   const openTab = (tab: Tab) => {
     setActiveTab(tab);

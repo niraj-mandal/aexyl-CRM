@@ -6,7 +6,7 @@
 
 import { db } from "@/db";
 import { discoveryBatches, discoveryCandidates, workspaces } from "@/db/schema";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { OverpassDiscoveryProvider, hasContactSource, NO_CONTACT_REASON, type BusinessDiscoveryProvider } from "./provider";
 import { GooglePlacesDiscoveryProvider } from "./google-places-provider";
 
@@ -16,8 +16,6 @@ import { WebsiteVerifier } from "./website-verifier";
 import { DiscoveryScorer, type ScoringInput } from "./scoring";
 import { LeadImportService, type ImportLeadCandidate } from "@/services/ai/lead-import.service";
 import { NotificationService } from "@/services/notification.service";
-import type { NormalizedCandidate } from "./normalizer";
-import type { WebsiteCheckResult } from "./website-verifier";
 
 export interface DiscoveryConfig {
   location: string;
@@ -58,6 +56,11 @@ function generateRunId(config: DiscoveryConfig): string {
 
 // Daily auto-discovery runs at 6:00 AM IST (UTC+5:30)
 const DAILY_RUN_HOUR_IST = 6;
+// Manual runs append -M + 4 base36 chars (see runManual).
+const MANUAL_RUN_ID_SQL = "-M[0-9a-z]{4}$";
+const isManualRunId = (runId: string) => /-M[0-9a-z]{4}$/.test(runId);
+// Longer than any real run can take (the host caps functions at 300s).
+const STALE_RUN_MS = 15 * 60_000;
 
 function isAfterDailyRunTime(): boolean {
   const now = new Date();
@@ -75,12 +78,14 @@ export class DiscoveryOrchestrator {
     workspaceId: string,
     userId: string,
     config?: Partial<DiscoveryConfig>,
+    opts: { ignoreTimeGate?: boolean } = {},
   ): Promise<DiscoveryRunResult> {
     const saved = await DiscoveryOrchestrator.getSavedConfig(workspaceId);
     const cfg = { ...DEFAULT_CONFIG, ...saved, ...config };
     const runId = generateRunId(cfg);
 
-    if (!isAfterDailyRunTime()) {
+    // The dedicated daily cron is scheduled for 6 AM IST itself; the 15-min tick still needs the gate.
+    if (!opts.ignoreTimeGate && !isAfterDailyRunTime()) {
       return {
         batchId: "",
         runId,
@@ -91,6 +96,7 @@ export class DiscoveryOrchestrator {
       };
     }
 
+    await DiscoveryOrchestrator.expireStaleBatches(workspaceId);
     const alreadyRan = await DiscoveryOrchestrator.hasRunToday(workspaceId, cfg);
     if (alreadyRan) {
       return {
@@ -113,10 +119,69 @@ export class DiscoveryOrchestrator {
   ): Promise<DiscoveryRunResult> {
     const cfg = { ...DEFAULT_CONFIG, ...config };
     const runId = generateRunId(cfg) + `-M${Date.now().toString(36).slice(-4)}`;
+    await DiscoveryOrchestrator.expireStaleBatches(workspaceId);
     return DiscoveryOrchestrator.run(workspaceId, userId, cfg, runId);
   }
 
   private static async run(
+    workspaceId: string,
+    userId: string,
+    config: DiscoveryConfig,
+    runId: string,
+  ): Promise<DiscoveryRunResult> {
+    let result: DiscoveryRunResult;
+    try {
+      result = await DiscoveryOrchestrator.runPipeline(workspaceId, userId, config, runId);
+    } catch (err) {
+      // e.g. the batch row itself couldn't be created — still tell the user it failed.
+      result = {
+        batchId: "", runId, status: "FAILED",
+        discovered: 0, qualified: 0, created: 0, skipped: 0, failed: 0,
+        notes: [], errors: [err instanceof Error ? err.message : "unknown error"],
+      };
+    }
+    await DiscoveryOrchestrator.notifyRunResult(workspaceId, config, result);
+    return result;
+  }
+
+  /** Every finished run reports back: new leads, nothing new, or failure. */
+  private static async notifyRunResult(workspaceId: string, config: DiscoveryConfig, r: DiscoveryRunResult) {
+    const kind = isManualRunId(r.runId) ? "Discovery" : "Daily discovery";
+    const city = config.location.split(",")[0].trim();
+    const what = `${config.category} in ${city}`;
+    const s = (n: number) => (n === 1 ? "" : "s");
+
+    let title: string;
+    let body: string;
+    if (r.created > 0) {
+      title = `${r.created} new lead${s(r.created)} added: ${what}`;
+      body = `${kind} checked ${r.discovered} business${r.discovered === 1 ? "" : "es"}, qualified ${r.qualified}, and added ${r.created} to your leads${r.skipped ? ` (${r.skipped} already in your CRM)` : ""}. Review them and write pitches.`;
+    } else if (r.status === "FAILED") {
+      title = `${kind} failed: ${what}`;
+      const reason = r.errors[0] ?? r.notes.find((n) => /fail|could not|unavailable|HTTP/i.test(n)) ?? "the map data servers didn't respond";
+      body = `No leads were added. Reason: ${reason.slice(0, 200)}. It will try again on the next scheduled run, or press Run Discovery Now.`;
+    } else {
+      title = `${kind} ran: no new leads for ${what}`;
+      body = r.discovered > 0
+        ? `Checked ${r.discovered} business${r.discovered === 1 ? "" : "es"}; ${
+            r.skipped >= r.discovered
+              ? `${r.discovered === 1 ? "it is" : "all are"} already in your CRM`
+              : `${r.skipped} ${r.skipped === 1 ? "was" : "were"} already in your CRM and none of the rest qualified`
+          }. Try another city or category in Lead Discovery → Settings.`
+        : `No matching businesses were found. Try another city or category in Lead Discovery → Settings.`;
+    }
+
+    await NotificationService.notifyWorkspace({
+      workspaceId,
+      type: "DISCOVERY",
+      title,
+      body,
+      link: "/bdr?tab=discovery",
+      dedupeKey: `discovery-${r.runId}`,
+    });
+  }
+
+  private static async runPipeline(
     workspaceId: string,
     userId: string,
     config: DiscoveryConfig,
@@ -337,18 +402,6 @@ export class DiscoveryOrchestrator {
         createdCount, skippedCount, failedCount, errors,
       );
 
-      // 12. Notify
-      if (createdCount > 0) {
-        await NotificationService.notifyWorkspace({
-          workspaceId,
-          type: "DISCOVERY",
-          title: `${createdCount} new lead${createdCount > 1 ? "s" : ""} discovered`,
-          body: `Discovery Engine found ${createdCount} new ${config.category} lead${createdCount > 1 ? "s" : ""} in ${config.location}.`,
-          link: "/bdr?tab=discovery",
-          dedupeKey: `discovery-${runId}`,
-        });
-      }
-
       notes.push(`Batch ${finalStatus}: ${createdCount} created, ${skippedCount} skipped, ${failedCount} failed.`);
 
       return {
@@ -390,6 +443,25 @@ export class DiscoveryOrchestrator {
       .where(eq(workspaces.id, workspaceId));
   }
 
+  /**
+   * A run killed by the host's function time limit never finalizes and would stay
+   * RUNNING forever (also blocking the daily run). Mark those as FAILED.
+   */
+  static async expireStaleBatches(workspaceId: string): Promise<void> {
+    await db
+      .update(discoveryBatches)
+      .set({
+        status: "FAILED",
+        errors: ["Run was interrupted before finishing (likely a server time limit)."],
+        completedAt: new Date(),
+      })
+      .where(and(
+        eq(discoveryBatches.workspaceId, workspaceId),
+        eq(discoveryBatches.status, "RUNNING"),
+        lt(discoveryBatches.startedAt, new Date(Date.now() - STALE_RUN_MS)),
+      ));
+  }
+
   private static async hasRunToday(workspaceId: string, config: DiscoveryConfig): Promise<boolean> {
     const IST_OFFSET_MS = 330 * 60_000;
     const istNow = Date.now() + IST_OFFSET_MS;
@@ -404,6 +476,8 @@ export class DiscoveryOrchestrator {
         eq(discoveryBatches.location, config.location),
         gte(discoveryBatches.startedAt, todayStart),
         sql`${discoveryBatches.status} != 'FAILED'`,
+        // Only scheduled runs count: a manual "Run Discovery Now" must not cancel the 6 AM run.
+        sql`${discoveryBatches.runId} !~ ${MANUAL_RUN_ID_SQL}`,
       ))
       .limit(1);
 

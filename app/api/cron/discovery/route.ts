@@ -8,6 +8,8 @@ import { captureError } from "@/lib/observability";
 import { DiscoveryOrchestrator } from "@/services/discovery/orchestrator";
 
 export const dynamic = "force-dynamic";
+// Discovery makes several slow third-party calls; the default function limit cuts it off mid-run.
+export const maxDuration = 300;
 
 const SYSTEM_CLERK_ID = "system-cron";
 
@@ -60,7 +62,8 @@ export async function GET(req: Request) {
 
     for (const ws of allWorkspaces) {
       try {
-        const result = await DiscoveryOrchestrator.runDaily(ws.id, systemUserId);
+        // This endpoint is scheduled for 6:00 AM IST itself (vercel.json), so skip the hour check.
+        const result = await DiscoveryOrchestrator.runDaily(ws.id, systemUserId, undefined, { ignoreTimeGate: true });
         results.push({
           workspaceId: ws.id,
           status: result.status,
