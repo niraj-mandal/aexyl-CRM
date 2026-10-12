@@ -6,20 +6,13 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  CalendarDays,
   CalendarRange,
   Users,
   Kanban,
   Send,
   Briefcase,
-  Building2,
-  Contact,
-  TrendingUp,
-  FolderKanban,
   Sparkles,
   Bot,
-  BellRing,
-  Bell,
   Settings,
   Zap,
 } from "lucide-react";
@@ -30,6 +23,8 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** Other routes that belong to this entry (its section tabs) and keep it highlighted. */
+  also?: string[];
   exact?: boolean;
   badge?: string;
   /** Live count badge source from useSidebarBadges. */
@@ -41,44 +36,44 @@ interface NavSection {
   items: NavItem[];
 }
 
+// Related pages are merged under one entry and reached via SectionTabs; notifications live in the header bell.
 const navSections: NavSection[] = [
   {
     title: "OVERVIEW",
     items: [
-      { name: "Command Center", href: "/", icon: LayoutDashboard, exact: true },
-      { name: "My Day", href: "/my-day", icon: CalendarDays },
+      { name: "Command Center", href: "/", icon: LayoutDashboard, exact: true, also: ["/my-day"] },
       { name: "Calendar", href: "/calendar", icon: CalendarRange },
-      { name: "Notifications", href: "/notifications", icon: Bell, badgeKey: "notifications" },
     ]
   },
   {
-    title: "SALES & OUTREACH",
+    title: "SALES",
     items: [
-      { name: "Leads", href: "/sales/leads", icon: Users },
-      { name: "Pipeline", href: "/sales/pipeline", icon: Kanban },
-      { name: "Companies", href: "/sales/companies", icon: Building2 },
-      { name: "Contacts", href: "/sales/contacts", icon: Contact },
-      { name: "Deals", href: "/sales/deals", icon: TrendingUp },
-      { name: "Outreach Engine", href: "/outreach", icon: Send },
+      { name: "Leads", href: "/sales/leads", icon: Users, also: ["/sales/companies", "/sales/contacts"] },
+      { name: "Pipeline", href: "/sales/pipeline", icon: Kanban, also: ["/sales/deals"] },
+      { name: "Outreach", href: "/outreach", icon: Send },
       { name: "AI BDR", href: "/bdr", icon: Zap, badge: "AI" },
     ]
   },
   {
-    title: "OPERATIONS",
+    title: "DELIVERY",
     items: [
-      { name: "Clients Directory", href: "/clients", icon: Briefcase },
-      { name: "Projects Directory", href: "/projects", icon: FolderKanban },
+      { name: "Clients & Projects", href: "/clients", icon: Briefcase, also: ["/projects"] },
     ]
   },
   {
     title: "INTELLIGENCE",
     items: [
-      { name: "Executive Matrix", href: "/intelligence", icon: Sparkles, badge: "AI" },
-      { name: "Attention Required", href: "/attention", icon: BellRing, badgeKey: "attention" },
+      { name: "Insights", href: "/intelligence", icon: Sparkles, also: ["/attention"], badgeKey: "attention" },
       { name: "Aexyl Agents", href: "/agents", icon: Bot, badgeKey: "approvals" },
     ]
   }
 ];
+
+function isItemActive(item: NavItem, pathname: string): boolean {
+  const matches = (href: string, exact?: boolean) =>
+    exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+  return matches(item.href, item.exact) || (item.also ?? []).some((h) => matches(h));
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -117,9 +112,7 @@ export function Sidebar() {
               {section.title}
             </div>
             {section.items.map((item) => {
-              const isActive = item.exact 
-                ? pathname === item.href 
-                : pathname.startsWith(item.href);
+              const isActive = isItemActive(item, pathname);
 
               return (
                 <Link

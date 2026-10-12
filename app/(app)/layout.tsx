@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { AiCopilotDrawer } from "@/components/crm/AiCopilotDrawer";
+import { SectionTabs } from "@/components/layout/section-tabs";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { hasWorkspaceAccess, syncProfileName } from "@/lib/auth/workspace";
@@ -26,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Header userFirstName={user?.firstName} />
         <main className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10 scrollbar-thin">
           <div className="mx-auto max-w-7xl">
+            <SectionTabs />
             {children}
           </div>
         </main>
