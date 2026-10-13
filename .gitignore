@@ -51,3 +51,7 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# local Claude Code / Headroom settings
+.claude/settings.local.json
+.claude/.headroom_wrap_*
