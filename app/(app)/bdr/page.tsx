@@ -496,6 +496,7 @@ function DiscoveryTab() {
       const result = await runDiscoveryAction({ location, category, dailyTarget });
       setRunResult(result);
       await refreshOverview();
+      if (result.qualified > 0) setSubTab("candidates");
     } finally {
       setRunning(false);
     }
@@ -583,7 +584,9 @@ function DiscoveryTab() {
             <span className="text-xs font-semibold text-text-primary">
               {runResult.status === "SKIPPED"
                 ? "Already ran today"
-                : `Run ${runResult.status}: ${runResult.created} leads created`}
+                : runResult.created > 0
+                  ? `Run ${runResult.status}: ${runResult.created} leads created`
+                  : `Run ${runResult.status}: ${runResult.qualified} new lead${runResult.qualified === 1 ? "" : "s"} waiting for your review`}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">

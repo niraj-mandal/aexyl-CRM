@@ -31,7 +31,8 @@ const DEFAULT_CONFIG: DiscoveryConfig = {
   category: "gym",
   dailyTarget: 5,
   minFitScore: 30,
-  autoCreateLeads: true,
+  // Review-first: every qualified business waits in Pending Review until approved.
+  autoCreateLeads: false,
 };
 
 export interface DiscoveryRunResult {
@@ -156,6 +157,9 @@ export class DiscoveryOrchestrator {
     if (r.created > 0) {
       title = `${r.created} new lead${s(r.created)} added: ${what}`;
       body = `${kind} checked ${r.discovered} business${r.discovered === 1 ? "" : "es"}, qualified ${r.qualified}, and added ${r.created} to your leads${r.skipped ? ` (${r.skipped} already in your CRM)` : ""}. Review them and write pitches.`;
+    } else if (r.qualified > 0 && r.status !== "FAILED") {
+      title = `${r.qualified} new lead${s(r.qualified)} to review: ${what}`;
+      body = `${kind} checked ${r.discovered} business${r.discovered === 1 ? "" : "es"} and found ${r.qualified} worth contacting${r.skipped ? ` (${r.skipped} already in your CRM)` : ""}. Approve the ones you want in Lead Discovery → Pending Review.`;
     } else if (r.status === "FAILED") {
       title = `${kind} failed: ${what}`;
       const reason = r.errors[0] ?? r.notes.find((n) => /fail|could not|unavailable|HTTP/i.test(n)) ?? "the map data servers didn't respond";
