@@ -17,6 +17,9 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * Returns { ok: false, error } instead of throwing: Next.js hides thrown
+ * server-action messages in production ("Minified React error #441").
+ *
  * Creates a PENDING invite with a cryptographically random token and returns
  * the shareable acceptance URL. No email provider is configured, so the UI
  * presents this link for copy-to-share delivery.
@@ -26,7 +29,7 @@ export async function createInviteAction(input: { email: string }) {
   const email = input.email.trim().toLowerCase();
 
   if (!EMAIL_RE.test(email)) {
-    throw new Error("Enter a valid email address");
+    return { ok: false as const, error: "Enter a valid email address." };
   }
 
   // Already a member?
@@ -39,7 +42,7 @@ export async function createInviteAction(input: { email: string }) {
       ),
     });
     if (membership) {
-      throw new Error(`${email} is already a member of this workspace`);
+      return { ok: false as const, error: `${email} is already a member of this workspace.` };
     }
   }
 
@@ -117,6 +120,7 @@ export async function createInviteAction(input: { email: string }) {
   revalidatePath("/settings?tab=Team");
 
   return {
+    ok: true as const,
     id: invite.id,
     token: invite.token,
     email: invite.email,
@@ -152,14 +156,14 @@ export async function revokeInviteAction(inviteId: string) {
     )
     .returning();
 
-  if (!revoked) throw new Error("Invite not found or already handled");
+  if (!revoked) return { ok: false as const, error: "Invite not found or already handled." };
 
   await ActivityService.logAudit(workspaceId, userId, "DELETE", "INVITE", inviteId, {
     email: revoked.email,
   });
   revalidatePath("/settings");
   revalidatePath("/settings?tab=Team");
-  return revoked;
+  return { ok: true as const };
 }
 
 /**

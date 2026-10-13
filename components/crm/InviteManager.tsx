@@ -50,6 +50,10 @@ export function InviteForm() {
     startTransition(async () => {
       try {
         const invite = await createInviteAction({ email });
+        if (!invite.ok) {
+          setError(invite.error);
+          return;
+        }
         setCreated({
           email: invite.email,
           token: invite.token,
@@ -58,8 +62,8 @@ export function InviteForm() {
         });
         setEmail("");
         router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create invite");
+      } catch {
+        setError("Couldn't create the invite. Please try again.");
       }
     });
   };
@@ -145,10 +149,14 @@ export function PendingInviteRow({ invite }: { invite: PendingInvite }) {
     setError(null);
     startTransition(async () => {
       try {
-        await revokeInviteAction(invite.id);
+        const res = await revokeInviteAction(invite.id);
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
         router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to revoke");
+      } catch {
+        setError("Couldn't revoke the invite. Please try again.");
       }
     });
   };
