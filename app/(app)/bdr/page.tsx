@@ -32,6 +32,7 @@ import {
   getDiscoveryOverviewAction,
   saveDiscoverySettingsAction,
 } from "@/app/actions/discovery.actions";
+import { googleMapsUrl } from "@/lib/maps";
 
 type Tab = "overview" | "icp" | "discovery" | "sequences" | "reactivation";
 
@@ -901,16 +902,27 @@ function CandidateCard({
             )}
           </div>
         )}
-        {candidate.sourceUrl && (
+        <div className="flex items-center gap-2">
           <a
-            href={candidate.sourceUrl}
+            href={googleMapsUrl(candidate.businessName, candidate.address || candidate.city)}
             target="_blank"
             rel="noopener noreferrer"
+            title="Open Google Business Profile (phone, photos, reviews)"
             className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
           >
-            <ExternalLink className="h-3 w-3" /> OSM
+            <MapPin className="h-3 w-3" /> Google Maps
           </a>
-        )}
+          {candidate.sourceUrl && (
+            <a
+              href={candidate.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+            >
+              <ExternalLink className="h-3 w-3" /> OSM
+            </a>
+          )}
+        </div>
       </div>
     </GlassCard>
   );

@@ -11,6 +11,8 @@ import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
 // Since we need to pass functions, let's just create a simple mapped table view here or use a dedicated Client component for the table.
 
 import Link from "next/link";
+import { MapPin } from "lucide-react";
+import { googleMapsUrl, placeFromLeadSource } from "@/lib/maps";
 
 const PAGE_SIZE = 50;
 
@@ -91,9 +93,23 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
               {leads.length > 0 ? leads.map(lead => (
                 <tr key={lead.id} className="hover:bg-surface-elevated/30 transition-colors group">
                   <td className="px-6 py-4">
-                    <Link href={`/sales/leads/${lead.id}`} className="font-medium text-text-primary hover:underline">
-                      {lead.company?.name || "Unknown"}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/sales/leads/${lead.id}`} className="font-medium text-text-primary hover:underline">
+                        {lead.company?.name || "Unknown"}
+                      </Link>
+                      {lead.company?.name && (
+                        <a
+                          href={googleMapsUrl(lead.company.name, lead.company.location || placeFromLeadSource(lead.source))}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open Google Business Profile"
+                          aria-label={`Open ${lead.company.name} on Google Maps`}
+                          className="inline-flex items-center gap-1 rounded border border-border-subtle px-1.5 py-0.5 text-[10px] text-text-muted hover:text-primary hover:border-primary/40 transition-colors"
+                        >
+                          <MapPin className="h-3 w-3" /> Maps
+                        </a>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">{lead.contact?.firstName} {lead.contact?.lastName}</td>
                   <td className="px-6 py-4">

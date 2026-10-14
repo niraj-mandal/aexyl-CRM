@@ -275,7 +275,7 @@ export class CrmService {
       limit,
       offset,
       with: {
-        company: { columns: { name: true } },
+        company: { columns: { name: true, location: true } },
         contact: { columns: { firstName: true, lastName: true, email: true } },
         owner: { columns: { firstName: true, lastName: true } }
       }
