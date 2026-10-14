@@ -266,22 +266,20 @@ export class DiscoveryOrchestrator {
           matchedTag: c.matchedTag,
         };
         const result = DiscoveryScorer.score(scoringInput);
-        const contactable = hasContactSource(c);
+        // Missing contact details no longer disqualify: review decides (the card shows "No contact listed").
         const rejectedReason = !DiscoveryScorer.qualifies(result, config.minFitScore)
           ? `Score ${result.totalScore} below minimum ${config.minFitScore}`
-          : !contactable
-            ? NO_CONTACT_REASON
-            : null;
+          : null;
         return { candidate: c, website: ws, scoring: result, rejectedReason };
       });
 
-      // 7. Filter qualified (must be contactable) and sort by total score
+      // 7. Filter qualified and sort by total score
       const qualified = scored
         .filter((s) => s.rejectedReason === null)
         .sort((a, b) => b.scoring.totalScore - a.scoring.totalScore);
 
-      const noContact = scored.filter((s) => s.rejectedReason === NO_CONTACT_REASON).length;
-      notes.push(`${qualified.length} qualified (min score ${config.minFitScore}, contact required); ${noContact} skipped for no phone/email/social.`);
+      const noContact = qualified.filter((s) => !hasContactSource(s.candidate)).length;
+      notes.push(`${qualified.length} qualified (min score ${config.minFitScore}); ${noContact} of them have no phone/email/social listed.`);
 
       // 8. Select top N
       const selected = qualified.slice(0, config.dailyTarget);
