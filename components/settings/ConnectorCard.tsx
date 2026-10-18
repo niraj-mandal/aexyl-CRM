@@ -69,30 +69,30 @@ export function ConnectorCard({ connector }: { connector: ConnectorView }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-xs font-semibold text-text-primary">{connector.name}</h3>
-            <span className={`rounded border px-1.5 py-0.5 font-mono-code text-[9px] ${statusTone}`}>
+            <span className={`rounded border px-1.5 py-0.5 font-mono-code text-[11px] ${statusTone}`}>
               {connector.status.replace("_", " ")}
             </span>
           </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-text-muted">{connector.description}</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-text-muted">{connector.description}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {connector.scopes.map((s) => (
-              <span key={s} className="rounded-full border border-border-subtle/60 px-2 py-0.5 font-mono-code text-[9px] text-text-muted">
+              <span key={s} className="rounded-full border border-border-subtle/60 px-2 py-0.5 font-mono-code text-[11px] text-text-muted">
                 {s}
               </span>
             ))}
           </div>
           {connector.accountLabel && (
-            <p className="mt-2 font-mono-code text-[10px] text-text-secondary">account: {connector.accountLabel}</p>
+            <p className="mt-2 font-mono-code text-xs text-text-secondary">account: {connector.accountLabel}</p>
           )}
           {connector.lastError && (
-            <p className="mt-2 flex items-start gap-1 text-[10px] text-danger">
+            <p className="mt-2 flex items-start gap-1 text-xs text-danger">
               <CircleAlert className="mt-0.5 h-3 w-3 shrink-0" /> {connector.lastError}
             </p>
           )}
-          {justVerified && !error && <p className="mt-2 text-[10px] text-success">{justVerified}</p>}
-          {error && <p className="mt-2 text-[10px] text-danger">{error}</p>}
+          {justVerified && !error && <p className="mt-2 text-xs text-success">{justVerified}</p>}
+          {error && <p className="mt-2 text-xs text-danger">{error}</p>}
           {!connector.envConfigured && (
-            <p className="mt-2 text-[10px] text-text-muted/80">{connector.setupHint}</p>
+            <p className="mt-2 text-xs text-text-muted/80">{connector.setupHint}</p>
           )}
         </div>
       </div>
@@ -105,14 +105,14 @@ export function ConnectorCard({ connector }: { connector: ConnectorView }) {
               <button
                 onClick={verify}
                 disabled={pending}
-                className="rounded-lg border border-border-subtle px-3 py-1.5 text-[11px] text-text-secondary transition-colors hover:bg-surface-high/50 disabled:opacity-50"
+                className="rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-high/50 disabled:opacity-50"
               >
                 Verify
               </button>
               <button
                 onClick={disconnect}
                 disabled={pending}
-                className="flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-[11px] text-text-secondary transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-text-secondary transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
               >
                 <Unplug className="h-3.5 w-3.5" /> Disconnect
               </button>
@@ -121,13 +121,13 @@ export function ConnectorCard({ connector }: { connector: ConnectorView }) {
             <button
               onClick={connect}
               disabled={pending}
-              className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
             >
               <PlugZap className="h-3.5 w-3.5" /> Connect
             </button>
           )
         ) : (
-          <span className="flex items-center gap-1.5 text-[10px] text-text-muted">
+          <span className="flex items-center gap-1.5 text-xs text-text-muted">
             <Plug className="h-3 w-3" />
             {connector.requiresExternalSetup ? "External setup required" : "Not configured"}
           </span>

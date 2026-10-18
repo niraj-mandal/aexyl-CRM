@@ -1108,7 +1108,7 @@ export function AiCopilotDrawer() {
                 </div>
                 <div>
                   <h3 id="copilot-title" className="text-xs font-semibold text-text-primary tracking-wide">AEXYL AI COPILOT</h3>
-                  <span className="text-[10px] font-mono-code text-secondary flex items-center space-x-1">
+                  <span className="text-xs font-mono-code text-secondary flex items-center space-x-1">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-secondary animate-ping mr-1"></span>
                     {engine === "llm" ? "LLM REASONING ONLINE" : engine === "deterministic" ? "DETERMINISTIC ENGINE" : "AUTONOMOUS AGENT ACTIVE"}
                   </span>
@@ -1146,7 +1146,7 @@ export function AiCopilotDrawer() {
                 className="absolute inset-x-3 top-16 z-10 rounded-xl border border-border-subtle bg-surface-elevated p-4 shadow-2xl"
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-text-primary tracking-wide">KEYBOARD SHORTCUTS</span>
+                  <span className="text-xs font-semibold text-text-primary tracking-wide">KEYBOARD SHORTCUTS</span>
                   <button
                     type="button"
                     onClick={() => setShowShortcuts(false)}
@@ -1158,13 +1158,13 @@ export function AiCopilotDrawer() {
                 </div>
                 <dl className="space-y-1.5">
                   {shortcutList.map((s) => (
-                    <div key={s.keys} className="flex items-center justify-between gap-3 text-[11px]">
+                    <div key={s.keys} className="flex items-center justify-between gap-3 text-xs">
                       <dt className="text-text-muted">{s.action}</dt>
                       <dd className="flex shrink-0 gap-1">
                         {s.keys.split(" ").map((k, i) => (
                           <kbd
                             key={i}
-                            className="rounded border border-border-subtle bg-surface-lowest px-1.5 py-0.5 font-mono-code text-[10px] text-text-primary"
+                            className="rounded border border-border-subtle bg-surface-lowest px-1.5 py-0.5 font-mono-code text-xs text-text-primary"
                           >
                             {k}
                           </kbd>
@@ -1177,7 +1177,7 @@ export function AiCopilotDrawer() {
             )}
 
             {/* Quick Preset Prompt Chips */}
-            <div role="toolbar" aria-label="Quick prompts" className="p-3 bg-surface-low/50 border-b border-border-subtle flex items-center gap-2 overflow-x-auto text-[10px]">
+            <div role="toolbar" aria-label="Quick prompts" className="p-3 bg-surface-low/50 border-b border-border-subtle flex items-center gap-2 overflow-x-auto text-xs">
               {quickPrompts.map((chip, i) => (
                 <button
                   key={chip.label}
@@ -1240,7 +1240,7 @@ export function AiCopilotDrawer() {
                             <div key={key} className="rounded-lg border border-border-subtle bg-surface-lowest p-2.5">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                  <p className="text-[11px] font-bold text-text-primary truncate">
+                                  <p className="text-xs font-bold text-text-primary truncate">
                                     {lead.website ? (
                                       <a href={lead.website} target="_blank" rel="noreferrer" className="hover:text-primary hover:underline">
                                         {lead.companyName}
@@ -1249,12 +1249,12 @@ export function AiCopilotDrawer() {
                                       lead.companyName
                                     )}
                                   </p>
-                                  <p className="text-[10px] text-text-muted truncate">
+                                  <p className="text-xs text-text-muted truncate">
                                     {[lead.industry, lead.location, lead.size].filter(Boolean).join(" · ") || "—"}
                                   </p>
                                 </div>
                                 <span
-                                  className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold font-mono-code ${
+                                  className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-bold font-mono-code ${
                                     lead.fitScore >= 70
                                       ? "bg-emerald-500/15 text-emerald-400"
                                       : lead.fitScore >= 50
@@ -1267,10 +1267,10 @@ export function AiCopilotDrawer() {
                               </div>
 
                               {lead.description && (
-                                <p className="mt-1.5 text-[10px] text-text-muted line-clamp-2">{lead.description}</p>
+                                <p className="mt-1.5 text-xs text-text-muted line-clamp-2">{lead.description}</p>
                               )}
 
-                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted">
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
                                 {lead.emails[0] && (
                                   <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{lead.emails[0]}</span>
                                 )}
@@ -1282,12 +1282,12 @@ export function AiCopilotDrawer() {
                                 )}
                               </div>
 
-                              <p className="mt-1 text-[10px] text-text-muted italic">Fit: {lead.fitReason}</p>
+                              <p className="mt-1 text-xs text-text-muted italic">Fit: {lead.fitReason}</p>
 
                               <button
                                 onClick={() => handleImport(lead)}
                                 disabled={st === "importing" || st === "imported"}
-                                className={`mt-2 w-full flex items-center justify-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                                className={`mt-2 w-full flex items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-semibold transition-colors ${
                                   st === "imported"
                                     ? "bg-emerald-500/15 text-emerald-400"
                                     : st === "error"
@@ -1331,7 +1331,7 @@ export function AiCopilotDrawer() {
                     )}
 
                     {m.notes && m.notes.length > 0 && (
-                      <p className="mt-2 text-[10px] text-text-muted italic">{m.notes.join(" ")}</p>
+                      <p className="mt-2 text-xs text-text-muted italic">{m.notes.join(" ")}</p>
                     )}
 
                     {/* Render AI Action Trigger Buttons */}
@@ -1388,10 +1388,10 @@ export function AiCopilotDrawer() {
                                     <PenLine className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
                                   )}
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-[11px] font-semibold text-text-primary">
+                                    <p className="text-xs font-semibold text-text-primary">
                                       {typeof act.payload.summary === "string" ? act.payload.summary : "Proposed write action"}
                                     </p>
-                                    <p className="text-[10px] text-text-muted mt-0.5">
+                                    <p className="text-xs text-text-muted mt-0.5">
                                       {wState === "done"
                                         ? writeStates[wKey]?.message
                                         : wState === "armed"
@@ -1404,7 +1404,7 @@ export function AiCopilotDrawer() {
                                 {/* Spreadsheet import: server-provided preview of the first rows */}
                                 {act.actionType === "IMPORT_SHEET_LEADS" && Array.isArray(act.payload.preview) && (
                                   <div className="mt-2 rounded border border-border-subtle bg-surface-lowest overflow-x-auto">
-                                    <table className="w-full text-[9px] font-mono-code">
+                                    <table className="w-full text-[11px] font-mono-code">
                                       <thead>
                                         <tr className="text-text-muted">
                                           {(Array.isArray(act.payload.headers) ? act.payload.headers : []).slice(0, 3).map((h, hi) => (
@@ -1431,7 +1431,7 @@ export function AiCopilotDrawer() {
                                       </tbody>
                                     </table>
                                     {typeof act.payload.rowCount === "number" && act.payload.rowCount > 5 && (
-                                      <p className="px-1.5 py-1 text-[9px] text-text-muted">
+                                      <p className="px-1.5 py-1 text-[11px] text-text-muted">
                                         … {act.payload.rowCount - 5} more rows — every row imports on confirm.
                                       </p>
                                     )}
@@ -1443,7 +1443,7 @@ export function AiCopilotDrawer() {
                                     <button
                                       onClick={(e) => handleWriteClick(e, wKey, act.payload)}
                                       disabled={wState === "executing"}
-                                      className={`flex items-center justify-center gap-1 rounded px-2 py-1.5 text-[11px] font-bold text-white disabled:opacity-50 transition-colors ${
+                                      className={`flex items-center justify-center gap-1 rounded px-2 py-1.5 text-xs font-bold text-white disabled:opacity-50 transition-colors ${
                                         wState === "armed" ? "bg-emerald-500 animate-pulse" : "bg-emerald-600/90 hover:bg-emerald-600"
                                       }`}
                                     >
@@ -1453,14 +1453,14 @@ export function AiCopilotDrawer() {
                                     <button
                                       onClick={() => setWrite(wKey, "declined")}
                                       disabled={wState === "executing"}
-                                      className="flex items-center justify-center gap-1 rounded border border-border-subtle bg-surface-low px-2 py-1.5 text-[11px] font-semibold text-text-muted hover:text-text-primary hover:bg-surface-elevated disabled:opacity-50 transition-colors"
+                                      className="flex items-center justify-center gap-1 rounded border border-border-subtle bg-surface-low px-2 py-1.5 text-xs font-semibold text-text-muted hover:text-text-primary hover:bg-surface-elevated disabled:opacity-50 transition-colors"
                                     >
                                       <Ban className="h-3 w-3" /> Dismiss
                                     </button>
                                   </div>
                                 )}
                                 {wState === "error" && (
-                                  <p className="mt-1.5 text-[10px] text-red-400">{writeStates[wKey]?.message}</p>
+                                  <p className="mt-1.5 text-xs text-red-400">{writeStates[wKey]?.message}</p>
                                 )}
                               </div>
                             );
@@ -1469,7 +1469,7 @@ export function AiCopilotDrawer() {
                             <button
                               key={aIdx}
                               onClick={() => executeAction(act)}
-                              className="w-full flex items-center justify-between px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-[11px] font-semibold text-primary hover:bg-primary/30 transition-colors"
+                              className="w-full flex items-center justify-between px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-xs font-semibold text-primary hover:bg-primary/30 transition-colors"
                             >
                               <span>{act.label}</span>
                               <ArrowRight className="h-3 w-3" />
@@ -1485,7 +1485,7 @@ export function AiCopilotDrawer() {
                       onClick={() => copyMessage(idx)}
                       aria-label={copiedIdx === idx ? "Copied" : "Copy reply"}
                       title={idx === lastAssistantIdx ? `Copy reply (${mod}+C with nothing selected)` : "Copy reply"}
-                      className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                      className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                     >
                       {copiedIdx === idx ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                       {copiedIdx === idx ? "Copied" : "Copy"}
@@ -1532,9 +1532,9 @@ export function AiCopilotDrawer() {
                   ))}
                 </div>
               )}
-              {imageError && <p role="alert" className="mb-2 text-[10px] text-danger">{imageError}</p>}
+              {imageError && <p role="alert" className="mb-2 text-xs text-danger">{imageError}</p>}
               {sheet && (
-                <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[10px]">
+                <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-xs">
                   <SheetIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                   <span className="font-semibold text-text-primary truncate">{sheet.fileName}</span>
                   <span className="font-mono-code text-text-muted shrink-0">
@@ -1594,7 +1594,7 @@ export function AiCopilotDrawer() {
                   <Send className="h-3.5 w-3.5" />
                 </button>
               </form>
-              <p id="copilot-input-hint" className="mt-1.5 text-[9px] text-text-muted">
+              <p id="copilot-input-hint" className="mt-1.5 text-[11px] text-text-muted">
                 <kbd className="font-mono-code">Enter</kbd> send · <kbd className="font-mono-code">Shift+Enter</kbd> new line ·{" "}
                 <kbd className="font-mono-code">↑</kbd> last message · <kbd className="font-mono-code">?</kbd> all shortcuts
               </p>
@@ -1673,7 +1673,7 @@ function LocalLeadsBlock({
         <button
           onClick={() => setSelected(allDone ? new Set() : new Set(importable.map((l) => l.osmId)))}
           disabled={allDone || importable.length === 0}
-          className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
         >
           {selected.size > 0 && !allDone ? <SquareCheck className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5" />}
           Select all ({selected.size}/{leads.length})
@@ -1681,7 +1681,7 @@ function LocalLeadsBlock({
         <button
           onClick={importSelected}
           disabled={selectedFresh.length === 0 || bulkState === "importing"}
-          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
         >
           {bulkState === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
           {allDone ? "All in CRM" : `Import ${selectedFresh.length}`}
@@ -1708,13 +1708,13 @@ function LocalLeadsBlock({
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold text-text-primary truncate">{lead.companyName ?? "Unnamed business"}</p>
-                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold font-mono-code ${TIER_STYLE[lead.priority]}`}>
+                    <p className="text-xs font-bold text-text-primary truncate">{lead.companyName ?? "Unnamed business"}</p>
+                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-bold font-mono-code ${TIER_STYLE[lead.priority]}`}>
                       {lead.priority === "Hot" ? <Flame className="mr-0.5 inline h-2.5 w-2.5" /> : null}{lead.priority.toUpperCase()}
                     </span>
                   </div>
-                  <p className="text-[10px] text-text-muted truncate">{lead.location ?? "—"}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+                  <p className="text-xs text-text-muted truncate">{lead.location ?? "—"}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-muted">
                     {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{lead.phone}</span>}
                     {lead.openingHours && <span title={lead.openingHours}>🕒 {lead.openingHours.slice(0, 24)}</span>}
                     {lead.website ? (
@@ -1730,18 +1730,18 @@ function LocalLeadsBlock({
                       </a>
                     )}
                   </div>
-                  <p className="mt-1 text-[9px] text-text-muted/80">{lead.priorityReason}</p>
+                  <p className="mt-1 text-[11px] text-text-muted/80">{lead.priorityReason}</p>
                   {lead.suggestedHook && (
-                    <p className="mt-0.5 text-[10px] text-secondary italic" title="AI-suggested outreach angle — a guess, not a fact. Verify before use.">
+                    <p className="mt-0.5 text-xs text-secondary italic" title="AI-suggested outreach angle — a guess, not a fact. Verify before use.">
                       Suggested angle (AI): {lead.suggestedHook}
                     </p>
                   )}
-                  {st === "error" && <p className="mt-0.5 text-[10px] text-red-400">{importStates[key]?.message}</p>}
+                  {st === "error" && <p className="mt-0.5 text-xs text-red-400">{importStates[key]?.message}</p>}
                 </div>
                 <button
                   onClick={() => onImport(lead)}
                   disabled={st === "importing" || st === "imported"}
-                  className={`shrink-0 self-center rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
+                  className={`shrink-0 self-center rounded px-2 py-1 text-xs font-semibold transition-colors ${
                     st === "imported"
                       ? "text-emerald-400"
                       : st === "importing"
@@ -1799,7 +1799,7 @@ function GooglePlacesBlock({
         <button
           onClick={() => setSelected(allDone ? new Set() : new Set(importable.map((l) => l.placeId)))}
           disabled={allDone || importable.length === 0}
-          className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40 transition-colors"
         >
           {selected.size > 0 && !allDone ? <SquareCheck className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5" />}
           Select all ({selected.size}/{leads.length})
@@ -1807,7 +1807,7 @@ function GooglePlacesBlock({
         <button
           onClick={importSelected}
           disabled={selectedFresh.length === 0 || bulkState === "importing"}
-          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
         >
           {bulkState === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
           {allDone ? "All in CRM" : `Import ${selectedFresh.length}`}
@@ -1834,13 +1834,13 @@ function GooglePlacesBlock({
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold text-text-primary truncate">{lead.companyName}</p>
-                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold font-mono-code ${TIER_STYLE[lead.priority]}`}>
+                    <p className="text-xs font-bold text-text-primary truncate">{lead.companyName}</p>
+                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-bold font-mono-code ${TIER_STYLE[lead.priority]}`}>
                       {lead.priority === "Hot" ? <Flame className="mr-0.5 inline h-2.5 w-2.5" /> : null}{lead.priority.toUpperCase()}
                     </span>
                   </div>
-                  <p className="text-[10px] text-text-muted truncate">{lead.location ?? "—"}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+                  <p className="text-xs text-text-muted truncate">{lead.location ?? "—"}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-muted">
                     {lead.rating != null && (
                       <span className="inline-flex items-center gap-0.5">
                         <span className="text-amber-400">★</span> {lead.rating.toFixed(1)}
@@ -1862,18 +1862,18 @@ function GooglePlacesBlock({
                       </a>
                     )}
                   </div>
-                  <p className="mt-1 text-[9px] text-text-muted/80">{lead.priorityReason}</p>
+                  <p className="mt-1 text-[11px] text-text-muted/80">{lead.priorityReason}</p>
                   {lead.suggestedHook && (
-                    <p className="mt-0.5 text-[10px] text-secondary italic" title="AI-suggested outreach angle — verify before use.">
+                    <p className="mt-0.5 text-xs text-secondary italic" title="AI-suggested outreach angle — verify before use.">
                       Suggested angle (AI): {lead.suggestedHook}
                     </p>
                   )}
-                  {st === "error" && <p className="mt-0.5 text-[10px] text-red-400">{importStates[key]?.message}</p>}
+                  {st === "error" && <p className="mt-0.5 text-xs text-red-400">{importStates[key]?.message}</p>}
                 </div>
                 <button
                   onClick={() => onImport(lead)}
                   disabled={st === "importing" || st === "imported"}
-                  className={`shrink-0 self-center rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
+                  className={`shrink-0 self-center rounded px-2 py-1 text-xs font-semibold transition-colors ${
                     st === "imported"
                       ? "text-emerald-400"
                       : st === "importing"

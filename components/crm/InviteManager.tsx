@@ -121,12 +121,12 @@ export function InviteForm() {
             </p>
           )}
           <div className="flex items-center gap-2">
-            <code className="flex-1 truncate rounded-md bg-surface-lowest border border-border-subtle px-2 py-1.5 text-[11px] font-mono-code text-text-secondary">
+            <code className="flex-1 truncate rounded-md bg-surface-lowest border border-border-subtle px-2 py-1.5 text-xs font-mono-code text-text-secondary">
               {inviteUrl(created.token)}
             </code>
             <button
               onClick={() => copy(created.token)}
-              className="inline-flex items-center space-x-1 rounded-md border border-border-strong px-2.5 py-1.5 text-[11px] font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition"
+              className="inline-flex items-center space-x-1 rounded-md border border-border-strong px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition"
             >
               {copied ? <Check className="h-3 w-3 text-secondary" /> : <Copy className="h-3 w-3" />}
               <span>{copied ? "Copied" : "Copy link"}</span>
@@ -180,10 +180,10 @@ export function PendingInviteRow({ invite }: { invite: PendingInvite }) {
           <Link2 className="mr-2 h-3 w-3 text-tertiary shrink-0" />
           {invite.email}
         </p>
-        <p className="text-[10px] text-text-muted">
+        <p className="text-xs text-text-muted">
           pending · invited by {inviter || "—"} · expires {formatDate(invite.expiresAt)}
         </p>
-        {error && <p className="text-[10px] text-danger mt-0.5">{error}</p>}
+        {error && <p className="text-xs text-danger mt-0.5">{error}</p>}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <button
@@ -240,23 +240,23 @@ export function JoinRequestRow({ request }: { request: JoinRequest }) {
           <UserCheck className="mr-2 h-3.5 w-3.5 text-secondary shrink-0" />
           {request.name ?? request.email}
         </p>
-        <p className="text-[10px] text-text-muted truncate">
+        <p className="text-xs text-text-muted truncate">
           signed in as {request.signedInEmail ?? request.email} · accepted {accepted}
         </p>
-        {error && <p className="text-[10px] text-danger mt-0.5">{error}</p>}
+        {error && <p className="text-xs text-danger mt-0.5">{error}</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         <button
           onClick={() => act(true)}
           disabled={pending}
-          className="inline-flex items-center gap-1 rounded-md bg-secondary/20 px-2.5 py-1.5 text-[11px] font-semibold text-secondary hover:bg-secondary/30 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-md bg-secondary/20 px-2.5 py-1.5 text-xs font-semibold text-secondary hover:bg-secondary/30 disabled:opacity-50"
         >
           {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Approve
         </button>
         <button
           onClick={() => act(false)}
           disabled={pending}
-          className="inline-flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1.5 text-[11px] font-semibold text-text-muted hover:text-danger disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1.5 text-xs font-semibold text-text-muted hover:text-danger disabled:opacity-50"
         >
           <X className="h-3 w-3" /> Reject
         </button>

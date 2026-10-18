@@ -90,7 +90,7 @@ export function CreateDealButton({
       className="w-full rounded-lg border border-primary/30 bg-surface-low p-3 space-y-2.5"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-text-primary">New Deal</span>
+        <span className="text-xs font-semibold text-text-primary">New Deal</span>
         <button type="button" onClick={() => setOpen(false)} className="text-text-muted hover:text-text-primary">
           <X className="h-3.5 w-3.5" />
         </button>
@@ -139,7 +139,7 @@ export function CreateDealButton({
         />
       </div>
 
-      {error && <p className="text-[11px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       <button
         type="submit"

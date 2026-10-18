@@ -74,7 +74,7 @@ export default function BdrPage({ searchParams }: { searchParams: Promise<{ tab?
           <MonoLabel className="text-primary block mb-1">AI BDR ENGINE // PIPELINE AUTOPILOT</MonoLabel>
           <Display>AI BDR</Display>
         </div>
-        <Badge variant="primary" className="font-mono-code text-[9px] self-start">
+        <Badge variant="primary" className="font-mono-code text-[11px] self-start">
           <Sparkles className="h-3 w-3 mr-1" /> AUTONOMOUS OUTBOUND
         </Badge>
       </div>
@@ -136,7 +136,7 @@ function DashboardTab() {
           <GlassCard key={m.label} className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <m.icon className={`h-4 w-4 ${m.color}`} />
-              <span className="text-[10px] font-mono-code text-text-muted uppercase">{m.label}</span>
+              <span className="text-xs font-mono-code text-text-muted uppercase">{m.label}</span>
             </div>
             <div className="text-2xl font-semibold text-text-primary">{m.value}</div>
           </GlassCard>
@@ -171,7 +171,7 @@ function DashboardTab() {
             <p className="text-xs text-text-secondary mb-3">{profile.businessDescription}</p>
             <div className="flex flex-wrap gap-1.5">
               {(profile.topBuyerRoles as string[]).map((role) => (
-                <Badge key={role} variant="secondary" className="text-[10px]">{role}</Badge>
+                <Badge key={role} variant="secondary" className="text-xs">{role}</Badge>
               ))}
             </div>
           </GlassPanel>
@@ -187,13 +187,13 @@ function DashboardTab() {
                     <div>
                       <span className="text-xs font-medium text-text-primary">{seq.name}</span>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-text-muted">{seq.totalEnrolled} enrolled</span>
-                        <span className="text-[10px] text-text-muted">{seq.totalReplied} replied</span>
+                        <span className="text-xs text-text-muted">{seq.totalEnrolled} enrolled</span>
+                        <span className="text-xs text-text-muted">{seq.totalReplied} replied</span>
                       </div>
                     </div>
                     <Badge
                       variant={seq.status === "ACTIVE" ? "primary" : "secondary"}
-                      className="text-[9px]"
+                      className="text-[11px]"
                     >
                       {seq.status}
                     </Badge>
@@ -277,12 +277,12 @@ function IcpSetupTab() {
             className="w-full rounded-lg bg-surface-low border border-border-subtle px-3.5 py-2.5 text-xs text-text-primary focus:border-primary focus:outline-none resize-none"
             maxLength={500}
           />
-          <div className="text-right text-[10px] text-text-muted">{businessDesc.length}/500</div>
+          <div className="text-right text-xs text-text-muted">{businessDesc.length}/500</div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <MonoLabel className="block mb-1.5 text-[10px]">YOUR WEBSITE (OPTIONAL)</MonoLabel>
+            <MonoLabel className="block mb-1.5 text-xs">YOUR WEBSITE (OPTIONAL)</MonoLabel>
             <div className="relative">
               <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
               <input
@@ -295,7 +295,7 @@ function IcpSetupTab() {
             </div>
           </div>
           <div>
-            <MonoLabel className="block mb-1.5 text-[10px]">
+            <MonoLabel className="block mb-1.5 text-xs">
               TARGET LOCATION <span className="text-danger">*</span>
             </MonoLabel>
             <input
@@ -318,7 +318,7 @@ function IcpSetupTab() {
         </button>
 
         {!loading && (
-          <p className="text-[10px] text-text-muted text-center flex items-center justify-center gap-1">
+          <p className="text-xs text-text-muted text-center flex items-center justify-center gap-1">
             <Check className="h-3 w-3 text-success" /> No credit card required &bull; Takes 30 seconds
           </p>
         )}
@@ -329,20 +329,20 @@ function IcpSetupTab() {
           <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              <MonoLabel className="text-success text-[10px]">LIVE AI PREVIEW</MonoLabel>
+              <MonoLabel className="text-success text-xs">LIVE AI PREVIEW</MonoLabel>
             </div>
-            <span className="text-[10px] text-text-muted">Generated data</span>
+            <span className="text-xs text-text-muted">Generated data</span>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                <span className="text-[10px] font-semibold text-text-primary">Ideal customer profile</span>
+                <span className="text-xs font-semibold text-text-primary">Ideal customer profile</span>
               </div>
               <div className="space-y-1">
                 {icpData?.map((attr, i) => (
-                  <div key={i} className="flex items-center gap-1.5 text-[11px] text-text-secondary">
+                  <div key={i} className="flex items-center gap-1.5 text-xs text-text-secondary">
                     <div className="h-1 w-1 rounded-full bg-primary/50" />
                     {attr.industry}
                   </div>
@@ -353,11 +353,11 @@ function IcpSetupTab() {
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-secondary" />
-                <span className="text-[10px] font-semibold text-text-primary">Top buyer roles</span>
+                <span className="text-xs font-semibold text-text-primary">Top buyer roles</span>
               </div>
               <div className="space-y-1">
                 {buyerRoles?.map((role) => (
-                  <div key={role} className="flex items-center gap-1.5 text-[11px] text-text-secondary">
+                  <div key={role} className="flex items-center gap-1.5 text-xs text-text-secondary">
                     <Users className="h-3 w-3 text-secondary/70" />
                     {role}
                   </div>
@@ -368,11 +368,11 @@ function IcpSetupTab() {
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-warning" />
-                <span className="text-[10px] font-semibold text-text-primary">Key pain points</span>
+                <span className="text-xs font-semibold text-text-primary">Key pain points</span>
               </div>
               <div className="space-y-1">
                 {painPoints?.map((point) => (
-                  <div key={point} className="flex items-center gap-1.5 text-[11px] text-text-secondary">
+                  <div key={point} className="flex items-center gap-1.5 text-xs text-text-secondary">
                     <Zap className="h-3 w-3 text-warning/70" />
                     {point}
                   </div>
@@ -382,29 +382,29 @@ function IcpSetupTab() {
           </div>
 
           <div>
-            <span className="text-[10px] font-semibold text-text-primary block mb-2">Sample companies</span>
+            <span className="text-xs font-semibold text-text-primary block mb-2">Sample companies</span>
             <div className="flex flex-wrap gap-2">
               {sampleCompanies?.map((c) => (
                 <div key={c.name} className="flex items-center gap-1.5 rounded-full bg-surface-low border border-border-subtle px-2.5 py-1">
-                  <div className="h-5 w-5 rounded bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                  <div className="h-5 w-5 rounded bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                     {c.initial}
                   </div>
-                  <span className="text-[11px] text-text-primary">{c.name}</span>
+                  <span className="text-xs text-text-primary">{c.name}</span>
                 </div>
               ))}
             </div>
           </div>
 
           <div>
-            <span className="text-[10px] font-semibold text-text-primary block mb-2">Sample buyers at these companies</span>
+            <span className="text-xs font-semibold text-text-primary block mb-2">Sample buyers at these companies</span>
             <div className="flex flex-wrap gap-2">
               {sampleBuyers?.map((b) => (
                 <div key={b.name} className="flex items-center gap-1.5 rounded-full bg-surface-low border border-border-subtle px-2.5 py-1">
-                  <div className="h-5 w-5 rounded-full bg-secondary/20 flex items-center justify-center text-[10px] font-bold text-secondary">
+                  <div className="h-5 w-5 rounded-full bg-secondary/20 flex items-center justify-center text-xs font-bold text-secondary">
                     {b.name[0]}
                   </div>
-                  <span className="text-[11px] text-text-primary">{b.name}</span>
-                  <span className="text-[10px] text-text-muted">&middot; {b.role}</span>
+                  <span className="text-xs text-text-primary">{b.name}</span>
+                  <span className="text-xs text-text-muted">&middot; {b.role}</span>
                 </div>
               ))}
             </div>
@@ -413,15 +413,15 @@ function IcpSetupTab() {
           {profile.personalizedOpener && (
             <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-semibold text-text-primary">Personalized opening (example)</span>
-                <Badge variant="primary" className="text-[9px]">
+                <span className="text-xs font-semibold text-text-primary">Personalized opening (example)</span>
+                <Badge variant="primary" className="text-[11px]">
                   Generated for {profile.openerTargetRole || "decision maker"}
                 </Badge>
               </div>
               <p className="text-xs text-text-secondary leading-relaxed">{profile.personalizedOpener}</p>
               <button
                 onClick={copyOpener}
-                className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? "Copied!" : "Copy"}
@@ -570,7 +570,7 @@ function DiscoveryTab() {
             <GlassCard key={s.label} className="p-3">
               <div className="flex items-center gap-1.5 text-text-muted mb-1">
                 {s.icon}
-                <span className="text-[10px] font-mono-code uppercase">{s.label}</span>
+                <span className="text-xs font-mono-code uppercase">{s.label}</span>
               </div>
               <span className="text-lg font-bold text-text-primary">{s.value}</span>
             </GlassCard>
@@ -599,13 +599,13 @@ function DiscoveryTab() {
           </div>
           <div className="flex flex-wrap gap-2">
             {runResult.notes.slice(0, 6).map((note, i) => (
-              <Badge key={i} variant="secondary" className="text-[9px]">{note}</Badge>
+              <Badge key={i} variant="secondary" className="text-[11px]">{note}</Badge>
             ))}
           </div>
           {runResult.errors.length > 0 && (
             <div className="mt-2 space-y-1">
               {runResult.errors.map((err, i) => (
-                <p key={i} className="text-[10px] text-destructive">{err}</p>
+                <p key={i} className="text-xs text-destructive">{err}</p>
               ))}
             </div>
           )}
@@ -672,17 +672,17 @@ function DiscoveryTab() {
                       <div className="flex items-center gap-2">
                         <Badge
                           variant={b.status === "COMPLETED" ? "primary" : b.status === "FAILED" ? "danger" : "secondary"}
-                          className="text-[9px]"
+                          className="text-[11px]"
                         >
                           {b.status}
                         </Badge>
                         <span className="text-xs font-mono-code text-text-muted">{b.runId}</span>
                       </div>
-                      <span className="text-[10px] text-text-muted">
+                      <span className="text-xs text-text-muted">
                         {new Date(b.createdAt).toLocaleDateString()} {new Date(b.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
-                    <div className="flex gap-4 mt-2 text-[10px] text-text-muted">
+                    <div className="flex gap-4 mt-2 text-xs text-text-muted">
                       <span>Discovered: {b.discoveredCount}</span>
                       <span>Qualified: {b.qualifiedCount}</span>
                       <span className="text-success">Created: {b.createdCount}</span>
@@ -694,7 +694,7 @@ function DiscoveryTab() {
 
               {selectedBatchId && batchCandidates.length > 0 && (
                 <div className="space-y-2">
-                  <MonoLabel className="text-[10px] text-text-muted">CANDIDATES IN BATCH</MonoLabel>
+                  <MonoLabel className="text-xs text-text-muted">CANDIDATES IN BATCH</MonoLabel>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {batchCandidates.map((c) => (
                       <CandidateCard
@@ -718,7 +718,7 @@ function DiscoveryTab() {
           <PageTitle className="text-sm">Discovery Settings</PageTitle>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <MonoLabel className="block mb-1.5 text-[10px]">TARGET LOCATION</MonoLabel>
+              <MonoLabel className="block mb-1.5 text-xs">TARGET LOCATION</MonoLabel>
               <input
                 type="text"
                 value={location}
@@ -727,7 +727,7 @@ function DiscoveryTab() {
               />
             </div>
             <div>
-              <MonoLabel className="block mb-1.5 text-[10px]">CATEGORY</MonoLabel>
+              <MonoLabel className="block mb-1.5 text-xs">CATEGORY</MonoLabel>
               <input
                 type="text"
                 value={category}
@@ -736,7 +736,7 @@ function DiscoveryTab() {
               />
             </div>
             <div>
-              <MonoLabel className="block mb-1.5 text-[10px]">DAILY TARGET</MonoLabel>
+              <MonoLabel className="block mb-1.5 text-xs">DAILY TARGET</MonoLabel>
               <input
                 type="number"
                 min={1}
@@ -748,7 +748,7 @@ function DiscoveryTab() {
             </div>
           </div>
           <div>
-            <MonoLabel className="block mb-1.5 text-[10px]">DAILY CITY ROTATION (ONE PER LINE)</MonoLabel>
+            <MonoLabel className="block mb-1.5 text-xs">DAILY CITY ROTATION (ONE PER LINE)</MonoLabel>
             <textarea
               rows={5}
               value={rotationText}
@@ -757,7 +757,7 @@ function DiscoveryTab() {
               aria-describedby="rotation-hint"
               className="w-full rounded-lg bg-surface-low border border-border-subtle px-3 py-2 text-xs text-text-primary focus:border-primary focus:outline-none"
             />
-            <p id="rotation-hint" className="mt-1 text-[10px] text-text-muted">
+            <p id="rotation-hint" className="mt-1 text-xs text-text-muted">
               The 6 AM run searches the next city each day, so it keeps finding new businesses. Leave empty to always search the location above.
             </p>
           </div>
@@ -770,9 +770,9 @@ function DiscoveryTab() {
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Settings
             </button>
-            {saveMessage && <span className="text-[11px] text-text-muted">{saveMessage}</span>}
+            {saveMessage && <span className="text-xs text-text-muted">{saveMessage}</span>}
           </div>
-          <p className="text-[10px] text-text-muted">
+          <p className="text-xs text-text-muted">
             Runs automatically every day at 6:00 AM IST using the saved settings, or anytime with Run Discovery Now (uses the values above). Uses OpenStreetMap Overpass API (free, no keys).
           </p>
         </GlassPanel>
@@ -811,11 +811,11 @@ function CandidateCard({
           <h4 className="text-sm font-semibold text-text-primary truncate">{candidate.businessName}</h4>
           <div className="flex items-center gap-2 mt-0.5">
             {candidate.category && (
-              <span className="text-[10px] text-text-muted">{candidate.category}</span>
+              <span className="text-xs text-text-muted">{candidate.category}</span>
             )}
             <Badge
               variant={candidate.qualificationStatus === "IMPORTED" ? "primary" : candidate.qualificationStatus === "REJECTED" ? "danger" : "secondary"}
-              className="text-[9px]"
+              className="text-[11px]"
             >
               {candidate.qualificationStatus}
             </Badge>
@@ -823,18 +823,18 @@ function CandidateCard({
         </div>
         <div className="flex items-center gap-1 ml-2">
           <div className={`h-2 w-2 rounded-full ${totalScore >= 60 ? "bg-success" : totalScore >= 40 ? "bg-warning" : "bg-text-muted"}`} />
-          <span className="text-[10px] font-mono-code text-text-muted">{totalScore}</span>
+          <span className="text-xs font-mono-code text-text-muted">{totalScore}</span>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 text-[10px] text-text-muted mb-2">
+      <div className="flex flex-wrap gap-1.5 text-xs text-text-muted mb-2">
         {isNoWebsite && (
-          <Badge variant="danger" className="text-[9px]">
+          <Badge variant="danger" className="text-[11px]">
             {wsStatus === "NO_WEBSITE" ? "No Website" : "Broken Website"}
           </Badge>
         )}
         {wsStatus === "POOR_WEBSITE" && (
-          <Badge variant="secondary" className="text-[9px] border-warning/30">Poor Website</Badge>
+          <Badge variant="secondary" className="text-[11px] border-warning/30">Poor Website</Badge>
         )}
         {candidate.phone && (
           <>
@@ -868,7 +868,7 @@ function CandidateCard({
           ),
         )}
         {!candidate.phone && !meta.email && meta.socials.length === 0 && (
-          <Badge variant="secondary" className="text-[9px]">No contact listed</Badge>
+          <Badge variant="secondary" className="text-[11px]">No contact listed</Badge>
         )}
         {candidate.address && (
           <span className="flex items-center gap-1">
@@ -885,7 +885,7 @@ function CandidateCard({
       {candidate.reasons && Array.isArray(candidate.reasons) && (candidate.reasons as string[]).length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {(candidate.reasons as string[]).slice(0, 3).map((r, i) => (
-            <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-success/10 text-success">{r}</span>
+            <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-success/10 text-success">{r}</span>
           ))}
         </div>
       )}
@@ -893,13 +893,13 @@ function CandidateCard({
       {candidate.gaps && Array.isArray(candidate.gaps) && (candidate.gaps as string[]).length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {(candidate.gaps as string[]).slice(0, 2).map((g, i) => (
-            <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-warning/10 text-warning">{g}</span>
+            <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-warning/10 text-warning">{g}</span>
           ))}
         </div>
       )}
 
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border-subtle">
-        <div className="flex gap-2 text-[10px] text-text-muted">
+        <div className="flex gap-2 text-xs text-text-muted">
           <span>Fit: {candidate.fitScore}</span>
           <span>Opp: {candidate.opportunityScore}</span>
         </div>
@@ -908,7 +908,7 @@ function CandidateCard({
             {onApprove && (
               <button
                 onClick={() => onApprove(candidate.id)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-success/15 text-success hover:bg-success/25 transition-all"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-success/15 text-success hover:bg-success/25 transition-all"
               >
                 <ThumbsUp className="h-3 w-3" /> Approve
               </button>
@@ -916,7 +916,7 @@ function CandidateCard({
             {onReject && (
               <button
                 onClick={() => onReject(candidate.id)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-destructive/15 text-destructive hover:bg-destructive/25 transition-all"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-destructive/15 text-destructive hover:bg-destructive/25 transition-all"
               >
                 <ThumbsDown className="h-3 w-3" /> Reject
               </button>
@@ -929,7 +929,7 @@ function CandidateCard({
             target="_blank"
             rel="noopener noreferrer"
             title="Open Google Business Profile (phone, photos, reviews)"
-            className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+            className="text-xs text-primary hover:underline flex items-center gap-0.5"
           >
             <MapPin className="h-3 w-3" /> Google Maps
           </a>
@@ -938,7 +938,7 @@ function CandidateCard({
               href={candidate.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+              className="text-xs text-primary hover:underline flex items-center gap-0.5"
             >
               <ExternalLink className="h-3 w-3" /> OSM
             </a>
@@ -1009,7 +1009,7 @@ function SequencesTab() {
         <GlassPanel className="p-5 space-y-4">
           <PageTitle className="text-sm">Create AI Sequence</PageTitle>
           <div>
-            <MonoLabel className="block mb-1.5 text-[10px]">TARGET PROSPECT PROFILE</MonoLabel>
+            <MonoLabel className="block mb-1.5 text-xs">TARGET PROSPECT PROFILE</MonoLabel>
             <input
               type="text"
               value={targetProfile}
@@ -1019,7 +1019,7 @@ function SequencesTab() {
             />
           </div>
           <div>
-            <MonoLabel className="block mb-1.5 text-[10px]">VALUE PROPOSITION</MonoLabel>
+            <MonoLabel className="block mb-1.5 text-xs">VALUE PROPOSITION</MonoLabel>
             <textarea
               rows={2}
               value={valueProp}
@@ -1049,18 +1049,18 @@ function SequencesTab() {
             {newSequence.steps.map((step) => (
               <div key={step.stepNumber} className="rounded-lg bg-surface-low p-3 border border-border-subtle">
                 <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="secondary" className="text-[9px]">Step {step.stepNumber}</Badge>
+                  <Badge variant="secondary" className="text-[11px]">Step {step.stepNumber}</Badge>
                   <ChannelBadge channel={step.channel} />
                   {step.delayDays > 0 && (
-                    <span className="text-[10px] text-text-muted">+{step.delayDays}d</span>
+                    <span className="text-xs text-text-muted">+{step.delayDays}d</span>
                   )}
                 </div>
-                {step.subject && <div className="text-[11px] font-medium text-text-primary mb-1">{step.subject}</div>}
-                <p className="text-[11px] text-text-secondary line-clamp-2">{step.body}</p>
+                {step.subject && <div className="text-xs font-medium text-text-primary mb-1">{step.subject}</div>}
+                <p className="text-xs text-text-secondary line-clamp-2">{step.body}</p>
               </div>
             ))}
           </div>
-          <button onClick={() => setNewSequence(null)} className="mt-3 text-[11px] text-text-muted hover:text-text-secondary">
+          <button onClick={() => setNewSequence(null)} className="mt-3 text-xs text-text-muted hover:text-text-secondary">
             Dismiss
           </button>
         </GlassPanel>
@@ -1081,16 +1081,16 @@ function SequencesTab() {
                     <h4 className="text-sm font-semibold text-text-primary truncate">{seq.name}</h4>
                     <Badge
                       variant={seq.status === "ACTIVE" ? "primary" : seq.status === "PAUSED" ? "secondary" : "secondary"}
-                      className="text-[9px] shrink-0"
+                      className="text-[11px] shrink-0"
                     >
                       {seq.status}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[10px] text-text-muted">{seq.totalEnrolled} enrolled</span>
-                    <span className="text-[10px] text-text-muted">{seq.totalReplied} replied</span>
-                    <span className="text-[10px] text-text-muted">{seq.totalMeetings} meetings</span>
-                    <span className="text-[10px] text-text-muted">
+                    <span className="text-xs text-text-muted">{seq.totalEnrolled} enrolled</span>
+                    <span className="text-xs text-text-muted">{seq.totalReplied} replied</span>
+                    <span className="text-xs text-text-muted">{seq.totalMeetings} meetings</span>
+                    <span className="text-xs text-text-muted">
                       {new Date(seq.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -1161,14 +1161,14 @@ function ReactivationTab() {
                       {row.contact?.firstName} {row.contact?.lastName || ""}
                     </h4>
                     {row.contact?.jobTitle && (
-                      <span className="text-[10px] text-text-muted">{row.contact.jobTitle}</span>
+                      <span className="text-xs text-text-muted">{row.contact.jobTitle}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     {row.company?.name && (
-                      <span className="text-[10px] text-text-secondary">{row.company.name}</span>
+                      <span className="text-xs text-text-secondary">{row.company.name}</span>
                     )}
-                    <span className="text-[10px] text-text-muted">
+                    <span className="text-xs text-text-muted">
                       Score: {row.lead.score} &middot; Last contact: {row.lead.lastContactedAt
                         ? new Date(row.lead.lastContactedAt).toLocaleDateString()
                         : "never"}
@@ -1176,7 +1176,7 @@ function ReactivationTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-[9px]">{row.lead.temperature}</Badge>
+                  <Badge variant="secondary" className="text-[11px]">{row.lead.temperature}</Badge>
                   <ChevronRight className="h-4 w-4 text-text-muted" />
                 </div>
               </div>
@@ -1220,7 +1220,7 @@ function ChannelBadge({ channel }: { channel: string }) {
   };
   const c = config[channel] || config.EMAIL;
   return (
-    <span className={`inline-flex items-center gap-1 text-[9px] font-mono-code ${c.color}`}>
+    <span className={`inline-flex items-center gap-1 text-[11px] font-mono-code ${c.color}`}>
       {c.icon} {channel}
     </span>
   );

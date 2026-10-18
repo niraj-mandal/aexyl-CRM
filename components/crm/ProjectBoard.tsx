@@ -122,7 +122,7 @@ export function CreateProjectButton({ companies }: { companies: { id: string; na
         className="w-full rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-xs text-text-primary focus:border-primary/60 focus:outline-none"
         title="Due date"
       />
-      {error && <p className="text-[11px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
       <button
         type="submit"
         disabled={saving || !name.trim()}
@@ -167,7 +167,7 @@ export function ProjectControls({ project }: { project: ProjectRecord }) {
         value={project.status}
         onChange={(e) => update({ status: e.target.value })}
         disabled={busy}
-        className="rounded-md bg-surface-lowest border border-border-subtle px-2 py-1 text-[10px] font-mono-code text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-50"
+        className="rounded-md bg-surface-lowest border border-border-subtle px-2 py-1 text-xs font-mono-code text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-50"
         title="Status"
       >
         {STATUSES.map((s) => (
@@ -180,7 +180,7 @@ export function ProjectControls({ project }: { project: ProjectRecord }) {
         value={project.health}
         onChange={(e) => update({ health: e.target.value })}
         disabled={busy}
-        className="rounded-md bg-surface-lowest border border-border-subtle px-2 py-1 text-[10px] font-mono-code text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-50"
+        className="rounded-md bg-surface-lowest border border-border-subtle px-2 py-1 text-xs font-mono-code text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-50"
         title="Health"
       >
         {HEALTHS.map((h) => (
@@ -200,7 +200,7 @@ export function ProjectControls({ project }: { project: ProjectRecord }) {
           if (!Number.isNaN(v) && v !== project.progress) update({ progress: v });
         }}
         disabled={busy}
-        className="w-16 rounded-md bg-surface-lowest border border-border-subtle px-2 py-1 text-[10px] font-mono-code text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-50"
+        className="w-16 rounded-md bg-surface-lowest border border-border-subtle px-2 py-1 text-xs font-mono-code text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-50"
         title="Progress % (blur to save)"
       />
       <button

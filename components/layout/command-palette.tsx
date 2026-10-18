@@ -61,7 +61,7 @@ export function CommandPalette() {
                   className="flex h-13 w-full rounded-md bg-transparent py-3.5 px-3 outline-none text-sm placeholder:text-text-muted"
                   autoFocus
                 />
-                <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border-subtle bg-surface-high px-1.5 font-mono-code text-[10px] text-text-muted">
+                <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border-subtle bg-surface-high px-1.5 font-mono-code text-xs text-text-muted">
                   ESC
                 </kbd>
               </div>
@@ -71,13 +71,13 @@ export function CommandPalette() {
                   No matching commands found.
                 </Command.Empty>
 
-                <Command.Group heading="QUICK NAVIGATION" className="px-2 text-[10px] font-mono-code tracking-widest text-text-muted uppercase mb-2 mt-2">
+                <Command.Group heading="QUICK NAVIGATION" className="px-2 text-xs font-mono-code tracking-widest text-text-muted uppercase mb-2 mt-2">
                   <Command.Item onSelect={() => runCommand(() => router.push("/"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
                     <div className="flex items-center">
                       <CmdIcon className="mr-2.5 h-3.5 w-3.5 text-primary" />
                       <span>Command Center Dashboard</span>
                     </div>
-                    <kbd className="font-mono-code text-[10px] text-text-muted">↵</kbd>
+                    <kbd className="font-mono-code text-xs text-text-muted">↵</kbd>
                   </Command.Item>
 
                   <Command.Item onSelect={() => runCommand(() => router.push("/calendar"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
@@ -85,7 +85,7 @@ export function CommandPalette() {
                       <CalendarDays className="mr-2.5 h-3.5 w-3.5 text-text-muted" />
                       <span>Calendar — meetings &amp; deadlines</span>
                     </div>
-                    <kbd className="font-mono-code text-[10px] text-text-muted">↵</kbd>
+                    <kbd className="font-mono-code text-xs text-text-muted">↵</kbd>
                   </Command.Item>
 
                   <Command.Item onSelect={() => runCommand(() => router.push("/sales/leads"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
@@ -93,7 +93,7 @@ export function CommandPalette() {
                       <Users className="mr-2.5 h-3.5 w-3.5 text-text-muted" />
                       <span>Leads Directory</span>
                     </div>
-                    <kbd className="font-mono-code text-[10px] text-text-muted">G L</kbd>
+                    <kbd className="font-mono-code text-xs text-text-muted">G L</kbd>
                   </Command.Item>
 
                   <Command.Item onSelect={() => runCommand(() => router.push("/sales/pipeline"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
@@ -101,7 +101,7 @@ export function CommandPalette() {
                       <Kanban className="mr-2.5 h-3.5 w-3.5 text-text-muted" />
                       <span>Sales Pipeline Kanban</span>
                     </div>
-                    <kbd className="font-mono-code text-[10px] text-text-muted">G P</kbd>
+                    <kbd className="font-mono-code text-xs text-text-muted">G P</kbd>
                   </Command.Item>
 
                   <Command.Item onSelect={() => runCommand(() => router.push("/outreach"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
@@ -109,7 +109,7 @@ export function CommandPalette() {
                       <Send className="mr-2.5 h-3.5 w-3.5 text-text-muted" />
                       <span>Outreach Engine & AI Composer</span>
                     </div>
-                    <kbd className="font-mono-code text-[10px] text-text-muted">G O</kbd>
+                    <kbd className="font-mono-code text-xs text-text-muted">G O</kbd>
                   </Command.Item>
 
                   <Command.Item onSelect={() => runCommand(() => router.push("/sales/companies"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
@@ -117,7 +117,7 @@ export function CommandPalette() {
                       <Briefcase className="mr-2.5 h-3.5 w-3.5 text-text-muted" />
                       <span>Clients Directory</span>
                     </div>
-                    <kbd className="font-mono-code text-[10px] text-text-muted">G C</kbd>
+                    <kbd className="font-mono-code text-xs text-text-muted">G C</kbd>
                   </Command.Item>
 
                   <Command.Item onSelect={() => runCommand(() => router.push("/intelligence"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
@@ -125,12 +125,12 @@ export function CommandPalette() {
                       <Sparkles className="mr-2.5 h-3.5 w-3.5 text-secondary" />
                       <span>Executive Thinking Matrix</span>
                     </div>
-                    <span className="rounded bg-secondary/20 px-1.5 py-0.5 font-mono-code text-[9px] text-secondary">AI</span>
+                    <span className="rounded bg-secondary/20 px-1.5 py-0.5 font-mono-code text-[11px] text-secondary">AI</span>
                   </Command.Item>
                 </Command.Group>
               </Command.List>
 
-              <div className="flex items-center justify-between border-t border-border-subtle/80 px-4 py-2 text-[10px] font-mono-code text-text-muted bg-surface-lowest/50">
+              <div className="flex items-center justify-between border-t border-border-subtle/80 px-4 py-2 text-xs font-mono-code text-text-muted bg-surface-lowest/50">
                 <span>AEXYL ⌘K ENGINE</span>
                 <div className="flex items-center space-x-3">
                   <span>Navigation: <kbd className="text-text-secondary">↑↓</kbd></span>

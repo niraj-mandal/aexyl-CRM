@@ -66,7 +66,7 @@ export function ScheduleMeetingButton({ compact = false }: { compact?: boolean }
     <div className="glass rounded-xl p-4 sm:p-5 w-full max-w-md">
       <form onSubmit={submit} className="space-y-3">
         <div>
-          <label className="block text-[11px] font-mono-code uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-xs font-mono-code uppercase tracking-wider text-text-muted mb-1">
             Title
           </label>
           <input
@@ -78,7 +78,7 @@ export function ScheduleMeetingButton({ compact = false }: { compact?: boolean }
           />
         </div>
         <div>
-          <label className="block text-[11px] font-mono-code uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-xs font-mono-code uppercase tracking-wider text-text-muted mb-1">
             Date &amp; time
           </label>
           <input
@@ -89,7 +89,7 @@ export function ScheduleMeetingButton({ compact = false }: { compact?: boolean }
           />
         </div>
         <div>
-          <label className="block text-[11px] font-mono-code uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-xs font-mono-code uppercase tracking-wider text-text-muted mb-1">
             Notes (optional)
           </label>
           <textarea

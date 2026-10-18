@@ -105,7 +105,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                           rel="noopener noreferrer"
                           title="Open Google Business Profile"
                           aria-label={`Open ${lead.company.name} on Google Maps`}
-                          className="inline-flex items-center gap-1 rounded border border-border-subtle px-1.5 py-0.5 text-[10px] text-text-muted hover:text-primary hover:border-primary/40 transition-colors"
+                          className="inline-flex items-center gap-1 rounded border border-border-subtle px-1.5 py-0.5 text-xs text-text-muted hover:text-primary hover:border-primary/40 transition-colors"
                         >
                           <MapPin className="h-3 w-3" /> Maps
                         </a>

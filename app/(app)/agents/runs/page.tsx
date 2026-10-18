@@ -66,14 +66,14 @@ export default async function AgentRunsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-text-primary">{run.agentName}</span>
-                      <span className={`font-mono-code text-[10px] ${STATUS[run.status] ?? "text-primary"}`}>
+                      <span className={`font-mono-code text-xs ${STATUS[run.status] ?? "text-primary"}`}>
                         {run.status}
                       </span>
-                      <span className="font-mono-code text-[10px] text-text-muted/70">· {run.triggerType}</span>
+                      <span className="font-mono-code text-xs text-text-muted/70">· {run.triggerType}</span>
                     </div>
-                    <p className="mt-1 truncate text-[11px] text-text-secondary">{run.objective}</p>
+                    <p className="mt-1 truncate text-xs text-text-secondary">{run.objective}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-4 font-mono-code text-[10px] text-text-muted">
+                  <div className="flex shrink-0 items-center gap-4 font-mono-code text-xs text-text-muted">
                     <span>{run.tokensUsed.toLocaleString()} tok</span>
                     <span>${(run.estimatedCostMicroUsd / 1_000_000).toFixed(4)}</span>
                     <span>{formatDistanceToNowStrict(new Date(run.createdAt), { addSuffix: true })}</span>

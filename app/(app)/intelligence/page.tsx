@@ -47,7 +47,7 @@ export default function IntelligencePage() {
           <Display>Aexyl Intelligence Matrix</Display>
         </div>
         <div className="flex items-center space-x-3">
-          <Badge variant="outline" className="font-mono-code text-[10px]">
+          <Badge variant="outline" className="font-mono-code text-xs">
             {audit ? `LAST AUDIT: ${new Date(audit.auditedAt).toLocaleTimeString()}` : "NOT YET RUN"}
           </Badge>
           <button
@@ -95,7 +95,7 @@ export default function IntelligencePage() {
                 {m.totalDealsAnalyzed} deals · {m.activeLeadsCount} active leads analyzed
               </Body>
             </div>
-            <Badge variant="outline" className="font-mono-code text-[10px]">
+            <Badge variant="outline" className="font-mono-code text-xs">
               {new Date(audit!.auditedAt).toLocaleTimeString()}
             </Badge>
           </div>
@@ -106,7 +106,7 @@ export default function IntelligencePage() {
               <div className={`mt-2 text-2xl font-bold ${m.stalledDealsCount > 0 ? "text-tertiary" : "text-secondary"}`}>
                 {m.dealStalenessIndex}
               </div>
-              <p className="mt-1 text-[11px] text-text-muted">{m.stalledDealsCount} open deal(s) idle 7+ days</p>
+              <p className="mt-1 text-xs text-text-muted">{m.stalledDealsCount} open deal(s) idle 7+ days</p>
             </div>
 
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
@@ -114,7 +114,7 @@ export default function IntelligencePage() {
               <div className={`mt-2 text-2xl font-bold ${m.totalRevenueAtRisk > 0 ? "text-tertiary" : "text-secondary"}`}>
                 ₹{m.totalRevenueAtRisk.toLocaleString("en-IN")}
               </div>
-              <p className="mt-1 text-[11px] text-text-muted">Stalled deal value</p>
+              <p className="mt-1 text-xs text-text-muted">Stalled deal value</p>
             </div>
 
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
@@ -122,7 +122,7 @@ export default function IntelligencePage() {
               <div className="mt-2 text-2xl font-bold text-primary">
                 ₹{m.openPipelineValue.toLocaleString("en-IN")}
               </div>
-              <p className="mt-1 text-[11px] text-text-muted">{m.openDealsCount} open deals · avg age {m.avgDealAgeDays}d</p>
+              <p className="mt-1 text-xs text-text-muted">{m.openDealsCount} open deals · avg age {m.avgDealAgeDays}d</p>
             </div>
 
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
@@ -131,7 +131,7 @@ export default function IntelligencePage() {
                 {m.highPriorityLeadsCount}
                 <span className="text-sm font-medium text-text-muted ml-2">{m.hotLeadRatio}</span>
               </div>
-              <p className="mt-1 text-[11px] text-text-muted">Score ≥ 70 or temperature HOT</p>
+              <p className="mt-1 text-xs text-text-muted">Score ≥ 70 or temperature HOT</p>
             </div>
           </div>
 
@@ -143,21 +143,21 @@ export default function IntelligencePage() {
                 {m.contactableLeadsCount}
                 <span className="text-sm font-medium text-text-muted ml-2">of {m.activeLeadsCount}</span>
               </div>
-              <p className="mt-1 text-[11px] text-text-muted">Phone, email or social on file</p>
+              <p className="mt-1 text-xs text-text-muted">Phone, email or social on file</p>
             </div>
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
               <MonoLabel>READY TO CONTACT</MonoLabel>
               <div className={`mt-2 text-2xl font-bold ${m.readyToContactCount > 0 ? "text-primary" : "text-secondary"}`}>
                 {m.readyToContactCount}
               </div>
-              <p className="mt-1 text-[11px] text-text-muted">Contact details, never contacted</p>
+              <p className="mt-1 text-xs text-text-muted">Contact details, never contacted</p>
             </div>
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
               <MonoLabel>FOLLOW-UPS DUE</MonoLabel>
               <div className={`mt-2 text-2xl font-bold ${m.followUpsDueCount > 0 ? "text-tertiary" : "text-secondary"}`}>
                 {m.followUpsDueCount}
               </div>
-              <p className="mt-1 text-[11px] text-text-muted">Contacted, next touch overdue or unset</p>
+              <p className="mt-1 text-xs text-text-muted">Contacted, next touch overdue or unset</p>
             </div>
           </div>
         </GlassPanel>
@@ -172,7 +172,7 @@ export default function IntelligencePage() {
               <GlassPanel key={insight.id} className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <Badge variant={style.badgeVariant}>{style.label}</Badge>
-                  <span className="font-mono-code text-[10px] text-text-muted">{insight.preset}</span>
+                  <span className="font-mono-code text-xs text-text-muted">{insight.preset}</span>
                 </div>
                 <div className="flex items-start space-x-2">
                   {style.icon}
@@ -203,7 +203,7 @@ export default function IntelligencePage() {
               <Clock className="h-4 w-4 text-tertiary" />
               <PageTitle className="text-base">Stalled Deals — 7+ Days Without Activity</PageTitle>
             </div>
-            <Badge variant="tertiary" className="font-mono-code text-[10px]">
+            <Badge variant="tertiary" className="font-mono-code text-xs">
               ₹{audit.metrics.totalRevenueAtRisk.toLocaleString("en-IN")} AT RISK
             </Badge>
           </div>
@@ -213,7 +213,7 @@ export default function IntelligencePage() {
                 <div className="flex items-center justify-between rounded-lg bg-surface-low border border-border-subtle p-3.5 hover:border-primary/40 transition-colors">
                   <div>
                     <h4 className="text-xs font-semibold text-text-primary">{deal.name}</h4>
-                    <p className="text-[11px] text-text-muted mt-0.5">
+                    <p className="text-xs text-text-muted mt-0.5">
                       {deal.company} · {deal.stage.replace("_", " ")} · idle {deal.daysSinceUpdate}d
                     </p>
                   </div>
@@ -233,7 +233,7 @@ export default function IntelligencePage() {
               <CalendarClock className="h-4 w-4 text-primary" />
               <PageTitle className="text-base">Closing Window — Next 7 Days</PageTitle>
             </div>
-            <Badge variant="primary" className="font-mono-code text-[10px]">
+            <Badge variant="primary" className="font-mono-code text-xs">
               {audit.closingSoonDeals.length} DEALS
             </Badge>
           </div>
@@ -243,7 +243,7 @@ export default function IntelligencePage() {
                 <div className="flex items-center justify-between rounded-lg bg-surface-low border border-border-subtle p-3.5 hover:border-primary/40 transition-colors">
                   <div>
                     <h4 className="text-xs font-semibold text-text-primary">{deal.name}</h4>
-                    <p className="text-[11px] text-text-muted mt-0.5">
+                    <p className="text-xs text-text-muted mt-0.5">
                       {deal.company} · {deal.stage.replace("_", " ")} · expected {new Date(deal.expectedCloseDate).toLocaleDateString()}
                     </p>
                   </div>

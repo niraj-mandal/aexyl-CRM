@@ -85,10 +85,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               invited <span className="font-medium text-text-primary">{invite.email}</span> to collaborate.
             </Body>
             <div className="mt-4 flex items-center justify-center gap-2">
-              <Badge variant="outline" className="font-mono-code text-[10px]">
+              <Badge variant="outline" className="font-mono-code text-xs">
                 EXPIRES {formatExpiry(invite.expiresAt)}
               </Badge>
-              <Badge variant="secondary" className="font-mono-code text-[10px]">
+              <Badge variant="secondary" className="font-mono-code text-xs">
                 <ShieldCheck className="mr-1 h-3 w-3" /> SINGLE-USE
               </Badge>
             </div>

@@ -45,7 +45,7 @@ export function SettingsNav({
         >
           <span>{tab}</span>
           {counts?.[tab] && (
-            <span className="font-mono-code text-[10px] text-text-muted">{counts[tab]}</span>
+            <span className="font-mono-code text-xs text-text-muted">{counts[tab]}</span>
           )}
         </button>
       ))}
@@ -201,7 +201,7 @@ export function AutomationControls({ settings }: { settings: WorkspaceSettings }
             }}
             className="w-24 rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-sm text-text-primary focus:border-primary/60 focus:outline-none"
           />
-          <span className="block text-[11px] text-text-muted">
+          <span className="block text-xs text-text-muted">
             Scheduled follow-ups land this many days out (1–30).
           </span>
         </label>
@@ -220,7 +220,7 @@ export function AutomationControls({ settings }: { settings: WorkspaceSettings }
             }}
             className="w-24 rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-sm text-text-primary focus:border-primary/60 focus:outline-none"
           />
-          <span className="block text-[11px] text-text-muted">
+          <span className="block text-xs text-text-muted">
             Leads with no contact for this long become sweep candidates (1–60).
           </span>
         </label>

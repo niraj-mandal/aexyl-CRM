@@ -51,7 +51,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           <Display>{agent.name}</Display>
           <Body>{agent.description}</Body>
         </section>
-        <Badge variant={agent.enabled ? "primary" : "outline"} className="font-mono-code text-[10px]">
+        <Badge variant={agent.enabled ? "primary" : "outline"} className="font-mono-code text-xs">
           {agent.enabled ? "ENABLED" : "DISABLED"} · {agent.version}
         </Badge>
       </div>
@@ -88,7 +88,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 <p className="text-xs leading-relaxed text-text-secondary">
                   {def.description}
                 </p>
-                <p className="font-mono-code text-[10px] text-text-muted">
+                <p className="font-mono-code text-xs text-text-muted">
                   planner: LLM via AI Gateway (deterministic fallback) · prompt version {def.version} ·
                   default autonomy L{def.defaultAutonomy}
                 </p>
@@ -113,17 +113,17 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                   <GlassCard className="p-4 transition-all hover:border-primary/40">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-[11px] text-text-primary">{run.objective}</p>
-                        <p className="mt-0.5 font-mono-code text-[10px] text-text-muted">
+                        <p className="truncate text-xs text-text-primary">{run.objective}</p>
+                        <p className="mt-0.5 font-mono-code text-xs text-text-muted">
                           {run.triggerType} · {run.tokensUsed} tokens · ${" "}
                           {(run.estimatedCostMicroUsd / 1_000_000).toFixed(4)}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <span className={`font-mono-code text-[10px] ${STATUS_DOT[run.status] ?? "text-primary"}`}>
+                        <span className={`font-mono-code text-xs ${STATUS_DOT[run.status] ?? "text-primary"}`}>
                           {run.status}
                         </span>
-                        <p className="mt-0.5 font-mono-code text-[10px] text-text-muted/70">
+                        <p className="mt-0.5 font-mono-code text-xs text-text-muted/70">
                           {formatDistanceToNowStrict(new Date(run.createdAt), { addSuffix: true })}
                         </p>
                       </div>

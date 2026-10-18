@@ -72,7 +72,7 @@ export function AgentSettingsForm({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-text-primary">Status</p>
-          <p className="text-[11px] text-text-muted">Disabled agents never run, manually or by event.</p>
+          <p className="text-xs text-text-muted">Disabled agents never run, manually or by event.</p>
         </div>
         <button
           onClick={() => setEnabled((e) => !e)}
@@ -104,10 +104,10 @@ export function AgentSettingsForm({
                   : "border-border-subtle/60 hover:bg-surface-high/40"
               }`}
             >
-              <span className={`text-[11px] font-semibold ${autonomy === opt.level ? "text-primary" : "text-text-primary"}`}>
+              <span className={`text-xs font-semibold ${autonomy === opt.level ? "text-primary" : "text-text-primary"}`}>
                 {opt.label}
               </span>
-              <span className="block text-[10px] text-text-muted">{opt.hint}</span>
+              <span className="block text-xs text-text-muted">{opt.hint}</span>
             </button>
           ))}
         </div>
@@ -117,7 +117,7 @@ export function AgentSettingsForm({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-text-primary">Writes require approval</p>
-          <p className="text-[11px] text-text-muted">Any mutating tool call creates an Approval instead of executing.</p>
+          <p className="text-xs text-text-muted">Any mutating tool call creates an Approval instead of executing.</p>
         </div>
         <button
           onClick={() => setApprovalForWrites((w) => !w)}
@@ -136,7 +136,7 @@ export function AgentSettingsForm({
       {/* Tools */}
       <div className="space-y-2">
         <p className="text-xs font-semibold text-text-primary">Allowed tools</p>
-        <p className="text-[10px] text-text-muted">
+        <p className="text-xs text-text-muted">
           Unchecked tools are blocked by the policy engine before execution.
         </p>
         <div className="flex flex-wrap gap-2">
@@ -146,7 +146,7 @@ export function AgentSettingsForm({
               <button
                 key={tool}
                 onClick={() => toggleTool(tool)}
-                className={`rounded-full border px-2.5 py-1 font-mono-code text-[10px] transition-colors ${
+                className={`rounded-full border px-2.5 py-1 font-mono-code text-xs transition-colors ${
                   on
                     ? "border-primary/40 bg-primary/15 text-primary"
                     : "border-border-subtle/60 text-text-muted hover:bg-surface-high/40"
@@ -162,7 +162,7 @@ export function AgentSettingsForm({
       {/* Limits */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <label className="space-y-1.5">
-          <span className="text-[11px] font-medium text-text-secondary">Daily run limit</span>
+          <span className="text-xs font-medium text-text-secondary">Daily run limit</span>
           <input
             type="number"
             min={0}
@@ -173,7 +173,7 @@ export function AgentSettingsForm({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-[11px] font-medium text-text-secondary">Max tokens / run</span>
+          <span className="text-xs font-medium text-text-secondary">Max tokens / run</span>
           <input
             type="number"
             min={0}
@@ -185,7 +185,7 @@ export function AgentSettingsForm({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-[11px] font-medium text-text-secondary">Daily budget (USD)</span>
+          <span className="text-xs font-medium text-text-secondary">Daily budget (USD)</span>
           <input
             type="number"
             min={0}
@@ -201,13 +201,13 @@ export function AgentSettingsForm({
         <button
           onClick={save}
           disabled={pending}
-          className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-4 py-2 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-4 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
         >
           <Save className="h-3.5 w-3.5" />
           {pending ? "Saving…" : "Save settings"}
         </button>
-        {saved && <span className="text-[11px] text-success">Saved.</span>}
-        {error && <span className="text-[11px] text-danger">{error}</span>}
+        {saved && <span className="text-xs text-success">Saved.</span>}
+        {error && <span className="text-xs text-danger">{error}</span>}
       </div>
     </div>
   );

@@ -93,7 +93,7 @@ export function ConfirmLeadButton({
       </div>
 
       <div>
-        <label className="block text-[11px] text-text-muted mb-1">Meeting title</label>
+        <label className="block text-xs text-text-muted mb-1">Meeting title</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -102,7 +102,7 @@ export function ConfirmLeadButton({
       </div>
 
       <div>
-        <label className="block text-[11px] text-text-muted mb-1">Date &amp; time</label>
+        <label className="block text-xs text-text-muted mb-1">Date &amp; time</label>
         <input
           type="datetime-local"
           value={when}
@@ -112,7 +112,7 @@ export function ConfirmLeadButton({
       </div>
 
       <div>
-        <label className="block text-[11px] text-text-muted mb-1">Agenda (optional)</label>
+        <label className="block text-xs text-text-muted mb-1">Agenda (optional)</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -122,12 +122,12 @@ export function ConfirmLeadButton({
         />
       </div>
 
-      <p className="text-[11px] text-text-muted leading-relaxed">
+      <p className="text-xs text-text-muted leading-relaxed">
         Sets this lead to <span className="text-text-secondary">QUALIFIED</span> and adds the
         meeting to the Calendar + this lead&rsquo;s timeline.
       </p>
 
-      {error && <p className="text-[11px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       <button
         type="submit"

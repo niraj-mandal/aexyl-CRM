@@ -28,8 +28,8 @@ export function FlagToggle({
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-3.5">
       <div className="min-w-0">
-        <p className="font-mono-code text-[11px] text-text-primary">{label}</p>
-        <p className="mt-0.5 text-[10px] text-text-muted">{description}</p>
+        <p className="font-mono-code text-xs text-text-primary">{label}</p>
+        <p className="mt-0.5 text-xs text-text-muted">{description}</p>
       </div>
       <button
         onClick={toggle}

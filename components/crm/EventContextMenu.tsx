@@ -178,7 +178,7 @@ export function EventContextMenu({
             style={{ left: pos.x, top: pos.y }}
             onContextMenu={(e) => e.preventDefault()}
           >
-            {error && <p className="px-2 py-1 text-[10px] text-danger">{error}</p>}
+            {error && <p className="px-2 py-1 text-xs text-danger">{error}</p>}
             {event.href && (
               <button
                 type="button"

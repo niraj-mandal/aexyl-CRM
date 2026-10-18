@@ -64,7 +64,7 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
           <Display>{run.agent.name}</Display>
           <Badge
             variant={run.status === "COMPLETED" ? "primary" : run.status === "FAILED" ? "danger" : "tertiary"}
-            className="font-mono-code text-[10px]"
+            className="font-mono-code text-xs"
           >
             {run.status}
           </Badge>
@@ -80,21 +80,21 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
       {/* Meta strip */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <GlassCard className="p-4">
-          <p className="font-mono-code text-[10px] text-text-muted">TRIGGER</p>
+          <p className="font-mono-code text-xs text-text-muted">TRIGGER</p>
           <p className="mt-1 text-xs font-semibold text-text-primary">{run.triggerType}</p>
         </GlassCard>
         <GlassCard className="p-4">
-          <p className="font-mono-code text-[10px] text-text-muted">DURATION</p>
+          <p className="font-mono-code text-xs text-text-muted">DURATION</p>
           <p className="mt-1 text-xs font-semibold text-text-primary">
             {durationMs !== null ? `${(durationMs / 1000).toFixed(1)}s` : "running…"}
           </p>
         </GlassCard>
         <GlassCard className="p-4">
-          <p className="font-mono-code text-[10px] text-text-muted">TOKENS</p>
+          <p className="font-mono-code text-xs text-text-muted">TOKENS</p>
           <p className="mt-1 text-xs font-semibold text-text-primary">{run.tokensUsed.toLocaleString()}</p>
         </GlassCard>
         <GlassCard className="p-4">
-          <p className="font-mono-code text-[10px] text-text-muted">EST. COST</p>
+          <p className="font-mono-code text-xs text-text-muted">EST. COST</p>
           <p className="mt-1 text-xs font-semibold text-text-primary">
             ${(run.estimatedCostMicroUsd / 1_000_000).toFixed(4)}
           </p>
@@ -110,12 +110,12 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
               <p className="text-xs leading-relaxed text-text-secondary">{plan.summary}</p>
               <div className="flex flex-wrap items-center gap-2">
                 {plan.confidence && (
-                  <Badge variant="outline" className="font-mono-code text-[9px]">
+                  <Badge variant="outline" className="font-mono-code text-[11px]">
                     confidence: {plan.confidence.toLowerCase()}
                   </Badge>
                 )}
                 {plan.confidenceEvidence?.map((e, i) => (
-                  <span key={i} className="font-mono-code text-[9px] text-text-muted">
+                  <span key={i} className="font-mono-code text-[11px] text-text-muted">
                     · {e}
                   </span>
                 ))}
@@ -123,10 +123,10 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
               <ol className="space-y-2 pt-1">
                 {plan.actions?.map((a) => (
                   <li key={a.step} className="flex items-start gap-2.5 rounded-lg border border-border-subtle/50 bg-surface-lowest/40 p-3">
-                    <span className="font-mono-code text-[10px] text-primary">{a.step}</span>
+                    <span className="font-mono-code text-xs text-primary">{a.step}</span>
                     <div className="min-w-0">
-                      <p className="text-[11px] text-text-primary">{a.description}</p>
-                      <p className="mt-0.5 font-mono-code text-[10px] text-text-muted">
+                      <p className="text-xs text-text-primary">{a.description}</p>
+                      <p className="mt-0.5 font-mono-code text-xs text-text-muted">
                         {a.toolId ?? "analysis"} {a.requiresApproval ? "· needs approval" : ""}
                       </p>
                     </div>
@@ -144,7 +144,7 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
           <PageTitle>Result</PageTitle>
           <GlassCard className="p-5">
             {run.result ? (
-              <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono-code text-[10px] leading-relaxed text-text-secondary scrollbar-thin">
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono-code text-xs leading-relaxed text-text-secondary scrollbar-thin">
                 {JSON.stringify(run.result, null, 2)}
               </pre>
             ) : run.error ? (
@@ -170,29 +170,29 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
               {traces.map((t) => (
                 <GlassCard key={t.id} className="p-4">
                   <div className="flex items-start gap-3">
-                    <span className="font-mono-code text-[10px] text-text-muted">
+                    <span className="font-mono-code text-xs text-text-muted">
                       {String(t.stepNumber).padStart(2, "0")}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-semibold text-text-primary">{t.summary}</span>
-                        <span className={`font-mono-code text-[9px] ${TRACE_STATUS[t.status] ?? "text-primary"}`}>
+                        <span className="text-xs font-semibold text-text-primary">{t.summary}</span>
+                        <span className={`font-mono-code text-[11px] ${TRACE_STATUS[t.status] ?? "text-primary"}`}>
                           {t.status}
                         </span>
                       </div>
-                      <p className="mt-0.5 font-mono-code text-[10px] text-text-muted">
+                      <p className="mt-0.5 font-mono-code text-xs text-text-muted">
                         {t.type}
                         {t.toolName ? ` · ${t.toolName}` : ""}
                         {t.latencyMs ? ` · ${t.latencyMs}ms` : ""}
                         {t.estimatedCostMicroUsd ? ` · $${(t.estimatedCostMicroUsd / 1_000_000).toFixed(5)}` : ""}
                       </p>
-                      {t.error && <p className="mt-1 text-[10px] text-danger">{t.error}</p>}
+                      {t.error && <p className="mt-1 text-xs text-danger">{t.error}</p>}
                       {t.output != null && (
                         <details className="mt-1.5">
-                          <summary className="cursor-pointer font-mono-code text-[10px] text-text-muted hover:text-text-secondary">
+                          <summary className="cursor-pointer font-mono-code text-xs text-text-muted hover:text-text-secondary">
                             output
                           </summary>
-                          <pre className="mt-1 max-h-40 overflow-auto rounded-lg border border-border-subtle/60 bg-surface-lowest/70 p-2 font-mono-code text-[10px] text-text-secondary scrollbar-thin">
+                          <pre className="mt-1 max-h-40 overflow-auto rounded-lg border border-border-subtle/60 bg-surface-lowest/70 p-2 font-mono-code text-xs text-text-secondary scrollbar-thin">
                             {JSON.stringify(t.output, null, 2)}
                           </pre>
                         </details>
@@ -213,12 +213,12 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
                   <GlassCard key={a.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[11px] font-semibold text-text-primary">{a.description}</p>
-                        <p className="mt-0.5 font-mono-code text-[10px] text-text-muted">
+                        <p className="text-xs font-semibold text-text-primary">{a.description}</p>
+                        <p className="mt-0.5 font-mono-code text-xs text-text-muted">
                           {a.toolName} · {a.status.toLowerCase()}
                         </p>
                       </div>
-                      <Link href="/agents/approvals" className="shrink-0 text-[11px] text-primary hover:underline">
+                      <Link href="/agents/approvals" className="shrink-0 text-xs text-primary hover:underline">
                         view →
                       </Link>
                     </div>

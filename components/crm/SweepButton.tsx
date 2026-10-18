@@ -44,7 +44,7 @@ export function SweepButton({
   return (
     <div className="flex items-center space-x-3">
       {result && (
-        <span className="flex items-center text-[11px] text-secondary font-mono-code">
+        <span className="flex items-center text-xs text-secondary font-mono-code">
           <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
           {result}
         </span>

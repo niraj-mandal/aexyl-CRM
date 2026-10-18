@@ -38,13 +38,13 @@ export default function CommandCenter() {
           <Display>Welcome back, {clerkUser?.firstName || stats?.user?.firstName || "Operator"}.</Display>
         </div>
         <div className="flex items-center space-x-3">
-          <Badge variant={connected ? "secondary" : "outline"} className="font-mono-code text-[11px]">
+          <Badge variant={connected ? "secondary" : "outline"} className="font-mono-code text-xs">
             STREAM: {connected ? "LIVE 5s" : "OFFLINE"}
           </Badge>
-          <Badge variant="secondary" className="font-mono-code text-[11px]">
+          <Badge variant="secondary" className="font-mono-code text-xs">
             HEALTH: {stats?.pipelineHealth ?? "—"}
           </Badge>
-          <Badge variant="outline" className="font-mono-code text-[11px]">
+          <Badge variant="outline" className="font-mono-code text-xs">
             LATENCY: {stats ? `${stats.latencyMs}ms` : "—"}
           </Badge>
         </div>
@@ -73,7 +73,7 @@ export default function CommandCenter() {
               <TrendingUp className="mr-1 h-3 w-3" /> {stats?.activeDeals ?? 0} open
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-text-muted">
+          <p className="mt-1 text-xs text-text-muted">
             Total incl. closed-won: ${(stats?.totalPipelineValue ?? 0).toLocaleString()}
           </p>
         </GlassCard>
@@ -93,7 +93,7 @@ export default function CommandCenter() {
               <Sparkles className="mr-1 h-3 w-3" /> {stats?.hotLeads ?? 0} hot
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-text-muted">{stats?.activeCompanies ?? 0} active companies in workspace</p>
+          <p className="mt-1 text-xs text-text-muted">{stats?.activeCompanies ?? 0} active companies in workspace</p>
         </GlassCard>
 
         <GlassCard className="group relative overflow-hidden p-5 transition-all hover:border-primary/40">
@@ -107,7 +107,7 @@ export default function CommandCenter() {
             <span className="text-2xl font-semibold tracking-tight text-text-primary">{stats?.winRate ?? "—"}</span>
             <span className="text-xs font-medium text-text-muted">All-time</span>
           </div>
-          <p className="mt-1 text-[11px] text-text-muted">Computed from won vs total deals</p>
+          <p className="mt-1 text-xs text-text-muted">Computed from won vs total deals</p>
         </GlassCard>
 
         <GlassCard className="group relative overflow-hidden p-5 transition-all hover:border-primary/40">
@@ -119,9 +119,9 @@ export default function CommandCenter() {
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             <span className="text-2xl font-semibold tracking-tight text-text-primary">{stats?.pipelineHealth ?? "—"}</span>
-            <Badge variant="primary" className="text-[10px]">Fresh &lt; 14d</Badge>
+            <Badge variant="primary" className="text-xs">Fresh &lt; 14d</Badge>
           </div>
-          <p className="mt-1 text-[11px] text-text-muted">
+          <p className="mt-1 text-xs text-text-muted">
             {error ? `Stream error: ${error}` : `Updated ${stats ? new Date(stats.updatedAt).toLocaleTimeString() : "—"}`}
           </p>
         </GlassCard>
@@ -149,7 +149,7 @@ export default function CommandCenter() {
                   <div key={stage} className="rounded-lg bg-surface-low p-3 border border-border-subtle">
                     <MonoLabel>{stage.replace("_", " ")}</MonoLabel>
                     <div className="mt-1 text-lg font-bold text-text-primary">{entry?.count ?? 0}</div>
-                    <div className="text-[10px] text-text-muted">${(entry?.value ?? 0).toLocaleString()}</div>
+                    <div className="text-xs text-text-muted">${(entry?.value ?? 0).toLocaleString()}</div>
                   </div>
                 );
               })}
@@ -187,11 +187,11 @@ export default function CommandCenter() {
                       </div>
                       <div>
                         <h4 className="text-xs font-semibold text-text-primary">{stats?.hotLeads ?? 0} hot leads need attention</h4>
-                        <p className="text-[11px] text-text-muted">Score ≥ 70 or temperature HOT — engage today</p>
+                        <p className="text-xs text-text-muted">Score ≥ 70 or temperature HOT — engage today</p>
                       </div>
                     </div>
                     <Link href="/leads">
-                      <Badge variant="tertiary" className="font-mono-code text-[10px]">LEADS</Badge>
+                      <Badge variant="tertiary" className="font-mono-code text-xs">LEADS</Badge>
                     </Link>
                   </div>
 
@@ -204,11 +204,11 @@ export default function CommandCenter() {
                         <h4 className="text-xs font-semibold text-text-primary">
                           ${(stats?.pipelineRevenue ?? 0).toLocaleString()} of open pipeline
                         </h4>
-                        <p className="text-[11px] text-text-muted">Across {stats?.activeDeals ?? 0} active deals</p>
+                        <p className="text-xs text-text-muted">Across {stats?.activeDeals ?? 0} active deals</p>
                       </div>
                     </div>
                     <Link href="/pipeline">
-                      <Badge variant="outline" className="font-mono-code text-[10px]">PIPELINE</Badge>
+                      <Badge variant="outline" className="font-mono-code text-xs">PIPELINE</Badge>
                     </Link>
                   </div>
 
@@ -219,13 +219,13 @@ export default function CommandCenter() {
                       </div>
                       <div>
                         <h4 className="text-xs font-semibold text-text-primary">{stats?.winRate ?? "—"} all-time win rate</h4>
-                        <p className="text-[11px] text-text-muted">
+                        <p className="text-xs text-text-muted">
                           {stats?.activeCompanies ?? 0} active companies · {stats?.activeLeads ?? 0} active leads
                         </p>
                       </div>
                     </div>
                     <Link href="/clients">
-                      <Badge variant="secondary" className="font-mono-code text-[10px]">CLIENTS</Badge>
+                      <Badge variant="secondary" className="font-mono-code text-xs">CLIENTS</Badge>
                     </Link>
                   </div>
                 </>
@@ -243,7 +243,7 @@ export default function CommandCenter() {
             </div>
 
             <div className="mt-4 space-y-3">
-              <Body className="text-[11px] text-text-secondary leading-relaxed">
+              <Body className="text-xs text-text-secondary leading-relaxed">
                 The brief above runs a full strategic audit on live workspace data — stalled-deal risk, staleness
                 index, win conversion, and lead engagement. Deeper analysis, plus the AI Copilot and lead
                 discovery engine, live in the Intelligence section.

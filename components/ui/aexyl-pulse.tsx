@@ -41,7 +41,7 @@ export function AexylPulse({ state = "idle", className }: AexylPulseProps) {
   const status = connected ? "LIVE" : "OFFLINE";
 
   return (
-    <div className={cn("inline-flex items-center space-x-2.5 rounded-full bg-surface-low border border-border-subtle px-3 py-1 text-[11px] font-mono-code tracking-[0.04em]", className)}>
+    <div className={cn("inline-flex items-center space-x-2.5 rounded-full bg-surface-low border border-border-subtle px-3 py-1 text-xs font-mono-code tracking-[0.04em]", className)}>
       <div className="relative flex h-3.5 w-3.5 items-center justify-center">
         {config.pulse && (
           <motion.span

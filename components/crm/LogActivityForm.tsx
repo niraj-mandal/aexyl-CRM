@@ -89,7 +89,7 @@ export function LogActivityForm({
             key={t.value}
             type="button"
             onClick={() => setType(t.value)}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
               type === t.value
                 ? "bg-primary/20 border-primary/40 text-primary"
                 : "bg-surface-lowest border-border-subtle text-text-muted hover:text-text-primary"
@@ -115,7 +115,7 @@ export function LogActivityForm({
         className="w-full rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-primary/60 focus:outline-none"
       />
 
-      {error && <p className="text-[11px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       <button
         type="submit"

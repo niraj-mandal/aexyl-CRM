@@ -52,17 +52,17 @@ export function ApprovalCard({ approval }: { approval: ApprovalItem }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-text-primary">{approval.agentName}</span>
-            <span className="font-mono-code text-[10px] text-text-muted">wants to</span>
-            <span className="font-mono-code text-[10px] text-primary">{approval.actionType.replace(/_/g, " ")}</span>
-            <span className={`rounded border px-1.5 py-0.5 font-mono-code text-[9px] ${riskTone}`}>
+            <span className="font-mono-code text-xs text-text-muted">wants to</span>
+            <span className="font-mono-code text-xs text-primary">{approval.actionType.replace(/_/g, " ")}</span>
+            <span className={`rounded border px-1.5 py-0.5 font-mono-code text-[11px] ${riskTone}`}>
               {approval.riskLevel}
             </span>
           </div>
           <p className="mt-1.5 text-xs text-text-secondary">{approval.description}</p>
           {approval.impactSummary && (
-            <p className="mt-1 text-[11px] text-text-muted">{approval.impactSummary}</p>
+            <p className="mt-1 text-xs text-text-muted">{approval.impactSummary}</p>
           )}
-          <p className="mt-1 font-mono-code text-[10px] text-text-muted/70">
+          <p className="mt-1 font-mono-code text-xs text-text-muted/70">
             requested {approval.requestedAt} · expires {approval.expiresAt}
           </p>
         </div>
@@ -70,25 +70,25 @@ export function ApprovalCard({ approval }: { approval: ApprovalItem }) {
 
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="mt-2 flex items-center gap-1 text-[11px] text-text-muted transition-colors hover:text-text-secondary"
+        className="mt-2 flex items-center gap-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
       >
         {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         Review proposed arguments
       </button>
       {expanded && (
-        <pre className="mt-2 max-h-48 overflow-auto rounded-lg border border-border-subtle/60 bg-surface-lowest/80 p-3 font-mono-code text-[10px] leading-relaxed text-text-secondary scrollbar-thin">
+        <pre className="mt-2 max-h-48 overflow-auto rounded-lg border border-border-subtle/60 bg-surface-lowest/80 p-3 font-mono-code text-xs leading-relaxed text-text-secondary scrollbar-thin">
           {JSON.stringify(approval.proposedArguments, null, 2)}
         </pre>
       )}
 
       {outcome ? (
-        <p className="mt-3 text-[11px] text-tertiary">{outcome}</p>
+        <p className="mt-3 text-xs text-tertiary">{outcome}</p>
       ) : (
         <div className="mt-3 flex items-center gap-2">
           <button
             onClick={() => run(() => approveAgentActionAction(approval.id))}
             disabled={pending}
-            className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
           >
             <Check className="h-3.5 w-3.5" />
             {pending ? "Executing…" : "Approve & Execute"}
@@ -96,7 +96,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalItem }) {
           <button
             onClick={() => run(() => approveAgentActionAction(approval.id, true))}
             disabled={pending}
-            className="flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-[11px] text-text-secondary transition-colors hover:bg-surface-high/50 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-high/50 disabled:opacity-50"
             title="Simulate the approved action without side effects"
           >
             <FlaskConical className="h-3.5 w-3.5" />
@@ -105,7 +105,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalItem }) {
           <button
             onClick={() => run(() => rejectApprovalAction(approval.id))}
             disabled={pending}
-            className="flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-[11px] text-text-secondary transition-colors hover:border-tertiary/40 hover:text-tertiary disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-text-secondary transition-colors hover:border-tertiary/40 hover:text-tertiary disabled:opacity-50"
           >
             <X className="h-3.5 w-3.5" />
             Reject

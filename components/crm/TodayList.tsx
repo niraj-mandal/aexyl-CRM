@@ -61,7 +61,7 @@ export function TodayList() {
           <Sparkles className="h-4 w-4 text-primary" />
           <MonoLabel className="text-primary">TODAY&apos;S OUTREACH</MonoLabel>
         </div>
-        <span className="text-[11px] text-text-muted">
+        <span className="text-xs text-text-muted">
           {followUps.length} follow-up{followUps.length === 1 ? "" : "s"} · {toContact.length} new to contact
         </span>
       </div>
@@ -71,7 +71,7 @@ export function TodayList() {
           <CalendarClock className="h-3.5 w-3.5 text-tertiary" /> Follow-ups due
         </h3>
         {followUps.length === 0 ? (
-          <p className="text-[11px] text-text-muted">None due. Leads you mark as contacted come back here 3 days later.</p>
+          <p className="text-xs text-text-muted">None due. Leads you mark as contacted come back here 3 days later.</p>
         ) : (
           followUps.map((l) => (
             <TodayRow key={l.id} lead={l} note={overdue(l) ? "Overdue" : "Due today"} urgent={overdue(l)} onOutcome={load} />
@@ -84,7 +84,7 @@ export function TodayList() {
           <UserPlus className="h-3.5 w-3.5 text-secondary" /> New leads to contact
         </h3>
         {toContact.length === 0 ? (
-          <p className="text-[11px] text-text-muted">
+          <p className="text-xs text-text-muted">
             No uncontacted leads with a phone or email.
             {noContactCount > 0 && " Look up numbers with the Maps button in Leads, or approve more in Lead Discovery."}
           </p>
@@ -92,7 +92,7 @@ export function TodayList() {
           toContact.map((l) => <TodayRow key={l.id} lead={l} note={`Score ${l.score}`} />)
         )}
         {(moreReachable > 0 || noContactCount > 0) && (
-          <p className="text-[10px] text-text-muted">
+          <p className="text-xs text-text-muted">
             {moreReachable > 0 && `${moreReachable} more ready after these. `}
             {noContactCount > 0 && (
               <>
@@ -112,7 +112,7 @@ function TodayRow({ lead, note, urgent, onOutcome }: { lead: OutreachLead; note:
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-low px-3 py-2">
       <div className="min-w-0">
         <p className="text-xs font-semibold text-text-primary truncate">{lead.businessName}</p>
-        <p className="flex flex-wrap items-center gap-2 text-[10px] text-text-muted">
+        <p className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
           <span className={urgent ? "text-danger font-semibold" : ""}>{note}</span>
           {lead.phone && (
             <a href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1 text-success hover:underline">
@@ -128,13 +128,13 @@ function TodayRow({ lead, note, urgent, onOutcome }: { lead: OutreachLead; note:
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Open ${lead.businessName} on Google Maps`}
-          className="inline-flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 text-[10px] text-text-muted hover:text-primary"
+          className="inline-flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 text-xs text-text-muted hover:text-primary"
         >
           <MapPin className="h-3 w-3" /> Maps
         </a>
         <Link
           href={`/outreach?lead=${lead.id}`}
-          className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2.5 py-1 text-[10px] font-semibold text-primary hover:bg-primary/25"
+          className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/25"
         >
           <Sparkles className="h-3 w-3" /> Write pitch
         </Link>

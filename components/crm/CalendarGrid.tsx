@@ -159,7 +159,7 @@ export function CalendarGrid({
                 key={kind}
                 onClick={() => toggleKind(kind)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition",
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition",
                   active
                     ? style.pill
                     : "border-border-subtle text-text-muted opacity-50 hover:opacity-80"
@@ -180,7 +180,7 @@ export function CalendarGrid({
         {WEEKDAYS.map((d) => (
           <div
             key={d}
-            className="text-center text-[10px] font-mono-code uppercase tracking-wider text-text-muted py-1"
+            className="text-center text-xs font-mono-code uppercase tracking-wider text-text-muted py-1"
           >
             {d}
           </div>
@@ -208,14 +208,14 @@ export function CalendarGrid({
               <div className="flex items-center justify-between">
                 <span
                   className={cn(
-                    "text-[11px] font-mono-code",
+                    "text-xs font-mono-code",
                     isToday ? "text-primary font-semibold" : isPast ? "text-text-muted" : "text-text-secondary"
                   )}
                 >
                   {date.getDate()}
                 </span>
                 {isToday && (
-                  <span className="text-[9px] font-mono-code uppercase text-primary">today</span>
+                  <span className="text-[11px] font-mono-code uppercase text-primary">today</span>
                 )}
               </div>
               <div className="flex flex-col gap-0.5 overflow-hidden">
@@ -228,7 +228,7 @@ export function CalendarGrid({
                       href={e.href ?? "#"}
                       title={`${e.title}${e.context ? ` — ${e.context}` : ""}`}
                       className={cn(
-                        "block rounded border px-1.5 py-0.5 text-[10px] leading-tight transition hover:opacity-80",
+                        "block rounded border px-1.5 py-0.5 text-xs leading-tight transition hover:opacity-80",
                         style.pill
                       )}
                     >
@@ -239,7 +239,7 @@ export function CalendarGrid({
                       </span>
                       {/* Line 2 (dim): what it is — only when the first line already told who. */}
                       {e.context && (
-                        <span className="block truncate text-[9px] opacity-70">
+                        <span className="block truncate text-[11px] opacity-70">
                           {e.title}
                         </span>
                       )}
@@ -248,7 +248,7 @@ export function CalendarGrid({
                   );
                 })}
                 {dayEvents.length > 3 && (
-                  <span className="text-[9px] font-mono-code text-text-muted pl-1">
+                  <span className="text-[11px] font-mono-code text-text-muted pl-1">
                     +{dayEvents.length - 3} more
                   </span>
                 )}

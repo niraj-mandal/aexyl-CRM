@@ -22,7 +22,7 @@ export function RunFeedbackButtons({ runId, existingRating }: { runId: string; e
 
   return (
     <div className="flex items-center gap-2">
-      <span className="font-mono-code text-[10px] text-text-muted">Helpful?</span>
+      <span className="font-mono-code text-xs text-text-muted">Helpful?</span>
       <button
         type="button"
         disabled={pending}

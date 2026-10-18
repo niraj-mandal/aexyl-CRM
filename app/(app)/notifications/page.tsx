@@ -28,7 +28,7 @@ export default async function NotificationsPage() {
             Approvals, failed runs, incidents, and workspace events land here.
           </Body>
         </section>
-        <Badge variant="outline" className="font-mono-code text-[11px]">
+        <Badge variant="outline" className="font-mono-code text-xs">
           {unread} unread · {items.length} recent
         </Badge>
       </div>
@@ -69,12 +69,12 @@ export default async function NotificationsPage() {
                         {content.body}
                       </p>
                     )}
-                    <p className="mt-1 font-mono-code text-[10px] text-text-muted/60">
+                    <p className="mt-1 font-mono-code text-xs text-text-muted/60">
                       {format(new Date(n.createdAt), "EEE d MMM · HH:mm")}
                     </p>
                   </div>
                   {!n.readAt && (
-                    <Badge variant="secondary" className="font-mono-code text-[9px] shrink-0">
+                    <Badge variant="secondary" className="font-mono-code text-[11px] shrink-0">
                       NEW
                     </Badge>
                   )}

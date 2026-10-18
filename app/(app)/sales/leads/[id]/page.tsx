@@ -104,7 +104,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             )}
           </div>
           {lead.status === "CONVERTED" && (
-            <span className="text-[11px] font-mono-code text-secondary">LEAD CONVERTED — see pipeline</span>
+            <span className="text-xs font-mono-code text-secondary">LEAD CONVERTED — see pipeline</span>
           )}
         </div>
       </div>
@@ -205,11 +205,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
                       {deal.value && (
-                        <span className="font-mono-code text-[11px] text-text-secondary">
+                        <span className="font-mono-code text-xs text-text-secondary">
                           ${Number(deal.value).toLocaleString("en-US")}
                         </span>
                       )}
-                      <Badge variant="outline" className="font-mono-code text-[10px]">{deal.stage}</Badge>
+                      <Badge variant="outline" className="font-mono-code text-xs">{deal.stage}</Badge>
                     </span>
                   </Link>
                 ))}

@@ -26,7 +26,7 @@ export function LeadPhoneEditor({ leadId, phone }: { leadId: string; phone: stri
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1 rounded border border-dashed border-border-subtle px-1.5 py-0.5 text-[10px] text-text-muted hover:text-primary hover:border-primary/40"
+        className="inline-flex items-center gap-1 rounded border border-dashed border-border-subtle px-1.5 py-0.5 text-xs text-text-muted hover:text-primary hover:border-primary/40"
       >
         <Plus className="h-3 w-3" /> Add phone
       </button>
@@ -60,7 +60,7 @@ export function LeadPhoneEditor({ leadId, phone }: { leadId: string; phone: stri
           onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
           placeholder="+91 98xxx xxxxx"
           aria-label="Phone number"
-          className="w-32 rounded border border-border-subtle bg-surface-low px-1.5 py-0.5 text-[11px] text-text-primary focus:border-primary focus:outline-none"
+          className="w-32 rounded border border-border-subtle bg-surface-low px-1.5 py-0.5 text-xs text-text-primary focus:border-primary focus:outline-none"
         />
         <button type="submit" disabled={pending || !value.trim()} aria-label="Save phone" className="rounded p-1 text-success hover:bg-success/10 disabled:opacity-40">
           {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
@@ -69,7 +69,7 @@ export function LeadPhoneEditor({ leadId, phone }: { leadId: string; phone: stri
           <X className="h-3 w-3" />
         </button>
       </div>
-      {error && <span role="alert" className="text-[10px] text-danger">{error}</span>}
+      {error && <span role="alert" className="text-xs text-danger">{error}</span>}
     </form>
   );
 }
@@ -111,7 +111,7 @@ export function LeadOutcomeSelect({ leadId, compact, onDone }: { leadId: string;
             e.target.value = "";
           }}
           aria-label="Record outcome"
-          className={`rounded border border-border-subtle bg-surface-low px-1.5 py-0.5 text-text-secondary focus:border-primary focus:outline-none disabled:opacity-50 ${compact ? "text-[10px]" : "text-[11px]"}`}
+          className={`rounded border border-border-subtle bg-surface-low px-1.5 py-0.5 text-text-secondary focus:border-primary focus:outline-none disabled:opacity-50 ${compact ? "text-xs" : "text-xs"}`}
         >
           <option value="" disabled>Outcome…</option>
           {OUTCOME_OPTIONS.map((o) => (
@@ -121,7 +121,7 @@ export function LeadOutcomeSelect({ leadId, compact, onDone }: { leadId: string;
         {pending && <Loader2 className="h-3 w-3 animate-spin text-text-muted" />}
       </div>
       {message && (
-        <span role="status" className={`text-[10px] ${message.ok ? "text-success" : "text-danger"}`}>{message.text}</span>
+        <span role="status" className={`text-xs ${message.ok ? "text-success" : "text-danger"}`}>{message.text}</span>
       )}
     </div>
   );

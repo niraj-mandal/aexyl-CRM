@@ -104,7 +104,7 @@ export default async function SettingsPage({
           <MonoLabel className="text-primary block mb-1">SYSTEM // CONFIGURATION</MonoLabel>
           <Display>Settings</Display>
         </div>
-        <Badge variant="outline" className="font-mono-code text-[11px] self-start sm:self-auto">
+        <Badge variant="outline" className="font-mono-code text-xs self-start sm:self-auto">
           {workspace.name.toUpperCase()} · {workspace.slug}
         </Badge>
       </section>
@@ -121,7 +121,7 @@ export default async function SettingsPage({
             >
               <span>{t}</span>
               {counts[t as keyof typeof counts] && (
-                <span className="font-mono-code text-[10px] text-text-muted">{counts[t as keyof typeof counts]}</span>
+                <span className="font-mono-code text-xs text-text-muted">{counts[t as keyof typeof counts]}</span>
               )}
             </Link>
           ))}
@@ -234,16 +234,16 @@ export default async function SettingsPage({
                       <p className="text-sm font-medium text-text-primary truncate">
                         {[m.user.firstName, m.user.lastName].filter(Boolean).join(" ") || "Unnamed member"}
                         {m.user.id === userId && (
-                          <span className="ml-2 text-[10px] font-mono-code text-primary">YOU</span>
+                          <span className="ml-2 text-xs font-mono-code text-primary">YOU</span>
                         )}
                       </p>
                       <p className="text-xs text-text-muted truncate">{m.user.email}</p>
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                      <Badge variant="primary" className="font-mono-code text-[10px]">
+                      <Badge variant="primary" className="font-mono-code text-xs">
                         {m.role?.name ?? "Member"}
                       </Badge>
-                      <p className="mt-1 text-[10px] text-text-muted">joined {formatDate(m.user.createdAt)}</p>
+                      <p className="mt-1 text-xs text-text-muted">joined {formatDate(m.user.createdAt)}</p>
                     </div>
                   </div>
                 ))}
@@ -298,16 +298,16 @@ export default async function SettingsPage({
                         <span className="text-text-secondary">{row.entity}</span>
                       </p>
                       {row.metadata != null && typeof row.metadata === "object" && Object.keys(row.metadata).length > 0 && (
-                        <p className="text-[10px] font-mono-code text-text-muted truncate">
+                        <p className="text-xs font-mono-code text-text-muted truncate">
                           {JSON.stringify(row.metadata)}
                         </p>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-[11px] text-text-secondary">
+                      <p className="text-xs text-text-secondary">
                         {[row.actor?.firstName, row.actor?.lastName].filter(Boolean).join(" ") || "system"}
                       </p>
-                      <p className="text-[10px] text-text-muted">{formatTime(row.createdAt)}</p>
+                      <p className="text-xs text-text-muted">{formatTime(row.createdAt)}</p>
                     </div>
                   </div>
                 ))}
@@ -354,7 +354,7 @@ export default async function SettingsPage({
                         <p className="text-xs text-text-muted truncate">{i.desc}</p>
                       </div>
                     </div>
-                    <Badge variant={i.ok ? "secondary" : "outline"} className="font-mono-code text-[10px] shrink-0 ml-4">
+                    <Badge variant={i.ok ? "secondary" : "outline"} className="font-mono-code text-xs shrink-0 ml-4">
                       {i.status}
                     </Badge>
                   </div>

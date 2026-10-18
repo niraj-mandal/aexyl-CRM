@@ -43,7 +43,7 @@ export default async function ApprovalsPage() {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <PageTitle>{title}</PageTitle>
-        <span className="font-mono-code text-[10px] text-text-muted">{items.length}</span>
+        <span className="font-mono-code text-xs text-text-muted">{items.length}</span>
       </div>
       {items.length === 0 ? (
         <GlassCard className="flex min-h-[90px] items-center justify-center">

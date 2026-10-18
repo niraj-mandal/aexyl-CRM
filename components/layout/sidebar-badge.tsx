@@ -17,7 +17,7 @@ export function SidebarBadge({
   return (
     <span
       title={title}
-      className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-mono-code text-[9px] font-bold text-white ${
+      className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-mono-code text-[11px] font-bold text-white ${
         tone === "alert"
           ? "bg-tertiary shadow-[0_0_10px_rgba(255,185,95,0.45)]"
           : "bg-primary/80"

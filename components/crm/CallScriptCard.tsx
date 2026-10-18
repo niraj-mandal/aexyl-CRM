@@ -94,11 +94,11 @@ export function CallScriptCard({ leadId }: { leadId: string }) {
       {script && !loading && (
         <div className="space-y-4 text-sm">
           <div>
-            <div className="text-[11px] font-mono-code uppercase text-text-muted mb-1">Opener</div>
+            <div className="text-xs font-mono-code uppercase text-text-muted mb-1">Opener</div>
             <p className="text-text-primary leading-relaxed">{script.opener}</p>
           </div>
           <div>
-            <div className="text-[11px] font-mono-code uppercase text-text-muted mb-1">Discovery</div>
+            <div className="text-xs font-mono-code uppercase text-text-muted mb-1">Discovery</div>
             <ol className="list-decimal list-inside space-y-1 text-text-secondary">
               {script.discoveryQuestions.map((q, i) => (
                 <li key={i}>{q}</li>
@@ -106,12 +106,12 @@ export function CallScriptCard({ leadId }: { leadId: string }) {
             </ol>
           </div>
           <div>
-            <div className="text-[11px] font-mono-code uppercase text-text-muted mb-1">Pitch</div>
+            <div className="text-xs font-mono-code uppercase text-text-muted mb-1">Pitch</div>
             <p className="text-text-secondary leading-relaxed">{script.pitch}</p>
           </div>
           {script.objectionHandling.length > 0 && (
             <div>
-              <div className="text-[11px] font-mono-code uppercase text-text-muted mb-1">Objections</div>
+              <div className="text-xs font-mono-code uppercase text-text-muted mb-1">Objections</div>
               <div className="space-y-2">
                 {script.objectionHandling.map((o, i) => (
                   <div key={i} className="rounded-lg border border-border-subtle bg-surface-low p-3">
@@ -123,10 +123,10 @@ export function CallScriptCard({ leadId }: { leadId: string }) {
             </div>
           )}
           <div>
-            <div className="text-[11px] font-mono-code uppercase text-text-muted mb-1">Close</div>
+            <div className="text-xs font-mono-code uppercase text-text-muted mb-1">Close</div>
             <p className="text-text-primary leading-relaxed">{script.close}</p>
           </div>
-          <p className="text-[11px] text-text-muted border-t border-border-subtle pt-3">
+          <p className="text-xs text-text-muted border-t border-border-subtle pt-3">
             {script.source === "llm"
               ? "AI-generated from this lead's CRM data — a conversation aid, not verified facts. Verify before you promise anything."
               : "Standard template (LLM unavailable) built from this lead's CRM fields."}

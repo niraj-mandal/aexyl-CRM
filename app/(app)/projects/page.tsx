@@ -64,14 +64,14 @@ export default async function ProjectsPage() {
           <Display>Projects Directory</Display>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary" className="font-mono-code text-[11px]">
+          <Badge variant="secondary" className="font-mono-code text-xs">
             {active.length} ACTIVE · {delivered.length} DELIVERED
           </Badge>
-          <Badge variant="outline" className="font-mono-code text-[11px]">
+          <Badge variant="outline" className="font-mono-code text-xs">
             AVG PROGRESS: {avgProgress}%
           </Badge>
           {atRisk.length > 0 && (
-            <Badge variant="danger" className="font-mono-code text-[11px]">
+            <Badge variant="danger" className="font-mono-code text-xs">
               {atRisk.length} AT RISK
             </Badge>
           )}
@@ -144,7 +144,7 @@ export default async function ProjectsPage() {
                 </div>
 
                 {/* Meta row */}
-                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-muted">
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
                   {project.company && (
                     <Link
                       href="/sales/companies"

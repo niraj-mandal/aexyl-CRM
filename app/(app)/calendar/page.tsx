@@ -81,7 +81,7 @@ export default async function CalendarPage({
         <GlassCard>
           <div className="flex items-center justify-between mb-4">
             <PageTitle>{MONTH_NAMES[month - 1]} agenda</PageTitle>
-            <Badge variant="outline" className="font-mono-code text-[11px]">
+            <Badge variant="outline" className="font-mono-code text-xs">
               {events.length} items
             </Badge>
           </div>
@@ -104,7 +104,7 @@ export default async function CalendarPage({
                           href={e.href ?? "#"}
                           className="flex items-center gap-3 rounded-lg border border-border-subtle/60 bg-surface-lowest/40 px-3 py-2 hover:bg-surface-elevated/60 transition group"
                         >
-                        <span className="font-mono-code text-[11px] text-text-muted w-12 shrink-0">
+                        <span className="font-mono-code text-xs text-text-muted w-12 shrink-0">
                           {e.allDay
                             ? "all-day"
                             : format(new Date(e.when), "HH:mm")}
@@ -112,12 +112,12 @@ export default async function CalendarPage({
                         <span className="flex-1 min-w-0 text-sm text-text-primary group-hover:text-primary transition">
                           <span className="block truncate">{e.title}</span>
                           {e.context && (
-                            <span className="block truncate text-[11px] text-text-muted">
+                            <span className="block truncate text-xs text-text-muted">
                               {e.context}
                             </span>
                           )}
                         </span>
-                        <Badge variant="secondary" className="font-mono-code text-[10px] shrink-0">
+                        <Badge variant="secondary" className="font-mono-code text-xs shrink-0">
                           {KIND_LABEL[e.kind] ?? e.kind}
                         </Badge>
                         </Link>
@@ -134,7 +134,7 @@ export default async function CalendarPage({
         <GlassCard>
           <div className="flex items-center justify-between mb-4">
             <PageTitle>Upcoming meetings</PageTitle>
-            <Badge variant="secondary" className="font-mono-code text-[11px]">
+            <Badge variant="secondary" className="font-mono-code text-xs">
               {counts.MEETING} this month
             </Badge>
           </div>
@@ -154,7 +154,7 @@ export default async function CalendarPage({
                     <span className="text-sm font-medium text-text-primary truncate">
                       {m.title}
                     </span>
-                    <span className="font-mono-code text-[11px] text-primary shrink-0">
+                    <span className="font-mono-code text-xs text-primary shrink-0">
                       {format(new Date(m.occurredAt), "EEE d MMM · HH:mm")}
                     </span>
                   </div>

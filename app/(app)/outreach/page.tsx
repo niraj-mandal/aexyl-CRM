@@ -188,7 +188,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
             Pick a lead and get a WhatsApp message, call script and email written from its real details. You review and send — nothing goes out automatically.
           </p>
         </div>
-        <Badge variant="secondary" className="font-mono-code text-[11px] self-start sm:self-auto">
+        <Badge variant="secondary" className="font-mono-code text-xs self-start sm:self-auto">
           CONTACTABLE LEADS: {contactableCount}
         </Badge>
       </div>
@@ -207,7 +207,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               className="w-full rounded-lg bg-surface-low border border-border-subtle pl-8 pr-3 py-2 text-xs text-text-primary focus:border-primary focus:outline-none"
             />
           </div>
-          <label className="flex items-center gap-2 text-[11px] text-text-muted cursor-pointer">
+          <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer">
             <input
               type="checkbox"
               checked={contactableOnly}
@@ -245,7 +245,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                       <span className="text-xs font-semibold text-text-primary truncate">{l.businessName}</span>
                       {l.lastContactedAt && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-label="Contacted" />}
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-text-muted">
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-text-muted">
                       {l.phone ? (
                         <span className="inline-flex items-center gap-1 text-success"><Phone className="h-3 w-3" />{l.phone}</span>
                       ) : l.email ? (
@@ -253,7 +253,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                       ) : (
                         <span>No contact listed</span>
                       )}
-                      {ws && <Badge variant={ws.variant} className="text-[9px]">{ws.text}</Badge>}
+                      {ws && <Badge variant={ws.variant} className="text-[11px]">{ws.text}</Badge>}
                     </div>
                   </button>
                 );
@@ -269,13 +269,13 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               <div className="min-w-0">
                 <PageTitle className="text-base truncate">{selected ? selected.businessName : "Select a lead"}</PageTitle>
                 {selected && (
-                  <p className="text-[11px] text-text-muted truncate">
+                  <p className="text-xs text-text-muted truncate">
                     {[selected.area, selected.phone ?? selected.email ?? "no contact details"].filter(Boolean).join(" · ")}
                   </p>
                 )}
               </div>
               {pitch && (
-                <Badge variant={pitch.engine === "llm" ? "primary" : "outline"} className="font-mono-code text-[9px] shrink-0">
+                <Badge variant={pitch.engine === "llm" ? "primary" : "outline"} className="font-mono-code text-[11px] shrink-0">
                   {pitch.engine === "llm" ? "AI DRAFT" : "TEMPLATE (AI UNAVAILABLE)"}
                 </Badge>
               )}
@@ -283,7 +283,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <MonoLabel className="block mb-1.5 text-[10px]">YOUR NAME / BUSINESS</MonoLabel>
+                <MonoLabel className="block mb-1.5 text-xs">YOUR NAME / BUSINESS</MonoLabel>
                 <input
                   type="text"
                   value={senderName}
@@ -294,7 +294,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <MonoLabel className="block mb-1.5 text-[10px]">TONE</MonoLabel>
+                  <MonoLabel className="block mb-1.5 text-xs">TONE</MonoLabel>
                   <select
                     value={tone}
                     onChange={(e) => setTone(e.target.value)}
@@ -305,7 +305,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                   </select>
                 </div>
                 <div>
-                  <MonoLabel className="block mb-1.5 text-[10px]">LANGUAGE</MonoLabel>
+                  <MonoLabel className="block mb-1.5 text-xs">LANGUAGE</MonoLabel>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
@@ -319,7 +319,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               </div>
             </div>
             <div>
-              <MonoLabel className="block mb-1.5 text-[10px]">WHAT YOU OFFER</MonoLabel>
+              <MonoLabel className="block mb-1.5 text-xs">WHAT YOU OFFER</MonoLabel>
               <textarea
                 rows={2}
                 value={offer}
@@ -361,7 +361,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                 <div className="flex items-center gap-2">
                   <MessageCircle className="h-4 w-4 text-success" />
                   <MonoLabel className="text-success">WHATSAPP MESSAGE</MonoLabel>
-                  <span className="ml-auto text-[10px] text-text-muted">{whatsapp.length} chars</span>
+                  <span className="ml-auto text-xs text-text-muted">{whatsapp.length} chars</span>
                 </div>
                 <textarea
                   rows={5}
@@ -377,12 +377,12 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                       href={`https://wa.me/${wa}?text=${encodeURIComponent(whatsapp)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md bg-success/15 px-2.5 py-1.5 text-[11px] font-semibold text-success hover:bg-success/25 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-success/15 px-2.5 py-1.5 text-xs font-semibold text-success hover:bg-success/25 transition-colors"
                     >
                       <MessageCircle className="h-3.5 w-3.5" /> Open in WhatsApp
                     </a>
                   ) : (
-                    <span className="self-center text-[10px] text-text-muted">No phone number — copy and send manually.</span>
+                    <span className="self-center text-xs text-text-muted">No phone number — copy and send manually.</span>
                   )}
                   <MarkButton channel="WHATSAPP" marking={marking} marked={marked} onClick={() => markContacted("WHATSAPP", whatsapp)} />
                 </div>
@@ -406,7 +406,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                   {telHref && (
                     <a
                       href={telHref}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-primary/15 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary/15 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/25 transition-colors"
                     >
                       <Phone className="h-3.5 w-3.5" /> Call {selected.phone}
                     </a>
@@ -444,12 +444,12 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                   {selected.email ? (
                     <a
                       href={`mailto:${selected.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-tertiary/15 px-2.5 py-1.5 text-[11px] font-semibold text-tertiary hover:bg-tertiary/25 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-tertiary/15 px-2.5 py-1.5 text-xs font-semibold text-tertiary hover:bg-tertiary/25 transition-colors"
                     >
                       <Mail className="h-3.5 w-3.5" /> Open in email app
                     </a>
                   ) : (
-                    <span className="self-center text-[10px] text-text-muted">No email on file for this lead.</span>
+                    <span className="self-center text-xs text-text-muted">No email on file for this lead.</span>
                   )}
                   <MarkButton channel="EMAIL" marking={marking} marked={marked} onClick={() => markContacted("EMAIL", `${emailSubject}\n\n${emailBody}`)} />
                 </div>
@@ -467,7 +467,7 @@ function ActionButton({ onClick, icon: Icon, label }: { onClick: () => void; ico
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-low px-2.5 py-1.5 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-high/50 transition-colors"
+      className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-low px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-high/50 transition-colors"
     >
       <Icon className="h-3.5 w-3.5" /> {label}
     </button>
@@ -492,7 +492,7 @@ function MarkButton({
       onClick={onClick}
       disabled={marking !== null || done}
       title="Logs this outreach on the lead and moves it from NEW to CONTACTED"
-      className={`ml-auto inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition-colors disabled:cursor-default ${
+      className={`ml-auto inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-default ${
         done ? "bg-success/15 text-success" : "border border-border-subtle bg-surface-low text-text-muted hover:text-text-primary disabled:opacity-50"
       }`}
     >

@@ -70,7 +70,7 @@ export default async function MyDayPage() {
               <ListTodo className="h-4 w-4 text-primary" />
               <PageTitle>Agent Tasks</PageTitle>
             </div>
-            <Badge variant="primary" className="font-mono-code text-[10px]">{openTasks.length}</Badge>
+            <Badge variant="primary" className="font-mono-code text-xs">{openTasks.length}</Badge>
           </div>
           {openTasks.length === 0 ? (
             <GlassCard className="flex items-center justify-center min-h-[120px]">
@@ -83,13 +83,13 @@ export default async function MyDayPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h4 className="text-xs font-semibold text-text-primary">{task.title}</h4>
-                      <p className="text-[11px] text-text-muted mt-1">
+                      <p className="text-xs text-text-muted mt-1">
                         {[task.priority !== "MEDIUM" ? task.priority : null, task.deal?.name, task.dueAt ? `due ${format(new Date(task.dueAt), "MMM d")}` : null]
                           .filter(Boolean)
                           .join(" · ") || "no due date"}
                         {task.createdBy === "copilot" && " · via Copilot"}
                       </p>
-                      {task.description && <p className="text-[11px] text-text-muted mt-1 line-clamp-2">{task.description}</p>}
+                      {task.description && <p className="text-xs text-text-muted mt-1 line-clamp-2">{task.description}</p>}
                     </div>
                     <CompleteTaskButton taskId={task.id} title={task.title} />
                   </div>
@@ -105,7 +105,7 @@ export default async function MyDayPage() {
               <Clock className="h-4 w-4 text-primary" />
               <PageTitle>Follow-up Queue</PageTitle>
             </div>
-            <Badge variant="tertiary" className="font-mono-code text-[10px]">
+            <Badge variant="tertiary" className="font-mono-code text-xs">
               {overdueFollowUps.length} overdue · {dueToday.length} today
             </Badge>
           </div>
@@ -113,12 +113,12 @@ export default async function MyDayPage() {
           {pendingDrafts.length > 0 && (
             <GlassCard className="p-4 border-primary/30">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-mono-code text-primary">AGENT DRAFTS AWAITING YOUR APPROVAL</p>
-                <Link href="/agents/approvals" className="text-[11px] text-primary hover:underline">Review →</Link>
+                <p className="text-xs font-mono-code text-primary">AGENT DRAFTS AWAITING YOUR APPROVAL</p>
+                <Link href="/agents/approvals" className="text-xs text-primary hover:underline">Review →</Link>
               </div>
               <div className="space-y-1.5">
                 {pendingDrafts.map((d) => (
-                  <p key={d.approvalId} className="text-[11px] text-text-muted truncate">
+                  <p key={d.approvalId} className="text-xs text-text-muted truncate">
                     ✉ {d.leadCompany ?? d.toEmail} — {d.subject}
                   </p>
                 ))}
@@ -142,11 +142,11 @@ export default async function MyDayPage() {
                         <h4 className="text-xs font-semibold text-text-primary">
                           {lead.company?.name || "Unknown company"} · {lead.contact?.firstName} {lead.contact?.lastName}
                         </h4>
-                        <p className="text-[11px] text-text-muted mt-1">
+                        <p className="text-xs text-text-muted mt-1">
                           {isOverdue ? "Overdue — " : "Due "}{lead.nextFollowUpAt ? format(new Date(lead.nextFollowUpAt), "MMM d, HH:mm") : "—"}
                         </p>
                       </div>
-                      <Badge variant={isOverdue ? "tertiary" : "outline"} className="font-mono-code text-[10px]">
+                      <Badge variant={isOverdue ? "tertiary" : "outline"} className="font-mono-code text-xs">
                         {isOverdue ? "OVERDUE" : lead.temperature}
                       </Badge>
                     </div>
@@ -164,7 +164,7 @@ export default async function MyDayPage() {
               <Flame className="h-4 w-4 text-danger" />
               <PageTitle>Hot Leads</PageTitle>
             </div>
-            <Badge variant="tertiary" className="font-mono-code text-[10px]">{hotLeads.length}</Badge>
+            <Badge variant="tertiary" className="font-mono-code text-xs">{hotLeads.length}</Badge>
           </div>
           {hotLeads.length === 0 ? (
             <GlassCard className="flex items-center justify-center min-h-[120px]">
@@ -180,11 +180,11 @@ export default async function MyDayPage() {
                         <h4 className="text-xs font-semibold text-text-primary">
                           {lead.company?.name || "Unknown company"}
                         </h4>
-                        <p className="text-[11px] text-text-muted mt-1">
+                        <p className="text-xs text-text-muted mt-1">
                           Score {lead.score}/100 · {lead.contact?.email || "no email"}
                         </p>
                       </div>
-                      <Badge variant="secondary" className="font-mono-code text-[10px]">{lead.score}</Badge>
+                      <Badge variant="secondary" className="font-mono-code text-xs">{lead.score}</Badge>
                     </div>
                   </GlassCard>
                 </Link>
@@ -199,7 +199,7 @@ export default async function MyDayPage() {
               <Clock className="h-4 w-4 text-info" />
               <PageTitle>Stale Leads (7+ days quiet)</PageTitle>
             </div>
-            <Badge variant="outline" className="font-mono-code text-[10px]">{staleLeads.length}</Badge>
+            <Badge variant="outline" className="font-mono-code text-xs">{staleLeads.length}</Badge>
           </div>
           {staleLeads.length === 0 ? (
             <GlassCard className="flex items-center justify-center min-h-[120px]">
@@ -214,7 +214,7 @@ export default async function MyDayPage() {
                       <h4 className="text-xs font-semibold text-text-primary">
                         {lead.company?.name || "Unknown company"}
                       </h4>
-                      <span className="text-[11px] text-text-muted">
+                      <span className="text-xs text-text-muted">
                         {lead.lastContactedAt
                           ? `Last touch ${format(new Date(lead.lastContactedAt), "MMM d")}`
                           : "Never contacted"}
@@ -233,7 +233,7 @@ export default async function MyDayPage() {
               <AlertCircle className="h-4 w-4 text-tertiary" />
               <PageTitle>Deals Needing Attention</PageTitle>
             </div>
-            <Badge variant="tertiary" className="font-mono-code text-[10px]">{dealsNeedingAttention.length}</Badge>
+            <Badge variant="tertiary" className="font-mono-code text-xs">{dealsNeedingAttention.length}</Badge>
           </div>
           {dealsNeedingAttention.length === 0 ? (
             <GlassCard className="flex items-center justify-center min-h-[120px]">
@@ -247,14 +247,14 @@ export default async function MyDayPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <h4 className="text-xs font-semibold text-text-primary">{deal.name}</h4>
-                        <p className="text-[11px] text-text-muted mt-1">
+                        <p className="text-xs text-text-muted mt-1">
                           ${Number(deal.value || 0).toLocaleString()} · {deal.stage}
                           {deal.closesThisWeek
                             ? ` · closes ${format(new Date(deal.expectedCloseDate!), "MMM d")}`
                             : " · quiet 7+ days"}
                         </p>
                       </div>
-                      <Badge variant={Number(deal.value || 0) > 50000 ? "tertiary" : "outline"} className="font-mono-code text-[10px]">
+                      <Badge variant={Number(deal.value || 0) > 50000 ? "tertiary" : "outline"} className="font-mono-code text-xs">
                         ${Number(deal.value || 0).toLocaleString()}
                       </Badge>
                     </div>
@@ -277,7 +277,7 @@ export default async function MyDayPage() {
               <Link key={deal.id} href={`/sales/deals/${deal.id}`}>
                 <GlassCard className="px-4 py-3 transition-all hover:border-secondary/40">
                   <span className="text-xs font-semibold text-text-primary">{deal.name}</span>
-                  <span className="ml-3 text-[11px] text-secondary">
+                  <span className="ml-3 text-xs text-secondary">
                     ${Number(deal.value || 0).toLocaleString()}
                   </span>
                 </GlassCard>

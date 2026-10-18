@@ -55,7 +55,7 @@ export default async function AttentionPage() {
               <GlassPanel key={risk.id} className="p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <Badge variant={severityBadge[risk.severity].variant}>{severityBadge[risk.severity].label}</Badge>
-                  <span className="font-mono-code text-[10px] text-text-muted">{risk.preset}</span>
+                  <span className="font-mono-code text-xs text-text-muted">{risk.preset}</span>
                 </div>
                 <h3 className="text-sm font-semibold text-text-primary">{risk.title}</h3>
                 <p className="text-xs text-text-secondary leading-relaxed">{risk.description}</p>
@@ -86,7 +86,7 @@ export default async function AttentionPage() {
                 <div className="flex items-center justify-between rounded-lg bg-surface-low border border-border-subtle p-3 hover:border-primary/40 transition-colors">
                   <div>
                     <span className="text-xs font-semibold text-text-primary">{d.name}</span>
-                    <span className="ml-3 text-[11px] text-text-muted">
+                    <span className="ml-3 text-xs text-text-muted">
                       {d.company} · idle {d.daysSinceUpdate}d
                     </span>
                   </div>
@@ -109,12 +109,12 @@ export default async function AttentionPage() {
             <GlassCard key={item.id} className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <Badge variant={severityBadge[item.severity].variant}>{severityBadge[item.severity].label}</Badge>
-                <span className="font-mono-code text-[10px] text-text-muted">{item.preset}</span>
+                <span className="font-mono-code text-xs text-text-muted">{item.preset}</span>
               </div>
               <h4 className="text-xs font-semibold text-text-primary mb-1">{item.title}</h4>
-              <p className="text-[11px] text-text-secondary leading-relaxed">{item.description}</p>
+              <p className="text-xs text-text-secondary leading-relaxed">{item.description}</p>
               {item.detailUrl && (
-                <Link href={item.detailUrl} className="mt-2 inline-flex items-center text-[11px] font-medium text-primary hover:underline">
+                <Link href={item.detailUrl} className="mt-2 inline-flex items-center text-xs font-medium text-primary hover:underline">
                   {item.actionLabel} →
                 </Link>
               )}

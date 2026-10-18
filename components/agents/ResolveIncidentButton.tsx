@@ -18,7 +18,7 @@ export function ResolveIncidentButton({ incidentId }: { incidentId: string }) {
         })
       }
       disabled={pending}
-      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-success/40 bg-success/10 px-3 py-1.5 text-[11px] font-semibold text-success transition-colors hover:bg-success/20 disabled:opacity-50"
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-success/40 bg-success/10 px-3 py-1.5 text-xs font-semibold text-success transition-colors hover:bg-success/20 disabled:opacity-50"
     >
       <CheckCircle2 className="h-3.5 w-3.5" />
       {pending ? "Resolving…" : "Resolve"}

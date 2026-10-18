@@ -76,7 +76,7 @@ export function ConvertLeadButton({
       </div>
 
       <div>
-        <label className="block text-[11px] text-text-muted mb-1">Deal name</label>
+        <label className="block text-xs text-text-muted mb-1">Deal name</label>
         <input
           value={dealName}
           onChange={(e) => setDealName(e.target.value)}
@@ -85,7 +85,7 @@ export function ConvertLeadButton({
       </div>
 
       <div>
-        <label className="block text-[11px] text-text-muted mb-1">Value (USD)</label>
+        <label className="block text-xs text-text-muted mb-1">Value (USD)</label>
         <input
           type="number"
           min="0"
@@ -96,7 +96,7 @@ export function ConvertLeadButton({
         />
       </div>
 
-      {error && <p className="text-[11px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       <button
         type="submit"

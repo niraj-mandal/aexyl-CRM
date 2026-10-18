@@ -16,9 +16,9 @@ export const dynamic = "force-dynamic";
 function StatCard({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
     <GlassCard className="p-5">
-      <p className="font-mono-code text-[10px] text-text-muted">{label}</p>
+      <p className="font-mono-code text-xs text-text-muted">{label}</p>
       <p className={`mt-1 text-2xl font-semibold tracking-tight ${tone ?? "text-text-primary"}`}>{value}</p>
-      {sub && <p className="mt-1 text-[10px] text-text-muted">{sub}</p>}
+      {sub && <p className="mt-1 text-xs text-text-muted">{sub}</p>}
     </GlassCard>
   );
 }
@@ -169,11 +169,11 @@ export default async function ObservabilityPage() {
                   <div key={a.agentKey} className="flex items-center justify-between px-5 py-3">
                     <div>
                       <p className="text-xs font-medium text-text-primary">{a.agentName}</p>
-                      <p className="font-mono-code text-[10px] text-text-muted">
+                      <p className="font-mono-code text-xs text-text-muted">
                         {a.runs} runs · {a.failed} failed · avg {a.avgTokens.toLocaleString()} tok
                       </p>
                     </div>
-                    <Badge variant={rate !== null && rate >= 80 ? "primary" : rate === null ? "outline" : "tertiary"} className="font-mono-code text-[10px]">
+                    <Badge variant={rate !== null && rate >= 80 ? "primary" : rate === null ? "outline" : "tertiary"} className="font-mono-code text-xs">
                       {rate === null ? "—" : `${rate}%`}
                     </Badge>
                   </div>
@@ -214,11 +214,11 @@ export default async function ObservabilityPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Badge variant="danger" className="font-mono-code text-[9px]">{inc.severity}</Badge>
+                        <Badge variant="danger" className="font-mono-code text-[11px]">{inc.severity}</Badge>
                         <p className="text-xs font-semibold text-text-primary">{inc.title}</p>
                       </div>
-                      {inc.description && <p className="mt-1 text-[11px] text-text-muted">{inc.description}</p>}
-                      <p className="mt-1 font-mono-code text-[10px] text-text-muted/70">
+                      {inc.description && <p className="mt-1 text-xs text-text-muted">{inc.description}</p>}
+                      <p className="mt-1 font-mono-code text-xs text-text-muted/70">
                         opened {formatDistanceToNowStrict(new Date(inc.createdAt), { addSuffix: true })}
                       </p>
                     </div>
@@ -231,7 +231,7 @@ export default async function ObservabilityPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs text-text-secondary">{inc.title}</p>
-                      <p className="font-mono-code text-[10px] text-text-muted">
+                      <p className="font-mono-code text-xs text-text-muted">
                         {inc.status} {inc.resolvedAt ? formatDistanceToNowStrict(new Date(inc.resolvedAt), { addSuffix: true }) : ""}
                       </p>
                     </div>

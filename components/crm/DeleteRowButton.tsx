@@ -56,20 +56,20 @@ export function DeleteRowButton({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="max-w-[140px] truncate text-[10px] text-text-muted" title={`Delete "${label}"?`}>
+        <span className="max-w-[140px] truncate text-xs text-text-muted" title={`Delete "${label}"?`}>
           Delete {label}?
         </span>
         <button
           onClick={handleDelete}
           disabled={pending}
-          className="rounded bg-danger px-2 py-1 text-[10px] font-bold text-white hover:bg-danger/90 disabled:opacity-50 transition-colors"
+          className="rounded bg-danger px-2 py-1 text-xs font-bold text-white hover:bg-danger/90 disabled:opacity-50 transition-colors"
         >
           {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Yes"}
         </button>
         <button
           onClick={() => setConfirming(false)}
           disabled={pending}
-          className="rounded border border-border-subtle px-2 py-1 text-[10px] text-text-muted hover:text-text-primary transition-colors"
+          className="rounded border border-border-subtle px-2 py-1 text-xs text-text-muted hover:text-text-primary transition-colors"
         >
           No
         </button>
@@ -83,7 +83,7 @@ export function DeleteRowButton({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      {error && <span className="text-[10px] text-danger">{error}</span>}
+      {error && <span className="text-xs text-danger">{error}</span>}
       <button
         onClick={(e) => {
           if (!e.nativeEvent.isTrusted) return; // stray/synthetic clicks can't arm

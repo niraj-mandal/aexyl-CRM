@@ -26,19 +26,19 @@ export function KillSwitchButton({ engaged }: { engaged: boolean }) {
     <div className="flex items-center gap-3">
       {confirming ? (
         <>
-          <span className="text-[11px] text-text-muted">
+          <span className="text-xs text-text-muted">
             {engaged ? "Re-enable all agents?" : "Disable ALL agents in this workspace?"}
           </span>
           <button
             onClick={toggle}
             disabled={pending}
-            className="rounded-lg border border-tertiary/40 bg-tertiary/10 px-3 py-1.5 text-[11px] font-semibold text-tertiary transition-colors hover:bg-tertiary/20 disabled:opacity-50"
+            className="rounded-lg border border-tertiary/40 bg-tertiary/10 px-3 py-1.5 text-xs font-semibold text-tertiary transition-colors hover:bg-tertiary/20 disabled:opacity-50"
           >
             {pending ? "Working…" : "Confirm"}
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="rounded-lg border border-border-subtle px-3 py-1.5 text-[11px] text-text-secondary transition-colors hover:bg-surface-high/50"
+            className="rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-high/50"
           >
             Cancel
           </button>
@@ -46,7 +46,7 @@ export function KillSwitchButton({ engaged }: { engaged: boolean }) {
       ) : (
         <button
           onClick={() => setConfirming(true)}
-          className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-high/40 px-4 py-2 text-[11px] font-semibold text-text-secondary transition-all hover:border-tertiary/40 hover:text-tertiary"
+          className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-high/40 px-4 py-2 text-xs font-semibold text-text-secondary transition-all hover:border-tertiary/40 hover:text-tertiary"
         >
           {engaged ? (
             <ShieldCheck className="h-3.5 w-3.5" />

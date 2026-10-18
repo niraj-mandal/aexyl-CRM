@@ -35,7 +35,7 @@ export function RunAgentButton({ agentKey, disabled }: { agentKey: string; disab
       <button
         onClick={run}
         disabled={pending || disabled}
-        className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-40"
+        className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-40"
         title={disabled ? "Agent is disabled in settings" : "Run this agent now"}
       >
         {pending ? (
@@ -45,7 +45,7 @@ export function RunAgentButton({ agentKey, disabled }: { agentKey: string; disab
         )}
         {pending ? "Running…" : "Run"}
       </button>
-      {error && <p className="max-w-[220px] text-right text-[10px] text-tertiary">{error}</p>}
+      {error && <p className="max-w-[220px] text-right text-xs text-tertiary">{error}</p>}
     </div>
   );
 }

@@ -13,7 +13,7 @@ export function CompleteTaskButton({ taskId, title }: { taskId: string; title: s
 
   if (done) {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-secondary">
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-secondary">
         <CheckCircle2 className="h-3 w-3" /> Done
       </span>
     );
@@ -32,7 +32,7 @@ export function CompleteTaskButton({ taskId, title }: { taskId: string; title: s
           router.refresh();
         });
       }}
-      className="inline-flex items-center gap-1 rounded border border-secondary/40 bg-secondary/10 px-2 py-1 text-[10px] font-semibold text-secondary hover:bg-secondary/20 disabled:opacity-50 transition-colors"
+      className="inline-flex items-center gap-1 rounded border border-secondary/40 bg-secondary/10 px-2 py-1 text-xs font-semibold text-secondary hover:bg-secondary/20 disabled:opacity-50 transition-colors"
     >
       {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
       Complete

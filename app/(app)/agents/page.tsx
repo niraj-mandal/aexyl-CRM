@@ -84,7 +84,7 @@ export default async function AgentsPage() {
         </section>
         <div className="flex items-center gap-4">
           {killSwitchEngaged && (
-            <Badge variant="danger" className="font-mono-code text-[10px]">
+            <Badge variant="danger" className="font-mono-code text-xs">
               <ShieldBan className="mr-1 h-3 w-3" /> ALL AGENTS DISABLED
             </Badge>
           )}
@@ -99,7 +99,7 @@ export default async function AgentsPage() {
             <Bot className="h-4 w-4 text-primary" />
             <PageTitle>Active Agents</PageTitle>
           </div>
-          <Badge variant="outline" className="font-mono-code text-[10px]">
+          <Badge variant="outline" className="font-mono-code text-xs">
             {activeCount} monitoring
           </Badge>
         </div>
@@ -115,7 +115,7 @@ export default async function AgentsPage() {
                     </h3>
                   </Link>
                   <span
-                    className={`flex items-center gap-1.5 font-mono-code text-[10px] ${
+                    className={`flex items-center gap-1.5 font-mono-code text-xs ${
                       agent.enabled ? "text-success" : "text-text-muted"
                     }`}
                   >
@@ -123,16 +123,16 @@ export default async function AgentsPage() {
                     {agent.enabled ? "Monitoring" : "Disabled"}
                   </span>
                 </div>
-                <p className="text-[11px] leading-relaxed text-text-muted line-clamp-2">{agent.description}</p>
+                <p className="text-xs leading-relaxed text-text-muted line-clamp-2">{agent.description}</p>
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  <Badge variant="outline" className="font-mono-code text-[9px]">
+                  <Badge variant="outline" className="font-mono-code text-[11px]">
                     {AUTONOMY_LABEL[agent.autonomyLevel] ?? `L${agent.autonomyLevel}`}
                   </Badge>
-                  <Badge variant="outline" className="font-mono-code text-[9px]">
+                  <Badge variant="outline" className="font-mono-code text-[11px]">
                     {agent.allowedTools.length} tools
                   </Badge>
                   {agent.requiresApprovalForWrites && (
-                    <Badge variant="secondary" className="font-mono-code text-[9px]">
+                    <Badge variant="secondary" className="font-mono-code text-[11px]">
                       writes need approval
                     </Badge>
                   )}
@@ -141,7 +141,7 @@ export default async function AgentsPage() {
               <div className="mt-4 flex items-center justify-between">
                 <Link
                   href={`/agents/${agent.agentKey}`}
-                  className="text-[11px] text-text-muted transition-colors hover:text-primary"
+                  className="text-xs text-text-muted transition-colors hover:text-primary"
                 >
                   Settings & runs →
                 </Link>
@@ -157,7 +157,7 @@ export default async function AgentsPage() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <PageTitle>Pending Approvals</PageTitle>
-            <Link href="/agents/approvals" className="text-[11px] text-text-muted hover:text-primary">
+            <Link href="/agents/approvals" className="text-xs text-text-muted hover:text-primary">
               Approval Center →
             </Link>
           </div>
@@ -172,13 +172,13 @@ export default async function AgentsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-text-primary">{a.description}</p>
-                      <p className="mt-1 font-mono-code text-[10px] text-text-muted">
+                      <p className="mt-1 font-mono-code text-xs text-text-muted">
                         {a.toolName} · risk {a.riskLevel}
                       </p>
                     </div>
                     <Link
                       href="/agents/approvals"
-                      className="shrink-0 rounded-lg border border-primary/40 bg-primary/15 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/25"
+                      className="shrink-0 rounded-lg border border-primary/40 bg-primary/15 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/25"
                     >
                       Review
                     </Link>
@@ -192,7 +192,7 @@ export default async function AgentsPage() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <PageTitle>Recent Agent Activity</PageTitle>
-            <Link href="/agents/runs" className="text-[11px] text-text-muted hover:text-primary">
+            <Link href="/agents/runs" className="text-xs text-text-muted hover:text-primary">
               All runs →
             </Link>
           </div>
@@ -210,13 +210,13 @@ export default async function AgentsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-text-primary">{run.agentName}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-text-muted">{run.objective}</p>
+                        <p className="mt-0.5 truncate text-xs text-text-muted">{run.objective}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <span className={`font-mono-code text-[10px] ${STATUS_DOT[run.status] ?? "text-primary"}`}>
+                        <span className={`font-mono-code text-xs ${STATUS_DOT[run.status] ?? "text-primary"}`}>
                           {run.status}
                         </span>
-                        <p className="mt-0.5 font-mono-code text-[10px] text-text-muted/70">
+                        <p className="mt-0.5 font-mono-code text-xs text-text-muted/70">
                           {formatDistanceToNowStrict(new Date(run.createdAt), { addSuffix: true })}
                         </p>
                       </div>
@@ -249,12 +249,12 @@ export default async function AgentsPage() {
                   />
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-text-primary">{rule.name}</p>
-                    <p className="font-mono-code text-[10px] text-text-muted">
+                    <p className="font-mono-code text-xs text-text-muted">
                       when <span className="text-primary">{rule.eventType}</span> → {rule.agentName}
                     </p>
                   </div>
                 </div>
-                <Badge variant={rule.enabled ? "primary" : "outline"} className="font-mono-code text-[9px]">
+                <Badge variant={rule.enabled ? "primary" : "outline"} className="font-mono-code text-[11px]">
                   {rule.enabled ? "ENABLED" : "OFF"}
                 </Badge>
               </div>
