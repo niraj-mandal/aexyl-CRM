@@ -3,10 +3,12 @@
 import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { companies, contacts, discoveryCandidates, leads } from "@/db/schema";
+import { companies, contacts, deals, discoveryCandidates, leads, projects } from "@/db/schema";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
 import { placeFromLeadSource } from "@/lib/maps";
+import { normalizePhone } from "@/services/discovery/normalizer";
+import { CrmService, ProjectService } from "@/services/crm.service";
 import {
   PitchWriterService,
   type PitchLanguage,
@@ -164,4 +166,110 @@ export async function markContactedAction(leadId: string, channel: string, messa
   revalidatePath("/outreach");
   revalidatePath("/sales/leads");
   return { ok: true as const, contactedAt: now.toISOString() };
+}
+
+/** Saves a phone number found manually (e.g. via Google Maps) onto the lead's contact. */
+export async function setLeadPhoneAction(leadId: string, rawPhone: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const digits = String(rawPhone ?? "").replace(/[^\d+]/g, "");
+  if (!/^\+?\d{7,15}$/.test(digits)) return { ok: false as const, error: "Enter a valid phone number (7–15 digits)." };
+  const phone = normalizePhone(digits) ?? digits;
+
+  const lead = await db.query.leads.findFirst({
+    where: and(eq(leads.id, String(leadId)), eq(leads.workspaceId, workspaceId)),
+    with: { company: { columns: { name: true } } },
+  });
+  if (!lead) return { ok: false as const, error: "Lead not found." };
+
+  const now = new Date();
+  if (lead.contactId) {
+    await db
+      .update(contacts)
+      .set({ phone, updatedAt: now })
+      .where(and(eq(contacts.id, lead.contactId), eq(contacts.workspaceId, workspaceId)));
+  } else {
+    const [contact] = await db
+      .insert(contacts)
+      .values({ workspaceId, companyId: lead.companyId, firstName: `Team ${lead.company?.name ?? "Lead"}`, phone })
+      .returning({ id: contacts.id });
+    await db.update(leads).set({ contactId: contact.id, updatedAt: now }).where(eq(leads.id, lead.id));
+  }
+
+  await ActivityService.logAudit(workspaceId, userId, "UPDATE", "LEAD", lead.id, { phone });
+  revalidatePath("/sales/leads");
+  return { ok: true as const, phone };
+}
+
+export type LeadOutcome = "INTERESTED" | "NOT_NOW" | "NOT_INTERESTED" | "WON";
+const OUTCOMES = new Set<LeadOutcome>(["INTERESTED", "NOT_NOW", "NOT_INTERESTED", "WON"]);
+const DAY_MS = 86_400_000;
+
+/**
+ * Records how a conversation went and moves the lead along the funnel:
+ * Interested → deal; Not now → nurture, retry in 30 days; Not interested → lost;
+ * Won → deal won + a website project.
+ */
+export async function setLeadOutcomeAction(leadId: string, outcome: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  if (!OUTCOMES.has(outcome as LeadOutcome)) return { ok: false as const, error: "Unknown outcome." };
+
+  const lead = await CrmService.getLeadById(workspaceId, String(leadId));
+  if (!lead) return { ok: false as const, error: "Lead not found." };
+  const name = lead.company?.name ?? "Prospect";
+  const now = new Date();
+
+  const existingDeal = await db.query.deals.findFirst({
+    where: and(eq(deals.leadId, lead.id), eq(deals.workspaceId, workspaceId)),
+  });
+  const ensureDeal = async () =>
+    existingDeal ??
+    (await CrmService.convertLeadToDeal(workspaceId, lead.id, {
+      name: `Website for ${name}`,
+      stage: "QUALIFIED",
+      probability: 30,
+    }));
+
+  let message: string;
+  if (outcome === "INTERESTED") {
+    await ensureDeal();
+    await CrmService.updateLead(workspaceId, lead.id, { nextFollowUpAt: new Date(now.getTime() + 2 * DAY_MS) });
+    message = "Deal created in your Pipeline. Follow-up set for 2 days.";
+  } else if (outcome === "NOT_NOW") {
+    await CrmService.updateLead(workspaceId, lead.id, { status: "NURTURE", nextFollowUpAt: new Date(now.getTime() + 30 * DAY_MS) });
+    message = "Moved to nurture. It'll come back in Today's list in 30 days.";
+  } else if (outcome === "NOT_INTERESTED") {
+    await CrmService.updateLead(workspaceId, lead.id, { status: "LOST", nextFollowUpAt: null });
+    message = "Marked as lost.";
+  } else {
+    const deal = await ensureDeal();
+    await db
+      .update(deals)
+      .set({ stage: "WON", probability: 100, updatedAt: now })
+      .where(and(eq(deals.id, deal.id), eq(deals.workspaceId, workspaceId)));
+    const hasProject = await db.query.projects.findFirst({
+      where: and(eq(projects.dealId, deal.id), eq(projects.workspaceId, workspaceId)),
+    });
+    if (!hasProject) {
+      await ProjectService.createProject(workspaceId, {
+        companyId: lead.companyId,
+        dealId: deal.id,
+        name: `Website for ${name}`,
+        ownerId: userId,
+      });
+    }
+    await CrmService.updateLead(workspaceId, lead.id, { status: "CONVERTED", nextFollowUpAt: null });
+    message = "Won! Deal closed and a website project was created.";
+  }
+
+  await ActivityService.createActivity(workspaceId, {
+    workspaceId,
+    leadId: lead.id,
+    actorId: userId,
+    type: "STAGE_CHANGE",
+    title: `Outcome: ${outcome.replace("_", " ").toLowerCase()}`,
+    metadata: { outcome, source: "lead_outcome" },
+  });
+
+  for (const path of ["/", "/sales/leads", "/sales/pipeline", "/sales/deals", "/projects"]) revalidatePath(path);
+  return { ok: true as const, message };
 }

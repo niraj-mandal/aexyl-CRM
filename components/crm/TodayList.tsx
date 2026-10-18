@@ -7,6 +7,7 @@ import { GlassPanel } from "@/components/ui/glass-card";
 import { MonoLabel } from "@/components/ui/typography";
 import { getOutreachLeadsAction, type OutreachLead } from "@/app/actions/outreach.actions";
 import { googleMapsUrl } from "@/lib/maps";
+import { LeadOutcomeSelect } from "@/components/crm/LeadQuickActions";
 
 const CLOSED = new Set(["CONVERTED", "LOST", "UNQUALIFIED"]);
 const NEW_PER_DAY = 5;
@@ -36,8 +37,9 @@ export function TodayList() {
   const [leads, setLeads] = useState<OutreachLead[] | null>(null);
   const [failed, setFailed] = useState(false);
 
+  const load = () => getOutreachLeadsAction().then(setLeads).catch(() => setFailed(true));
   useEffect(() => {
-    getOutreachLeadsAction().then(setLeads).catch(() => setFailed(true));
+    load();
   }, []);
 
   if (failed) return null;
@@ -72,7 +74,7 @@ export function TodayList() {
           <p className="text-[11px] text-text-muted">None due. Leads you mark as contacted come back here 3 days later.</p>
         ) : (
           followUps.map((l) => (
-            <TodayRow key={l.id} lead={l} note={overdue(l) ? "Overdue" : "Due today"} urgent={overdue(l)} />
+            <TodayRow key={l.id} lead={l} note={overdue(l) ? "Overdue" : "Due today"} urgent={overdue(l)} onOutcome={load} />
           ))
         )}
       </section>
@@ -105,7 +107,7 @@ export function TodayList() {
   );
 }
 
-function TodayRow({ lead, note, urgent }: { lead: OutreachLead; note: string; urgent?: boolean }) {
+function TodayRow({ lead, note, urgent, onOutcome }: { lead: OutreachLead; note: string; urgent?: boolean; onOutcome?: () => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-low px-3 py-2">
       <div className="min-w-0">
@@ -120,6 +122,7 @@ function TodayRow({ lead, note, urgent }: { lead: OutreachLead; note: string; ur
         </p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
+        {onOutcome && <LeadOutcomeSelect leadId={lead.id} compact onDone={onOutcome} />}
         <a
           href={googleMapsUrl(lead.businessName, lead.place)}
           target="_blank"

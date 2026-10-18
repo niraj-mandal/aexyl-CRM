@@ -276,7 +276,7 @@ export class CrmService {
       offset,
       with: {
         company: { columns: { name: true, location: true } },
-        contact: { columns: { firstName: true, lastName: true, email: true } },
+        contact: { columns: { firstName: true, lastName: true, email: true, phone: true } },
         owner: { columns: { firstName: true, lastName: true } }
       }
     });
@@ -335,8 +335,9 @@ export class CrmService {
       leadId: lead.id,
       companyId: lead.companyId,
       name: dealData.name || `Deal for ${lead.company?.name || 'Prospect'}`,
-      value: dealData.value || "50000.00",
-      currency: dealData.currency || "USD",
+      // Unknown value stays empty rather than inflating pipeline totals with a made-up number.
+      value: dealData.value || null,
+      currency: dealData.currency || "INR",
       stage: dealData.stage || "QUALIFIED",
       probability: dealData.probability || 60,
       ownerId: lead.ownerId,

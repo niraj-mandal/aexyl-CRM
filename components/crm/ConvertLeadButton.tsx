@@ -44,7 +44,7 @@ export function ConvertLeadButton({
     try {
       const deal = await convertLeadToDealAction(leadId, {
         name: dealName.trim() || `${companyName} — New Opportunity`,
-        value: parseFloat(value) > 0 ? String(parseFloat(value)) : "50000.00",
+        value: parseFloat(value) > 0 ? String(parseFloat(value)) : undefined,
         stage: "QUALIFIED",
         probability: 30,
       });

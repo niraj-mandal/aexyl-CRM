@@ -13,6 +13,7 @@ import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { googleMapsUrl, placeFromLeadSource } from "@/lib/maps";
+import { LeadOutcomeSelect, LeadPhoneEditor } from "@/components/crm/LeadQuickActions";
 
 const PAGE_SIZE = 50;
 
@@ -111,7 +112,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4">{lead.contact?.firstName} {lead.contact?.lastName}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      {lead.contact && !/^team\b/i.test(lead.contact.firstName) && (
+                        <span>{lead.contact.firstName} {lead.contact.lastName}</span>
+                      )}
+                      <LeadPhoneEditor leadId={lead.id} phone={lead.contact?.phone ?? null} />
+                    </div>
+                  </td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 bg-surface-elevated text-xs rounded-md border border-border-subtle">
                       {lead.stage || "N/A"}
@@ -129,7 +137,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   <td className="px-6 py-4">{lead.score}</td>
                   <td className="px-6 py-4">{lead.owner?.firstName}</td>
                   <td className="px-6 py-4">
-                    <DeleteLeadButton leadId={lead.id} leadName={lead.company?.name || "this lead"} />
+                    <div className="flex items-center gap-2">
+                      <LeadOutcomeSelect leadId={lead.id} compact />
+                      <DeleteLeadButton leadId={lead.id} leadName={lead.company?.name || "this lead"} />
+                    </div>
                   </td>
                 </tr>
               )) : (
