@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -76,12 +77,45 @@ function isItemActive(item: NavItem, pathname: string): boolean {
   return matches(item.href, item.exact) || (item.also ?? []).some((h) => matches(h));
 }
 
+/** Opened from the header's menu button on small screens. */
+export const TOGGLE_SIDEBAR_EVENT = "aexyl:toggle-sidebar";
+
 export function Sidebar() {
   const pathname = usePathname();
   const badges = useSidebarBadges();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openedAt, setOpenedAt] = useState(pathname);
+
+  // Navigating closes the mobile drawer (derived from the path, no effect needed).
+  const open = mobileOpen && openedAt === pathname;
+
+  useEffect(() => {
+    const toggle = () => {
+      setOpenedAt(window.location.pathname);
+      setMobileOpen((o) => !o);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileOpen(false);
+    window.addEventListener(TOGGLE_SIDEBAR_EVENT, toggle);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener(TOGGLE_SIDEBAR_EVENT, toggle);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   return (
-    <aside className="flex h-full w-[260px] flex-col bg-surface-lowest border-r border-border-subtle overflow-hidden select-none">
+    <>
+    {open && (
+      <div className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setMobileOpen(false)} aria-hidden="true" />
+    )}
+    <aside
+      id="app-sidebar"
+      className={cn(
+        "h-full w-[260px] flex-col bg-surface-lowest border-r border-border-subtle overflow-hidden select-none",
+        open ? "fixed inset-y-0 left-0 z-[60] flex shadow-2xl" : "hidden",
+        "md:static md:z-auto md:flex md:shadow-none",
+      )}
+    >
       {/* Brand Header */}
       <div className="flex h-16 items-center px-6 border-b border-border-subtle/50">
         <Link href="/" aria-label="AEXYL home" className="flex items-center gap-2.5 group">
@@ -101,7 +135,7 @@ export function Sidebar() {
             priority
             className="h-3 w-auto"
           />
-          <span className="ml-0.5 font-mono-code text-[10px] text-text-muted tracking-widest uppercase">OS v2.4</span>
+          <span className="ml-0.5 font-mono-code text-xs text-text-muted tracking-widest uppercase">OS v2.4</span>
         </Link>
       </div>
 
@@ -109,7 +143,7 @@ export function Sidebar() {
       <div className="flex-1 space-y-6 px-3 py-4 overflow-y-auto scrollbar-thin">
         {navSections.map((section) => (
           <div key={section.title} className="space-y-1">
-            <div className="px-3 pb-1.5 text-[10px] font-mono-code tracking-[0.08em] text-text-muted/70 uppercase">
+            <div className="px-3 pb-1.5 text-xs font-mono-code tracking-[0.08em] text-text-muted/70 uppercase">
               {section.title}
             </div>
             {section.items.map((item) => {
@@ -137,7 +171,7 @@ export function Sidebar() {
                   </div>
 
                   {item.badge && (
-                    <span className="rounded-full bg-primary/20 px-1.5 py-0.5 font-mono-code text-[9px] text-primary">
+                    <span className="rounded-full bg-primary/20 px-1.5 py-0.5 font-mono-code text-[11px] text-primary">
                       {item.badge}
                     </span>
                   )}
@@ -181,11 +215,12 @@ export function Sidebar() {
             <Settings className={cn("h-4 w-4", pathname.startsWith("/settings") ? "text-primary" : "text-text-muted")} />
             <span>Settings & Rules</span>
           </div>
-          <kbd className="font-mono-code text-[10px] text-text-muted bg-surface-high px-1.5 py-0.5 rounded border border-border-subtle">
+          <kbd className="font-mono-code text-xs text-text-muted bg-surface-high px-1.5 py-0.5 rounded border border-border-subtle">
             ⌘S
           </kbd>
         </Link>
       </div>
     </aside>
+    </>
   );
 }
