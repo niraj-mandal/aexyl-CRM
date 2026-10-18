@@ -57,7 +57,8 @@ const navSections: NavSection[] = [
   {
     title: "DELIVERY",
     items: [
-      { name: "Clients & Projects", href: "/clients", icon: Briefcase, also: ["/projects"] },
+      // Clients are companies (Leads → Companies); /clients only redirects there.
+      { name: "Projects", href: "/projects", icon: Briefcase },
     ]
   },
   {
