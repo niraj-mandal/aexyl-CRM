@@ -458,6 +458,7 @@ function DiscoveryTab() {
   const [location, setLocation] = useState("Jorhat, Assam, India");
   const [category, setCategory] = useState("gym");
   const [dailyTarget, setDailyTarget] = useState(5);
+  const [rotationText, setRotationText] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
@@ -475,6 +476,7 @@ function DiscoveryTab() {
         if (settings.location) setLocation(settings.location);
         if (settings.category) setCategory(settings.category);
         if (settings.dailyTarget) setDailyTarget(settings.dailyTarget);
+        if (settings.rotation?.length) setRotationText(settings.rotation.join("\n"));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -483,7 +485,12 @@ function DiscoveryTab() {
     setSaving(true);
     setSaveMessage(null);
     try {
-      const result = await saveDiscoverySettingsAction({ location, category, dailyTarget });
+      const result = await saveDiscoverySettingsAction({
+        location,
+        category,
+        dailyTarget,
+        rotation: rotationText.split("\n").map((c) => c.trim()).filter(Boolean),
+      });
       setSaveMessage("error" in result ? (result.error ?? "Save failed.") : "Saved. The 6:00 AM IST daily run will use these settings.");
     } finally {
       setSaving(false);
@@ -739,6 +746,20 @@ function DiscoveryTab() {
                 className="w-full rounded-lg bg-surface-low border border-border-subtle px-3 py-2 text-xs text-text-primary focus:border-primary focus:outline-none"
               />
             </div>
+          </div>
+          <div>
+            <MonoLabel className="block mb-1.5 text-[10px]">DAILY CITY ROTATION (ONE PER LINE)</MonoLabel>
+            <textarea
+              rows={5}
+              value={rotationText}
+              onChange={(e) => setRotationText(e.target.value)}
+              placeholder={"Guwahati, Assam, India\nDibrugarh, Assam, India\nTezpur, Assam, India"}
+              aria-describedby="rotation-hint"
+              className="w-full rounded-lg bg-surface-low border border-border-subtle px-3 py-2 text-xs text-text-primary focus:border-primary focus:outline-none"
+            />
+            <p id="rotation-hint" className="mt-1 text-[10px] text-text-muted">
+              The 6 AM run searches the next city each day, so it keeps finding new businesses. Leave empty to always search the location above.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button

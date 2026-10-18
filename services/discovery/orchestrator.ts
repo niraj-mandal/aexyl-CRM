@@ -24,6 +24,8 @@ export interface DiscoveryConfig {
   minFitScore: number;
   queries?: string[];
   autoCreateLeads: boolean;
+  /** Cities the daily run cycles through, one per day; empty = always `location`. */
+  rotation?: string[];
 }
 
 const DEFAULT_CONFIG: DiscoveryConfig = {
@@ -57,6 +59,14 @@ function generateRunId(config: DiscoveryConfig): string {
 
 // Daily auto-discovery runs at 6:00 AM IST (UTC+5:30)
 const DAILY_RUN_HOUR_IST = 6;
+
+/** Today's city: rotates by IST calendar day so each morning covers new ground. */
+export function rotationCityFor(rotation: string[] | undefined, fallback: string, now = Date.now()): string {
+  const cities = (rotation ?? []).map((c) => c.trim()).filter(Boolean);
+  if (cities.length === 0) return fallback;
+  const istDay = Math.floor((now + 330 * 60_000) / 86_400_000);
+  return cities[istDay % cities.length];
+}
 // Manual runs append -M + 4 base36 chars (see runManual).
 const MANUAL_RUN_ID_SQL = "-M[0-9a-z]{4}$";
 const isManualRunId = (runId: string) => /-M[0-9a-z]{4}$/.test(runId);
@@ -83,6 +93,7 @@ export class DiscoveryOrchestrator {
   ): Promise<DiscoveryRunResult> {
     const saved = await DiscoveryOrchestrator.getSavedConfig(workspaceId);
     const cfg = { ...DEFAULT_CONFIG, ...saved, ...config };
+    cfg.location = rotationCityFor(cfg.rotation, cfg.location);
     const runId = generateRunId(cfg);
 
     // The dedicated daily cron is scheduled for 6 AM IST itself; the 15-min tick still needs the gate.
@@ -437,7 +448,7 @@ export class DiscoveryOrchestrator {
 
   static async saveConfig(
     workspaceId: string,
-    config: { location: string; category: string; dailyTarget: number },
+    config: { location: string; category: string; dailyTarget: number; rotation: string[] },
   ): Promise<void> {
     await db
       .update(workspaces)

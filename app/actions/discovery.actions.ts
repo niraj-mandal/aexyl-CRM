@@ -82,8 +82,13 @@ export async function saveDiscoverySettingsAction(input: {
   location: string;
   category: string;
   dailyTarget: number;
+  rotation?: string[];
 }) {
   const { workspaceId } = await requireWorkspace();
+  const rotation = (Array.isArray(input.rotation) ? input.rotation : [])
+    .map((c) => String(c ?? "").trim().slice(0, 200))
+    .filter(Boolean)
+    .slice(0, 30);
   const location = String(input.location ?? "").trim().slice(0, 200);
   const category = String(input.category ?? "").trim().toLowerCase().slice(0, 50);
   const dailyTarget = Math.round(Number(input.dailyTarget));
@@ -91,7 +96,7 @@ export async function saveDiscoverySettingsAction(input: {
   if (!Number.isFinite(dailyTarget) || dailyTarget < 1 || dailyTarget > 25) {
     return { error: "Daily target must be between 1 and 25." };
   }
-  await DiscoveryOrchestrator.saveConfig(workspaceId, { location, category, dailyTarget });
+  await DiscoveryOrchestrator.saveConfig(workspaceId, { location, category, dailyTarget, rotation });
   revalidatePath("/bdr");
   return { ok: true as const };
 }

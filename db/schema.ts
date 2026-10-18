@@ -13,7 +13,7 @@ export const workspaces = pgTable("workspaces", {
   sweepEnabled: boolean("sweep_enabled").default(true).notNull(),
   sweepFollowUpDays: integer("sweep_follow_up_days").default(2).notNull(),
   staleLeadDays: integer("stale_lead_days").default(7).notNull(),
-  discoveryConfig: jsonb("discovery_config").$type<{ location?: string; category?: string; dailyTarget?: number }>(),
+  discoveryConfig: jsonb("discovery_config").$type<{ location?: string; category?: string; dailyTarget?: number; rotation?: string[] }>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
