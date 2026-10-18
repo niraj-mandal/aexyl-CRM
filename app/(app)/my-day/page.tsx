@@ -51,8 +51,8 @@ export default async function MyDayPage() {
   const wonRecently = queue.wonRecently ?? [];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <LiveRefresher intervalMs={15000} />
+    <div className="space-y-8 animate-in fade-in duration-150">
+      <LiveRefresher intervalMs={60000} />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
         <section className="space-y-2">

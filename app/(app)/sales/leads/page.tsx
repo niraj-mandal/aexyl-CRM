@@ -1,7 +1,6 @@
 import { Display, Body } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
-import { GlassCard } from "@/components/ui/glass-card";
 import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
 
 // Columns for DataTable must match the data shape
@@ -16,6 +15,16 @@ import { googleMapsUrl, placeFromLeadSource } from "@/lib/maps";
 import { LeadOutcomeSelect, LeadPhoneEditor } from "@/components/crm/LeadQuickActions";
 
 const PAGE_SIZE = 50;
+
+const STATUS_LABEL: Record<string, string> = {
+  NEW: "New",
+  CONTACTED: "Contacted",
+  QUALIFIED: "Qualified",
+  NURTURE: "Nurture",
+  CONVERTED: "Converted",
+  LOST: "Lost",
+  UNQUALIFIED: "Unqualified",
+};
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { workspaceId } = await requireWorkspace();
@@ -37,14 +46,15 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const hotLeads = leadCounts.hot;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <div className="flex justify-between items-end">
-        <section className="space-y-2">
+    <div className="space-y-8 animate-in fade-in duration-150">
+      <div className="flex flex-wrap justify-between items-end gap-4">
+        <section className="space-y-1">
           <Display>Leads</Display>
-          <Body>Manage your top-of-funnel prospects.</Body>
+          <Body>
+            {total} lead{total === 1 ? "" : "s"} · {newLeads} new · <span className="text-danger">{hotLeads} hot</span>
+          </Body>
         </section>
-        
-        {/* We would typically use a Dialog here. For Phase 2, we'll just put a simple "Create Lead" card or button that navigates to a create page, or render the form directly. */}
+
         <div className="flex items-center gap-3">
           <a
             href="/api/leads/export"
@@ -61,39 +71,24 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <GlassCard className="p-4">
-          <div className="text-sm text-text-secondary">Total Leads</div>
-          <div className="text-3xl font-light mt-1">{total}</div>
-        </GlassCard>
-        <GlassCard className="p-4">
-          <div className="text-sm text-text-secondary">New</div>
-          <div className="text-3xl font-light mt-1">{newLeads}</div>
-        </GlassCard>
-        <GlassCard className="p-4">
-          <div className="text-sm text-text-secondary">Hot</div>
-          <div className="text-3xl font-light mt-1 text-danger">{hotLeads}</div>
-        </GlassCard>
-      </div>
-
       <div className="glass-panel overflow-hidden border border-border-subtle">
         <div className="w-full overflow-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-text-muted uppercase bg-surface-elevated/50 border-b border-border-subtle">
+            <thead className="text-xs text-text-muted bg-surface-elevated/50 border-b border-border-subtle">
               <tr>
-                <th className="px-6 py-4 font-medium">Company</th>
-                <th className="px-6 py-4 font-medium">Contact</th>
-                <th className="px-6 py-4 font-medium">Stage</th>
-                <th className="px-6 py-4 font-medium">Temp</th>
-                <th className="px-6 py-4 font-medium">Score</th>
-                <th className="px-6 py-4 font-medium">Owner</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                <th className="px-4 py-3 font-medium">Company</th>
+                <th className="px-4 py-3 font-medium">Contact</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Temperature</th>
+                <th className="px-4 py-3 font-medium">Score</th>
+                <th className="px-4 py-3 font-medium hidden md:table-cell">Owner</th>
+                <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {leads.length > 0 ? leads.map(lead => (
                 <tr key={lead.id} className="hover:bg-surface-elevated/30 transition-colors group">
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Link href={`/sales/leads/${lead.id}`} className="font-medium text-text-primary hover:underline">
                         {lead.company?.name || "Unknown"}
@@ -112,7 +107,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex flex-col gap-1">
                       {lead.contact && !/^team\b/i.test(lead.contact.firstName) && (
                         <span>{lead.contact.firstName} {lead.contact.lastName}</span>
@@ -120,12 +115,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                       <LeadPhoneEditor leadId={lead.id} phone={lead.contact?.phone ?? null} />
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <span className="px-2 py-1 bg-surface-elevated text-xs rounded-md border border-border-subtle">
-                      {lead.stage || "N/A"}
+                      {STATUS_LABEL[lead.status] ?? lead.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <span className={`px-2 py-1 text-xs rounded-md border ${
                       lead.temperature === 'HOT' ? 'bg-danger/10 text-danger border-danger/20' : 
                       lead.temperature === 'WARM' ? 'bg-warning/10 text-warning border-warning/20' : 
@@ -134,9 +129,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                       {lead.temperature}
                     </span>
                   </td>
-                  <td className="px-6 py-4">{lead.score}</td>
-                  <td className="px-6 py-4">{lead.owner?.firstName}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">{lead.score}</td>
+                  <td className="px-4 py-3 hidden md:table-cell">{lead.owner?.firstName}</td>
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <LeadOutcomeSelect leadId={lead.id} compact />
                       <DeleteLeadButton leadId={lead.id} leadName={lead.company?.name || "this lead"} />

@@ -12,7 +12,7 @@ export default async function ContactsPage() {
   const contacts = await CrmService.getContacts(workspaceId);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+    <div className="space-y-8 animate-in fade-in duration-150">
       <div className="flex justify-between items-end">
         <section className="space-y-2">
           <Display>Contacts</Display>

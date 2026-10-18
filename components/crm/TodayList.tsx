@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, Loader2, MapPin, Phone, Sparkles, UserPlus } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-card";
-import { MonoLabel } from "@/components/ui/typography";
-import { getOutreachLeadsAction, type OutreachLead } from "@/app/actions/outreach.actions";
+import { SectionHeader } from "@/components/ui/section-header";
+import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { googleMapsUrl } from "@/lib/maps";
 import { LeadOutcomeSelect } from "@/components/crm/LeadQuickActions";
 
@@ -37,7 +37,12 @@ export function TodayList() {
   const [leads, setLeads] = useState<OutreachLead[] | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const load = () => getOutreachLeadsAction().then(setLeads).catch(() => setFailed(true));
+  // GET (not a server action) so it loads in parallel with the dashboard's other panels.
+  const load = () =>
+    fetch("/api/crm/today", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<OutreachLead[]>) : Promise.reject(r.status)))
+      .then(setLeads)
+      .catch(() => setFailed(true));
   useEffect(() => {
     load();
   }, []);
@@ -56,15 +61,11 @@ export function TodayList() {
 
   return (
     <GlassPanel className="p-5 space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <MonoLabel className="text-primary">TODAY&apos;S OUTREACH</MonoLabel>
-        </div>
-        <span className="text-xs text-text-muted">
-          {followUps.length} follow-up{followUps.length === 1 ? "" : "s"} · {toContact.length} new to contact
-        </span>
-      </div>
+      <SectionHeader
+        icon={Sparkles}
+        title="Today's outreach"
+        meta={`${followUps.length} follow-up${followUps.length === 1 ? "" : "s"} · ${toContact.length} new`}
+      />
 
       <section aria-label="Follow-ups due" className="space-y-2">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
@@ -109,13 +110,13 @@ export function TodayList() {
 
 function TodayRow({ lead, note, urgent, onOutcome }: { lead: OutreachLead; note: string; urgent?: boolean; onOutcome?: () => void }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-low px-3 py-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-lowest/60 px-3 py-2 transition-colors hover:border-border-strong">
       <div className="min-w-0">
         <p className="text-xs font-semibold text-text-primary truncate">{lead.businessName}</p>
         <p className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
           <span className={urgent ? "text-danger font-semibold" : ""}>{note}</span>
           {lead.phone && (
-            <a href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1 text-success hover:underline">
+            <a href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`} className="num inline-flex items-center gap-1 text-success hover:underline">
               <Phone className="h-3 w-3" /> {lead.phone}
             </a>
           )}

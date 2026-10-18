@@ -41,7 +41,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   const def = getAgentDefinition(agent.agentKey);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+    <div className="space-y-8 animate-in fade-in duration-150">
       {/* Header */}
       <div className="flex flex-col gap-4 pb-4 border-b border-border-subtle/50 lg:flex-row lg:items-center lg:justify-between">
         <section className="space-y-2">

@@ -70,8 +70,8 @@ export default async function AgentsPage() {
   const activeCount = agentRows.filter((a) => a.enabled).length;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <LiveRefresher intervalMs={15000} />
+    <div className="space-y-8 animate-in fade-in duration-150">
+      <LiveRefresher intervalMs={60000} />
 
       {/* Header */}
       <div className="flex flex-col gap-4 pb-4 border-b border-border-subtle/50 lg:flex-row lg:items-center lg:justify-between">

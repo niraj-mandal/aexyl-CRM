@@ -99,11 +99,28 @@ export interface PipelineAudit {
   }[];
 }
 
+const AUDIT_CACHE_MS = 5 * 60_000;
+const auditCache = new Map<string, { at: number; result: Promise<PipelineAudit> }>();
+
 export class AiAgentService {
   /**
    * Performs an automated pipeline strategic risk audit using database telemetry.
    * Every metric and insight is derived from live workspace data — no canned copy.
    */
+  /**
+   * Cached audit for passive views (Daily brief, attention badge): the full audit
+   * is several cross-region round trips, so reuse a result for a few minutes and
+   * share one in-flight run between concurrent callers.
+   */
+  static auditPipelineRiskCached(workspaceId: string, maxAgeMs = AUDIT_CACHE_MS): Promise<PipelineAudit> {
+    const hit = auditCache.get(workspaceId);
+    if (hit && Date.now() - hit.at < maxAgeMs) return hit.result;
+    const result = AiAgentService.auditPipelineRisk(workspaceId);
+    auditCache.set(workspaceId, { at: Date.now(), result });
+    result.catch(() => auditCache.delete(workspaceId));
+    return result;
+  }
+
   static async auditPipelineRisk(workspaceId: string): Promise<PipelineAudit> {
     const deals = await CrmService.getPipeline(workspaceId);
     const leads = await CrmService.getLeads(workspaceId, 200);

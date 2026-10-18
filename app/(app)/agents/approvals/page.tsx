@@ -76,8 +76,8 @@ export default async function ApprovalsPage() {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <LiveRefresher intervalMs={20000} />
+    <div className="space-y-8 animate-in fade-in duration-150">
+      <LiveRefresher intervalMs={60000} />
 
       <div className="space-y-2 pb-4 border-b border-border-subtle/50">
         <MonoLabel className="text-primary block mb-1">

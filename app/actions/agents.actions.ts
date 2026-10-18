@@ -25,7 +25,8 @@ import { revalidatePath } from "next/cache";
  */
 export async function attentionCountAction() {
   const { workspaceId } = await requireWorkspace();
-  const audit = await AiAgentService.auditPipelineRisk(workspaceId);
+  // Shares the cached audit with the Daily brief instead of re-running it.
+  const audit = await AiAgentService.auditPipelineRiskCached(workspaceId);
   const count = audit.insights.filter((i) => i.severity === "HIGH" || i.severity === "WARNING").length;
   return { count };
 }

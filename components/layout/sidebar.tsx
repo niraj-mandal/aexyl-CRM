@@ -16,6 +16,7 @@ import {
   Bot,
   Settings,
   Zap,
+  Search,
 } from "lucide-react";
 import { useSidebarBadges } from "./sidebar-badges";
 import { SidebarBadge } from "./sidebar-badge";
@@ -40,14 +41,14 @@ interface NavSection {
 // Related pages are merged under one entry and reached via SectionTabs; notifications live in the header bell.
 const navSections: NavSection[] = [
   {
-    title: "OVERVIEW",
+    title: "Overview",
     items: [
       { name: "Command Center", href: "/", icon: LayoutDashboard, exact: true, also: ["/my-day"] },
       { name: "Calendar", href: "/calendar", icon: CalendarRange },
     ]
   },
   {
-    title: "SALES",
+    title: "Sales",
     items: [
       { name: "Leads", href: "/sales/leads", icon: Users, also: ["/sales/companies", "/sales/contacts"] },
       { name: "Pipeline", href: "/sales/pipeline", icon: Kanban, also: ["/sales/deals"] },
@@ -56,14 +57,14 @@ const navSections: NavSection[] = [
     ]
   },
   {
-    title: "DELIVERY",
+    title: "Delivery",
     items: [
       // Clients are companies (Leads → Companies); /clients only redirects there.
       { name: "Projects", href: "/projects", icon: Briefcase },
     ]
   },
   {
-    title: "INTELLIGENCE",
+    title: "Intelligence",
     items: [
       { name: "Insights", href: "/intelligence", icon: Sparkles, also: ["/attention"], badgeKey: "attention" },
       { name: "Aexyl Agents", href: "/agents", icon: Bot, badgeKey: "approvals" },
@@ -139,11 +140,23 @@ export function Sidebar() {
         </Link>
       </div>
 
+      <div className="px-3 pt-3">
+        <button
+          type="button"
+          onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))}
+          className="flex w-full items-center gap-2 rounded-lg border border-border-subtle bg-surface-low px-3 py-2 text-xs text-text-muted hover:border-border-strong hover:text-text-secondary transition-colors"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="flex-1 text-left">Search</span>
+          <kbd className="rounded border border-border-subtle bg-surface-high px-1.5 py-0.5 font-mono-code text-[11px]">⌘K</kbd>
+        </button>
+      </div>
+
       {/* Navigation Groups (scrollable; brand + footer stay pinned) */}
       <div className="flex-1 space-y-6 px-3 py-4 overflow-y-auto scrollbar-thin">
         {navSections.map((section) => (
           <div key={section.title} className="space-y-1">
-            <div className="px-3 pb-1.5 text-xs font-mono-code tracking-[0.08em] text-text-muted/70 uppercase">
+            <div className="px-3 pb-1.5 text-xs font-medium text-text-muted">
               {section.title}
             </div>
             {section.items.map((item) => {
@@ -156,7 +169,7 @@ export function Sidebar() {
                   className={cn(
                     "group relative flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150",
                     isActive
-                      ? "bg-primary/15 text-text-primary border border-primary/30 shadow-[0_0_20px_rgba(43,102,255,0.15)]"
+                      ? "bg-gradient-to-r from-primary/[0.14] via-primary/[0.05] to-transparent text-text-primary border border-primary/15"
                       : "text-text-secondary hover:bg-surface-high/50 hover:text-text-primary border border-transparent"
                   )}
                 >
@@ -191,7 +204,7 @@ export function Sidebar() {
                   )}
 
                   {isActive && (
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 h-4 w-1 rounded-l-full bg-primary" />
+                    <div className="absolute -left-px top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary shadow-[0_0_10px_var(--primary)]" />
                   )}
                 </Link>
               );

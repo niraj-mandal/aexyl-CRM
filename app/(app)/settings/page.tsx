@@ -98,7 +98,7 @@ export default async function SettingsPage({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in duration-150">
       <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border-subtle/50">
         <div>
           <MonoLabel className="text-primary block mb-1">SYSTEM // CONFIGURATION</MonoLabel>

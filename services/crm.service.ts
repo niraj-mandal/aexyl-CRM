@@ -420,7 +420,9 @@ export class CrmService {
   ) {
     const startedAt = Date.now();
 
-    const [dealAgg] = await db
+    // Four independent aggregates, run in parallel (each is a cross-region round trip).
+    const [[dealAgg], stageRows, [leadAgg], [companyAgg]] = await Promise.all([
+      db
       .select({
         totalValue: sql<string>`coalesce(sum(${deals.value}), 0)`,
         openValue: sql<string>`coalesce(sum(case when ${deals.stage} not in ('WON', 'LOST') then ${deals.value} else 0 end), 0)`,
@@ -430,9 +432,8 @@ export class CrmService {
         fresh: sql<number>`(count(*) filter (where ${deals.stage} not in ('WON', 'LOST') and ${deals.updatedAt} > now() - interval '14 days'))::int`,
       })
       .from(deals)
-      .where(eq(deals.workspaceId, workspaceId));
-
-    const stageRows = await db
+      .where(eq(deals.workspaceId, workspaceId)),
+      db
       .select({
         stage: deals.stage,
         count: sql<number>`count(*)::int`,
@@ -440,24 +441,23 @@ export class CrmService {
       })
       .from(deals)
       .where(eq(deals.workspaceId, workspaceId))
-      .groupBy(deals.stage);
-
-    const [leadAgg] = await db
+      .groupBy(deals.stage),
+      db
       .select({
         total: sql<number>`count(*)::int`,
         active: sql<number>`(count(*) filter (where ${leads.status} not in ('CONVERTED', 'LOST')))::int`,
         hot: sql<number>`(count(*) filter (where ${leads.temperature} = 'HOT' or ${leads.score} >= 70))::int`,
       })
       .from(leads)
-      .where(eq(leads.workspaceId, workspaceId));
-
-    const [companyAgg] = await db
+      .where(eq(leads.workspaceId, workspaceId)),
+      db
       .select({
         total: sql<number>`count(*)::int`,
         active: sql<number>`(count(*) filter (where ${companies.status} = 'ACTIVE'))::int`,
       })
       .from(companies)
-      .where(eq(companies.workspaceId, workspaceId));
+      .where(eq(companies.workspaceId, workspaceId)),
+    ]);
 
     const totalDeals = dealAgg?.total ?? 0;
     const openDeals = dealAgg?.open ?? 0;

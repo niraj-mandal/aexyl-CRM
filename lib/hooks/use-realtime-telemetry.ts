@@ -28,7 +28,8 @@ export interface TelemetryState {
   error: string | null;
 }
 
-const POLL_INTERVAL_MS = 5000;
+// Dashboard numbers change slowly; a fast poll mostly competes with the user's own requests.
+const POLL_INTERVAL_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Shared poller singleton.
@@ -127,7 +128,7 @@ function releaseIfIdle() {
 }
 
 /**
- * Live CRM telemetry, polled every 5 seconds from real workspace data.
+ * Live CRM telemetry, polled every 30 seconds from real workspace data.
  * One shared poller per tab; components subscribe to the same snapshot.
  */
 export function useRealtimeTelemetry() {

@@ -179,7 +179,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
   const telHref = selected?.phone ? `tel:${selected.phone.replace(/[^\d+]/g, "")}` : null;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+    <div className="space-y-8 animate-in fade-in duration-150">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
         <div>
           <MonoLabel className="text-primary block mb-1">OUTREACH // AI PITCH WRITER</MonoLabel>

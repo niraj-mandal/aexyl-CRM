@@ -23,12 +23,16 @@ import type { LlmImage } from "@/services/ai/llm.service";
 /** Re-exported for existing consumers (drawer); implementation lives in services/ai/lead-import. */
 export type { ImportLeadCandidate } from "@/services/ai/lead-import.service";
 
+/** Fresh audit (explicit "Run audit"). Read-only, so no revalidation: that re-rendered the whole page. */
 export async function runPipelineStrategicAuditAction() {
   const { workspaceId } = await requireWorkspace();
-  const auditResult = await AiAgentService.auditPipelineRisk(workspaceId);
-  revalidatePath("/intelligence");
-  revalidatePath("/");
-  return auditResult;
+  return AiAgentService.auditPipelineRiskCached(workspaceId, 0);
+}
+
+/** Recent audit for passive views (Daily brief): reuses a result up to 5 minutes old. */
+export async function getPipelineAuditAction() {
+  const { workspaceId } = await requireWorkspace();
+  return AiAgentService.auditPipelineRiskCached(workspaceId);
 }
 
 export async function enrichLeadAiAction(leadId: string) {

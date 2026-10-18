@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { runPipelineStrategicAuditAction } from "@/app/actions/ai.actions";
+import { getPipelineAuditAction, runPipelineStrategicAuditAction } from "@/app/actions/ai.actions";
 import type { PipelineAudit } from "@/services/ai/ai-agent.service";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { MonoLabel } from "@/components/ui/typography";
 import { Flame, RefreshCw } from "lucide-react";
 
 const SEVERITY_BADGE: Record<
@@ -38,7 +37,7 @@ export function DailyBrief() {
 
   useEffect(() => {
     let cancelled = false;
-    runPipelineStrategicAuditAction()
+    getPipelineAuditAction()
       .then((a) => {
         if (!cancelled) setAudit(a);
       })
@@ -53,7 +52,7 @@ export function DailyBrief() {
   if (loading && !audit) {
     return (
       <GlassCard className="p-5">
-        <MonoLabel>DAILY OPERATING BRIEF</MonoLabel>
+        <h2 className="text-base font-semibold text-text-primary">Daily brief</h2>
         <p className="mt-2 text-xs text-text-muted">Auditing live pipeline data…</p>
       </GlassCard>
     );
@@ -64,7 +63,7 @@ export function DailyBrief() {
   if (!audit) {
     return (
       <GlassCard className="p-5">
-        <MonoLabel>DAILY OPERATING BRIEF</MonoLabel>
+        <h2 className="text-base font-semibold text-text-primary">Daily brief</h2>
         <div className="mt-2 flex items-center justify-between">
           <p className="text-xs text-text-muted">Audit unavailable — could not reach the analysis service.</p>
           <button
@@ -86,7 +85,7 @@ export function DailyBrief() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Flame className="h-3.5 w-3.5 text-primary" />
-          <MonoLabel>DAILY OPERATING BRIEF</MonoLabel>
+          <h2 className="text-base font-semibold text-text-primary">Daily brief</h2>
         </div>
         <button
           type="button"

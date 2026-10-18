@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { companies, contacts, deals, discoveryCandidates, leads, projects } from "@/db/schema";
@@ -35,7 +35,8 @@ export interface OutreachLead {
 export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
   const { workspaceId } = await requireWorkspace();
 
-  const rows = await db
+  // One round trip: the discovery record (phone/address/website status) is joined in.
+  const joined = await db
       .select({
         id: leads.id,
         businessName: companies.name,
@@ -49,36 +50,27 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
         nextFollowUpAt: leads.nextFollowUpAt,
         score: leads.score,
         source: leads.source,
+        candidatePhone: discoveryCandidates.phone,
+        candidateAddress: discoveryCandidates.address,
+        candidateWebsiteStatus: discoveryCandidates.websiteStatus,
       })
       .from(leads)
       .innerJoin(companies, eq(companies.id, leads.companyId))
       .leftJoin(contacts, eq(contacts.id, leads.contactId))
+      .leftJoin(
+        discoveryCandidates,
+        and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)),
+      )
       .where(eq(leads.workspaceId, workspaceId))
       .orderBy(desc(leads.createdAt))
       .limit(300);
 
-  const ids = rows.map((r) => r.id);
-  const candidates = ids.length
-    ? await db
-        .select({
-          leadId: discoveryCandidates.leadId,
-          phone: discoveryCandidates.phone,
-          address: discoveryCandidates.address,
-          websiteStatus: discoveryCandidates.websiteStatus,
-        })
-        .from(discoveryCandidates)
-        .where(
-          and(
-            eq(discoveryCandidates.workspaceId, workspaceId),
-            isNotNull(discoveryCandidates.leadId),
-            inArray(discoveryCandidates.leadId, ids),
-          ),
-        )
-    : [];
-  const byLead = new Map(candidates.map((c) => [c.leadId, c]));
+  // A lead can match more than one discovery record; keep the first.
+  const seen = new Set<string>();
+  const rows = joined.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
 
   const list: OutreachLead[] = rows.map((r) => {
-    const c = byLead.get(r.id);
+    const c = { phone: r.candidatePhone, address: r.candidateAddress, websiteStatus: r.candidateWebsiteStatus };
     return {
       id: r.id,
       businessName: r.businessName,

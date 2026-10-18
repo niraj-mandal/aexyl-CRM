@@ -27,7 +27,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
   const activities = await ActivityService.getActivitiesForEntity(workspaceId, 'dealId', dealId);
 
   return (
-    <div className="space-y-8 max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+    <div className="space-y-8 max-w-5xl animate-in fade-in duration-150">
       <div className="flex justify-between items-start">
         <section className="space-y-2">
           <Display>{deal.name}</Display>

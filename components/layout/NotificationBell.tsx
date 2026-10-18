@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell } from "lucide-react";
 import Link from "next/link";
-import { listNotificationsAction, markNotificationsReadAction } from "@/app/actions/production.actions";
-
-interface NotificationItem {
-  id: string;
-  type: string;
-  content: { title?: string; body?: string | null; link?: string | null };
-  readAt: string | null;
-  createdAt: string;
-}
+import { markNotificationsReadAction } from "@/app/actions/production.actions";
+import { refreshAlerts, useAlerts } from "@/lib/hooks/use-alerts";
 
 /**
  * In-app notification center (spec §23): "2 things require your attention",
@@ -19,37 +12,8 @@ interface NotificationItem {
  */
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotificationItem[]>([]);
-  const [unread, setUnread] = useState(0);
-
-  const refresh = async () => {
-    try {
-      const res = await listNotificationsAction();
-      setItems(
-        (res.items ?? []).map((n: { id: string; type: string; content: unknown; readAt: Date | null; createdAt: Date }) => ({
-          id: n.id,
-          type: n.type,
-          content: (n.content ?? {}) as NotificationItem["content"],
-          readAt: n.readAt ? new Date(n.readAt).toISOString() : null,
-          createdAt: new Date(n.createdAt).toISOString(),
-        }))
-      );
-      setUnread(res.unread ?? 0);
-    } catch {
-      // bell is non-critical chrome
-    }
-  };
-
-  useEffect(() => {
-    // First fetch is deferred to a macrotask so it never runs synchronously
-    // inside the effect (avoids cascading renders during commit).
-    const initial = setTimeout(refresh, 0);
-    const t = setInterval(refresh, 30_000);
-    return () => {
-      clearTimeout(initial);
-      clearInterval(t);
-    };
-  }, []);
+  const { items, unread } = useAlerts();
+  const refresh = refreshAlerts;
 
   const markAll = async () => {
     await markNotificationsReadAction();

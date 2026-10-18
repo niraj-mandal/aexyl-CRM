@@ -39,7 +39,7 @@ export default function IntelligencePage() {
   const m = audit?.metrics;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+    <div className="space-y-8 animate-in fade-in duration-150">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
         <div>

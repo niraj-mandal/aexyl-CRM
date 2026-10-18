@@ -54,8 +54,8 @@ export default async function ProjectsPage() {
       : 0;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
-      <LiveRefresher intervalMs={20000} />
+    <div className="space-y-8 animate-in fade-in duration-150">
+      <LiveRefresher intervalMs={60000} />
 
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">

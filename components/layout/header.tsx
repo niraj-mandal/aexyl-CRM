@@ -5,7 +5,6 @@ import { UserButton } from "@clerk/nextjs";
 import { format } from "date-fns";
 import { Search, Command, ShieldAlert, Menu } from "lucide-react";
 import { TOGGLE_SIDEBAR_EVENT } from "@/components/layout/sidebar";
-import { AexylPulse } from "@/components/ui/aexyl-pulse";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ActionNeededBadge, useActionNeededCount } from "@/components/layout/ActionNeededBadge";
 
@@ -26,9 +25,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <AexylPulse state="idle" />
-        <span className="hidden md:inline-block h-4 w-px bg-border-subtle" />
-        <p className="hidden md:block font-mono-code text-xs text-text-muted">
+        <p className="hidden md:block text-xs text-text-muted">
           {format(today, "EEEE, MMMM do, yyyy")}
         </p>
       </div>
@@ -56,7 +53,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
             document.dispatchEvent(event);
           }}
           aria-label="Search or jump to"
-          className="flex items-center space-x-3 rounded-lg border border-border-subtle bg-surface-low/80 px-3 py-1.5 text-xs text-text-muted hover:border-primary/40 hover:text-text-secondary transition-all"
+          className="md:hidden flex items-center space-x-3 rounded-lg border border-border-subtle bg-surface-low/80 px-3 py-1.5 text-xs text-text-muted hover:border-primary/40 hover:text-text-secondary transition-all"
         >
           <Search className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Search or jump to...</span>

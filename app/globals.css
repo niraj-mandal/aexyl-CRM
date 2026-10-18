@@ -4,27 +4,27 @@
 :root {
   color-scheme: dark;
   /* Stitch Obsidian Operating Matrix Palette */
-  --background: #121316;
+  --background: #0F0F11;
   --foreground: #E3E2E6;
   
-  --surface-container-lowest: #0D0E11;
-  --surface-container-low: #1B1B1F;
-  --surface: #1F1F23;
-  --surface-container-high: #292A2D;
-  --surface-container-highest: #343538;
+  --surface-container-lowest: #0B0B0D;
+  --surface-container-low: #17171A;
+  --surface: #1B1B1E;
+  --surface-container-high: #242428;
+  --surface-container-highest: #2E2E33;
   
-  --surface-glass: rgba(17, 19, 24, 0.75);
-  --surface-glass-floating: rgba(31, 35, 44, 0.85);
+  --surface-glass: #141416;
+  --surface-glass-floating: rgba(28, 28, 31, 0.92);
   
   /* Specular Hairline Glass Borders */
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.15);
   --border-focus: rgba(43, 102, 255, 0.6);
   
   /* Text */
-  --text-primary: #E3E2E6;
-  --text-secondary: #C3C5D8;
-  --text-muted: #9EA1B3;
+  --text-primary: #EDEDEF;
+  --text-secondary: #C8C8CE;
+  --text-muted: #9B9BA4;
   
   /* Core Accents */
   --primary: #2B66FF;
@@ -74,6 +74,11 @@
 
 body {
   background-color: var(--background);
+  /* Soft blue glow from the top + faint dot grid: the "techy" canvas behind every page. */
+  background-image:
+    radial-gradient(ellipse 70% 45% at 55% -12%, rgba(43, 102, 255, 0.16), transparent 70%),
+    radial-gradient(rgba(255, 255, 255, 0.065) 1px, transparent 1px);
+  background-size: 100% 100%, 22px 22px;
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -157,17 +162,28 @@ body {
 
 /* Glass & Specular Spec Layering */
 @layer utilities {
-  .glass {
-    background-color: var(--surface-glass);
-    backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid var(--border-subtle);
+  /* Solid cards with a gradient hairline border (bright top edge fading down). */
+  .glass,
+  .glass-panel {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 120px) padding-box,
+      linear-gradient(var(--surface-glass), var(--surface-glass)) padding-box,
+      linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04) 35%, rgba(255, 255, 255, 0.03)) border-box;
+    border: 1px solid transparent;
   }
   .glass-panel {
-    background-color: var(--surface-glass);
-    backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid var(--border-subtle);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 40px -15px rgba(0, 0, 0, 0.5);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), 0 12px 32px -18px rgba(0, 0, 0, 0.7);
+  }
+  /* Monospace, fixed-width digits for metrics, phones and counts. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  /* Faint diagonal hatching for card header bands. */
+  .bg-stripes {
+    background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 7px);
   }
   .glass-panel-glow {
     background-color: var(--surface-glass);
