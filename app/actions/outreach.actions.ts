@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { companies, contacts, discoveryCandidates, leads } from "@/db/schema";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
+import { placeFromLeadSource } from "@/lib/maps";
 import {
   PitchWriterService,
   type PitchLanguage,
@@ -22,6 +23,10 @@ export interface OutreachLead {
   status: string;
   temperature: string | null;
   lastContactedAt: string | null;
+  nextFollowUpAt: string | null;
+  score: number;
+  /** City to narrow a Google Maps lookup when the lead has no address. */
+  place: string | null;
 }
 
 /** Leads for the pitch writer: contactable ones first, then newest. */
@@ -39,6 +44,9 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
         status: leads.status,
         temperature: leads.temperature,
         lastContactedAt: leads.lastContactedAt,
+        nextFollowUpAt: leads.nextFollowUpAt,
+        score: leads.score,
+        source: leads.source,
       })
       .from(leads)
       .innerJoin(companies, eq(companies.id, leads.companyId))
@@ -79,6 +87,9 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
       status: r.status,
       temperature: r.temperature,
       lastContactedAt: r.lastContactedAt ? r.lastContactedAt.toISOString() : null,
+      nextFollowUpAt: r.nextFollowUpAt ? r.nextFollowUpAt.toISOString() : null,
+      score: r.score,
+      place: r.location || c?.address || placeFromLeadSource(r.source),
     };
   });
   list.sort((a, b) => Number(Boolean(b.phone || b.email)) - Number(Boolean(a.phone || a.email)));
@@ -113,6 +124,8 @@ export async function generatePitchAction(
 
 const CHANNELS = new Set(["WHATSAPP", "CALL", "EMAIL"]);
 
+const FOLLOW_UP_AFTER_DAYS = 3;
+
 /** Records that the operator reached out (they send the message themselves). */
 export async function markContactedAction(leadId: string, channel: string, message?: string) {
   const { workspaceId, userId } = await requireWorkspace();
@@ -130,6 +143,8 @@ export async function markContactedAction(leadId: string, channel: string, messa
     .update(leads)
     .set({
       lastContactedAt: now,
+      // Most replies come on the 2nd–3rd touch, so every contact queues the next one.
+      nextFollowUpAt: new Date(now.getTime() + FOLLOW_UP_AFTER_DAYS * 86_400_000),
       status: lead.status === "NEW" ? "CONTACTED" : lead.status,
       updatedAt: now,
     })

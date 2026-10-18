@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useRealtimeTelemetry } from "@/lib/hooks/use-realtime-telemetry";
 import { SweepButton } from "@/components/crm/SweepButton";
 import { DailyBrief } from "@/components/crm/DailyBrief";
+import { TodayList } from "@/components/crm/TodayList";
 import {
   TrendingUp,
   Users,
@@ -48,6 +49,9 @@ export default function CommandCenter() {
           </Badge>
         </div>
       </section>
+
+      {/* Who to contact today */}
+      <TodayList />
 
       {/* Daily Operating Brief */}
       <DailyBrief />

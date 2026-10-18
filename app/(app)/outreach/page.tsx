@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import { Display, PageTitle, MonoLabel } from "@/components/ui/typography";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
@@ -62,12 +62,14 @@ function waNumber(phone: string | null): string | null {
   return digits.length >= 11 ? digits : null;
 }
 
-export default function OutreachPage() {
+export default function OutreachPage({ searchParams }: { searchParams: Promise<{ lead?: string }> }) {
+  // "Write pitch" links (e.g. from Today's outreach) open with that lead selected.
+  const preselected = use(searchParams).lead;
   const [leads, setLeads] = useState<OutreachLead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [query, setQuery] = useState("");
   const [contactableOnly, setContactableOnly] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(typeof preselected === "string" ? preselected : null);
 
   const [senderName, setSenderName] = useState("");
   const [offer, setOffer] = useState("");
