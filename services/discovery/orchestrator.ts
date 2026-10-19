@@ -230,6 +230,11 @@ export class DiscoveryOrchestrator {
       notes.push(...providerResult.notes);
 
       if (!providerResult.success || providerResult.prospects.length === 0) {
+        // Keep the provider's reason on the batch so run history shows why.
+        errors.push(
+          providerResult.notes.find((n) => /fail|could not|unavailable|HTTP|timed? ?out/i.test(n)) ??
+            "No matching businesses found on the map for this city.",
+        );
         await DiscoveryOrchestrator.finalizeBatch(batch.id, "FAILED", 0, 0, 0, 0, 0, errors);
         return { batchId: batch.id, runId, status: "FAILED", discovered: 0, qualified: 0, created: 0, skipped: 0, failed: 0, notes, errors };
       }

@@ -167,7 +167,8 @@ export async function approveCandidateAction(candidateId: string) {
     phones: candidate.phone ? [candidate.phone] : [],
     linkedin: null,
     fitScore: candidate.fitScore + candidate.opportunityScore,
-    sourceQuery: candidate.sourceUrl ?? "",
+    // "gym in Guwahati, Assam, India": the lead's Maps lookup reads the city from this.
+    sourceQuery: [candidate.category ?? "business", candidate.city].filter(Boolean).join(" in "),
     sourceUrl: candidate.sourceUrl,
     placeId: candidate.externalId ?? undefined,
     priority: candidate.opportunityScore >= 24 ? "Hot" : candidate.opportunityScore >= 10 ? "Warm" : "Cold",
