@@ -19,8 +19,8 @@ const FIELD_MASK = [
 ].join(",");
 
 const QUERY_VARIANTS: Record<string, string[]> = {
-  gym: ["gym", "fitness centre", "yoga studio", "crossfit"],
-  fitness: ["gym", "fitness centre", "yoga studio"],
+  gym: ["gym", "fitness centre", "crossfit"],
+  fitness: ["gym", "fitness centre"],
 };
 
 interface PlaceResult {

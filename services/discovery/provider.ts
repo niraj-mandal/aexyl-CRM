@@ -62,8 +62,9 @@ export interface BusinessDiscoveryProvider {
 }
 
 const CATEGORY_TAG_MAP: Record<string, string[]> = {
-  gym: ["leisure=fitness_centre", "leisure=sports_centre", "amenity=gym"],
-  fitness: ["leisure=fitness_centre", "leisure=sports_centre"],
+  // Not leisure=sports_centre: it pulls in tennis/swimming clubs and sports shops.
+  gym: ["leisure=fitness_centre", "amenity=gym"],
+  fitness: ["leisure=fitness_centre", "amenity=gym"],
   cafe: ["amenity=cafe"],
   coffee: ["amenity=cafe"],
   restaurant: ["amenity=restaurant"],
@@ -79,10 +80,13 @@ const CATEGORY_TAG_MAP: Record<string, string[]> = {
   yoga: ["leisure=fitness_centre", "sport=yoga"],
 };
 
-const DEFAULT_QUERY_VARIANTS: Record<string, string[]> = {
-  gym: ["gym", "yoga", "sports fitness"],
-  fitness: ["gym", "yoga"],
-};
+/** Names that are clearly not a gym even when the map tags them as fitness. */
+const NOT_A_GYM = /\b(yoga|meditation|supplements?|nutrition|accessor(y|ies)|store|shop|clinic|hospital|dispensary|nursing|tennis|swimming|cricket|badminton)\b/i;
+
+/** For gym searches, drop places whose name says they're something else ("Sahaja Yoga Meditation"). */
+export function isGymLike(name: string): boolean {
+  return /\b(gym|gymnasium|crossfit)\b/i.test(name) || !NOT_A_GYM.test(name);
+}
 
 interface NominatimResult {
   boundingbox?: string[];
@@ -149,9 +153,7 @@ export class OverpassDiscoveryProvider implements BusinessDiscoveryProvider {
     }
     notes.push(`Located ${city} via Nominatim.`);
 
-    const queryVariants = query.queries
-      ?? DEFAULT_QUERY_VARIANTS[category.toLowerCase().trim()]
-      ?? [category];
+    const queryVariants = query.queries ?? [category];
 
     const seen = new Set<string>();
     const allProspects: RawProspect[] = [];

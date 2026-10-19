@@ -7,7 +7,7 @@
 import { db } from "@/db";
 import { discoveryBatches, discoveryCandidates, workspaces } from "@/db/schema";
 import { and, eq, gte, lt, sql } from "drizzle-orm";
-import { OverpassDiscoveryProvider, hasContactSource, NO_CONTACT_REASON, type BusinessDiscoveryProvider } from "./provider";
+import { OverpassDiscoveryProvider, hasContactSource, isGymLike, NO_CONTACT_REASON, type BusinessDiscoveryProvider } from "./provider";
 import { GooglePlacesDiscoveryProvider } from "./google-places-provider";
 
 export { NO_CONTACT_REASON };
@@ -239,8 +239,13 @@ export class DiscoveryOrchestrator {
         return { batchId: batch.id, runId, status: "FAILED", discovered: 0, qualified: 0, created: 0, skipped: 0, failed: 0, notes, errors };
       }
 
-      // 2. Normalize
-      const normalized = normalizeProspects(providerResult.prospects);
+      // 2. Normalize (gym runs keep only places whose name doesn't say they're something else)
+      const isGymRun = /gym|fitness/i.test(config.category);
+      const prospects = isGymRun ? providerResult.prospects.filter((p) => isGymLike(p.businessName ?? "")) : providerResult.prospects;
+      if (prospects.length < providerResult.prospects.length) {
+        notes.push(`Skipped ${providerResult.prospects.length - prospects.length} non-gym places (yoga, shops, clubs…).`);
+      }
+      const normalized = normalizeProspects(prospects);
       notes.push(`${normalized.length} candidates after normalization.`);
 
       // 3. Dedup within batch
