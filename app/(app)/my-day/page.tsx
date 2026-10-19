@@ -244,7 +244,7 @@ export default async function MyDayPage() {
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Agenda */}
-        <GlassPanel className="p-5 lg:col-span-3">
+        <GlassPanel className="min-w-0 p-5 lg:col-span-3">
           <SectionHeader icon={ListChecks} title="Today's checklist" meta={`${checklist.filter((i) => i.action).length} to do`} />
           {checklist.length === 0 && doneItems.length === 0 ? (
             <EmptyState
@@ -259,7 +259,7 @@ export default async function MyDayPage() {
         </GlassPanel>
 
         {/* Wrap-up + tomorrow */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           <GlassPanel className="p-5">
             <SectionHeader icon={MoonStar} title="Wrap-up" tone="tertiary" />
             {today.contacted === 0 ? (

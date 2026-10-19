@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, MessageCircle, Phone, X } from "lucide-react";
 import { completeTaskAction } from "@/app/actions/crm.actions";
 import { markContactedAction } from "@/app/actions/outreach.actions";
 import { queueWithUndo } from "@/components/ui/undo-toast";
@@ -27,12 +27,14 @@ export interface DoneItem {
   href: string | null;
 }
 
-async function run(action: NonNullable<ChecklistItem["action"]>) {
+type Channel = "CALL" | "WHATSAPP";
+
+async function run(action: NonNullable<ChecklistItem["action"]>, channel: Channel) {
   if (action.type === "task") {
     const res = await completeTaskAction(action.taskId);
     return res.success ? { ok: true as const, message: "Task done." } : { ok: false as const, error: "Couldn't find that task." };
   }
-  const res = await markContactedAction(action.leadId, "CALL", "Checked off in My Day");
+  const res = await markContactedAction(action.leadId, channel, "Checked off in My Day");
   return res.ok ? { ok: true as const, message: "Logged. Next follow-up in 3 days." } : res;
 }
 
@@ -48,15 +50,19 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
       return next;
     });
 
-  const tick = (item: ChecklistItem) => {
+  // Follow-ups ask "how did you reach them?" before ticking; tasks tick straight away.
+  const [choosing, setChoosing] = useState<string | null>(null);
+
+  const tick = (item: ChecklistItem, channel: Channel = "CALL") => {
     if (!item.action || checked.has(item.key)) return;
+    setChoosing(null);
     toggle(item.key, true);
-    queueWithUndo(`Done · ${item.title}`, () => run(item.action!), {
+    const how = item.action.type === "followUp" ? (channel === "CALL" ? " (call)" : " (WhatsApp)") : "";
+    queueWithUndo(`Done · ${item.title}${how}`, () => run(item.action!, channel), {
       onDone: () => router.refresh(),
       onUndo: () => toggle(item.key, false),
     });
   };
-
 
   return (
     <div className="mt-4 space-y-5">
@@ -78,7 +84,7 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
               </span>
             );
             return (
-              <li key={item.key} className="group flex items-start gap-3 rounded-lg px-1 py-1.5 hover:bg-surface-high/30">
+              <li key={item.key} className="group flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-lg px-1 py-1.5 hover:bg-surface-high/30">
                 <span className="num w-12 shrink-0 pt-1 text-right text-xs text-text-muted">{item.time ?? ""}</span>
                 {item.action ? (
                   <button
@@ -86,7 +92,7 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
                     role="checkbox"
                     aria-checked={isChecked}
                     aria-label={`Mark done: ${item.title}`}
-                    onClick={() => tick(item)}
+                    onClick={() => (item.action?.type === "followUp" ? setChoosing(choosing === item.key ? null : item.key) : tick(item))}
                     disabled={isChecked}
                     className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
                       isChecked ? "border-success bg-success text-white" : "border-border-strong hover:border-primary"
@@ -105,6 +111,38 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
                   </Link>
                 ) : (
                   label
+                )}
+                {choosing === item.key && (
+                  <span
+                    role="group"
+                    aria-label="How did you reach them?"
+                    className="ml-auto flex shrink-0 items-center gap-1 animate-in fade-in duration-150"
+                    onKeyDown={(e) => e.key === "Escape" && setChoosing(null)}
+                  >
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={() => tick(item, "CALL")}
+                      className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
+                    >
+                      <Phone className="h-3 w-3" /> Call
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => tick(item, "WHATSAPP")}
+                      className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
+                    >
+                      <MessageCircle className="h-3 w-3" /> WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChoosing(null)}
+                      aria-label="Cancel"
+                      className="rounded-md p-1 text-text-muted hover:bg-surface-high hover:text-text-primary"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
                 )}
               </li>
             );
