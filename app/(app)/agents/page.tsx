@@ -70,7 +70,7 @@ export default async function AgentsPage() {
   const activeCount = agentRows.filter((a) => a.enabled).length;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-8">
       <LiveRefresher intervalMs={60000} />
 
       {/* Header */}

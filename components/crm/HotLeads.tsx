@@ -35,7 +35,7 @@ export function HotLeads({ leads, onOpen }: { leads: OutreachLead[]; onOpen: (l:
   return (
     <GlassPanel className="p-5">
       <SectionHeader icon={Flame} title="Hot leads" meta="closest to signing" />
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      <div className="stagger mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         {hot.map((l) => {
           const tile = TILE[isOverdue(l, startOfToday) ? "OVERDUE" : l.status];
           return (

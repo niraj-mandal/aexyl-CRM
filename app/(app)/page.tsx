@@ -11,6 +11,7 @@ import { DailyBrief } from "@/components/crm/DailyBrief";
 import { TodayList } from "@/components/crm/TodayList";
 import { useCountUp } from "@/components/crm/TodayProgress";
 import { DEAL_STAGES, rupees } from "@/lib/stages";
+import { CountUp } from "@/components/ui/count-up";
 
 const STAGES = DEAL_STAGES.filter((s) => s.key !== "LOST");
 
@@ -91,14 +92,14 @@ export default function CommandCenter() {
   const totalInPipeline = STAGES.reduce((sum, s) => sum + (stageCounts[s.key]?.count ?? 0), 0);
 
   const kpis = [
-    { label: "Active leads", icon: Users, value: stats ? String(stats.activeLeads) : "—", note: stats ? `${stats.hotLeads} hot` : "", noteIcon: Flame, href: "/sales/leads" },
-    { label: "Open pipeline", icon: IndianRupee, value: stats ? rupees(stats.pipelineRevenue) : "—", note: stats ? `${stats.activeDeals} open deals` : "", href: "/sales/pipeline" },
+    { label: "Active leads", icon: Users, value: stats ? <CountUp value={stats.activeLeads} /> : "—", note: stats ? `${stats.hotLeads} hot` : "", noteIcon: Flame, href: "/sales/leads" },
+    { label: "Open pipeline", icon: IndianRupee, value: stats ? <CountUp value={stats.pipelineRevenue} format={rupees} /> : "—", note: stats ? `${stats.activeDeals} open deals` : "", href: "/sales/pipeline" },
     { label: "Win rate", icon: Trophy, value: stats?.winRate ?? "—", note: "won vs all deals", href: "/sales/deals" },
-    { label: "Companies", icon: Building2, value: stats ? String(stats.activeCompanies) : "—", note: "in your CRM", href: "/sales/companies" },
+    { label: "Companies", icon: Building2, value: stats ? <CountUp value={stats.activeCompanies} /> : "—", note: "in your CRM", href: "/sales/companies" },
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="num text-xs font-medium uppercase tracking-[0.18em] text-[#F04A45]" suppressHydrationWarning>
@@ -117,7 +118,7 @@ export default function CommandCenter() {
 
       <TodayList />
 
-      <section aria-label="Key numbers" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="Key numbers" className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href} className="glass group relative overflow-hidden rounded-xl transition-transform hover:-translate-y-0.5">
             <div className="bg-stripes flex items-center justify-between border-b border-border-subtle px-4 py-2.5">

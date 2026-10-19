@@ -140,7 +140,7 @@ export default async function MyDayPage() {
   const needsYou = pendingDrafts.length + quietLeads.length + deals.length;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6">
       <LiveRefresher intervalMs={60000} />
 
       <PageHeader

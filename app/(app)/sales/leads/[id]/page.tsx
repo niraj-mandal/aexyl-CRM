@@ -71,7 +71,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const open = lead.status !== "CONVERTED" && lead.status !== "LOST";
 
   return (
-    <div className="max-w-6xl space-y-6 animate-in fade-in duration-150">
+    <div className="max-w-6xl space-y-6">
       <Link href="/sales/leads" className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary">
         <ArrowLeft className="h-3.5 w-3.5" /> Leads
       </Link>

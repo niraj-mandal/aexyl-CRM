@@ -47,7 +47,7 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
               <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-subtle">
+          <tbody className="stagger divide-y divide-border-subtle">
             {rows.map((lead) => {
               const stage = LEAD_STAGE[lead.status] ?? { label: lead.status, color: "#9B9BA4" };
               const wa = waNumber(lead.phone);

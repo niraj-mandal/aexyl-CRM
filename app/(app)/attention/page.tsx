@@ -27,7 +27,7 @@ export default async function AttentionPage() {
   const normals = audit.insights.filter((i) => i.severity === "NORMAL" || i.severity === "EXPANSION" || i.severity === "LOW");
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-8">
       <LiveRefresher intervalMs={60000} />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">

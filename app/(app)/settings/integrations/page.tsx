@@ -17,7 +17,7 @@ export default async function IntegrationsPage() {
   const connectedCount = connections.filter((c) => c?.status === "CONNECTED").length;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-8">
       <div className="space-y-2 pb-4 border-b border-border-subtle/50">
         <MonoLabel className="text-primary block mb-1">SETTINGS // INTEGRATIONS</MonoLabel>
         <Display>Integrations</Display>

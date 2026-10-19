@@ -25,7 +25,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   if (!company) notFound();
 
   return (
-    <div className="space-y-8 max-w-6xl animate-in fade-in duration-150">
+    <div className="space-y-8 max-w-6xl">
       <div className="flex justify-between items-start">
         <section className="space-y-2">
           <Display>{company.name}</Display>

@@ -23,7 +23,7 @@ export default async function PipelinePage() {
   const weightedPipelineValue = deals.reduce((sum, d) => sum + (Number(d.value || 0) * ((d.probability || 0) / 100)), 0);
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-80px)] animate-in fade-in duration-150">
+    <div className="space-y-6 flex flex-col h-[calc(100vh-80px)]">
       <LiveRefresher intervalMs={60000} />
 
       <PageHeader

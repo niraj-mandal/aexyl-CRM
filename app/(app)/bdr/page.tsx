@@ -71,7 +71,7 @@ export default function BdrPage({ searchParams }: { searchParams: Promise<{ tab?
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Sales · Autopilot"
         title="AI BDR"

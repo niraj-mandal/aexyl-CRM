@@ -60,7 +60,7 @@ export default async function ProjectsPage() {
       : 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6">
       <LiveRefresher intervalMs={60000} />
 
       <PageHeader

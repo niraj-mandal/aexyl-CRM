@@ -14,7 +14,7 @@ export default async function ContactsPage() {
   const contacts = await CrmService.getContacts(workspaceId);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Sales"
         title="Contacts"

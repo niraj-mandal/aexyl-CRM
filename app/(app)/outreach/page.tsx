@@ -172,7 +172,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
   const telHref = selected?.phone ? `tel:${selected.phone.replace(/[^\d+]/g, "")}` : null;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Sales · AI pitch writer"
         title="Outreach"

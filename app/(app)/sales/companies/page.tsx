@@ -13,7 +13,7 @@ export default async function CompaniesPage() {
   const companies = await CrmService.getCompanies(workspaceId);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Sales"
         title="Companies"

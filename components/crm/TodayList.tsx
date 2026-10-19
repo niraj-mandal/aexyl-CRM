@@ -97,7 +97,7 @@ export function TodayList() {
         meta={`${followUps.length} follow-up${followUps.length === 1 ? "" : "s"} · ${toContact.length} new`}
       />
 
-      <section aria-label="Follow-ups due" className="space-y-2">
+      <section aria-label="Follow-ups due" className="stagger space-y-2">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
           <CalendarClock className="h-3.5 w-3.5 text-tertiary" /> Follow-ups due
         </h3>
@@ -110,7 +110,7 @@ export function TodayList() {
         )}
       </section>
 
-      <section aria-label="New leads to contact" className="space-y-2">
+      <section aria-label="New leads to contact" className="stagger space-y-2">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
           <UserPlus className="h-3.5 w-3.5 text-secondary" /> New leads to contact
         </h3>

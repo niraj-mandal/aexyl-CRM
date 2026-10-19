@@ -28,7 +28,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
   const activities = await ActivityService.getActivitiesForEntity(workspaceId, 'contactId', contactId);
 
   return (
-    <div className="space-y-8 max-w-5xl animate-in fade-in duration-150">
+    <div className="space-y-8 max-w-5xl">
       <div className="flex justify-between items-start">
         <section className="space-y-2">
           <Display>{contact.firstName} {contact.lastName}</Display>

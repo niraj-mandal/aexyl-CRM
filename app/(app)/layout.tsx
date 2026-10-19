@@ -24,9 +24,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-background text-text-primary antialiased font-sans">
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Header scrolls with the page (sticky) so its frosted glass blurs content passing under it. */}
+      <div className="flex flex-1 flex-col overflow-y-auto scrollbar-thin">
         <Header userFirstName={user?.firstName} />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10 scrollbar-thin">
+        <main className="flex-1 p-6 md:p-8 lg:p-10">
           <div className="mx-auto max-w-7xl">
             <SectionTabs />
             {children}

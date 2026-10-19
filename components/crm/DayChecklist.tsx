@@ -69,7 +69,7 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
       {items.length === 0 ? (
         <p className="text-sm text-text-muted">Nothing left on today&apos;s list.</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="stagger space-y-1">
           {items.map((item) => {
             const isChecked = checked.has(item.key);
             const label = (

@@ -35,7 +35,7 @@ export function ActivityTimeline({ activities }: { activities: TimelineActivity[
   }
 
   return (
-    <ol className="relative space-y-5 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border-subtle">
+    <ol className="stagger relative space-y-5 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border-subtle">
       {activities.map((activity) => {
         const { icon: Icon, cls } = STYLE[activity.type] ?? { icon: MessageSquare, cls: "text-text-secondary bg-surface-high" };
         const when = new Date(activity.occurredAt);

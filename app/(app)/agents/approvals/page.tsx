@@ -76,7 +76,7 @@ export default async function ApprovalsPage() {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-8">
       <LiveRefresher intervalMs={60000} />
 
       <div className="space-y-2 pb-4 border-b border-border-subtle/50">
