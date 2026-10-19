@@ -56,8 +56,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export class CalendarService {
   static async getMonth(workspaceId: string, year: number, month: number): Promise<CalendarMonth> {
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 1);
+    const events = await CalendarService.getEvents(workspaceId, new Date(year, month - 1, 1), new Date(year, month, 1));
+    const counts = { MEETING: 0, TASK: 0, DEAL_CLOSE: 0, FOLLOW_UP: 0, PROJECT_DUE: 0 };
+    for (const e of events) counts[e.kind] += 1;
+    return { year, month, events, counts };
+  }
+
+  /** Every dated commitment in [start, end), oldest first. */
+  static async getEvents(workspaceId: string, start: Date, end: Date): Promise<CalendarEvent[]> {
 
     const [
       meetingRows,
@@ -263,11 +269,7 @@ export class CalendarService {
     }
 
     events.sort((a, b) => a.when.localeCompare(b.when));
-
-    const counts = { MEETING: 0, TASK: 0, DEAL_CLOSE: 0, FOLLOW_UP: 0, PROJECT_DUE: 0 };
-    for (const e of events) counts[e.kind] += 1;
-
-    return { year, month, events, counts };
+    return events;
   }
 
   /**
