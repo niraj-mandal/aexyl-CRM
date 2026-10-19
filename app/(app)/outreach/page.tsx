@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, use } from "react";
 import { Display, PageTitle, MonoLabel } from "@/components/ui/typography";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
+import { waNumber } from "@/lib/phone";
 import {
   Check,
   CheckCircle2,
@@ -50,16 +51,6 @@ function savePrefs(prefs: Record<string, string>) {
   } catch {
     // Storage can be unavailable (private mode); preferences just won't persist.
   }
-}
-
-/** wa.me needs the full international number without "+" or spaces. */
-function waNumber(phone: string | null): string | null {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 10) return `91${digits}`;
-  if (digits.length === 12 && digits.startsWith("91")) return digits;
-  if (digits.length === 11 && digits.startsWith("0")) return `91${digits.slice(1)}`;
-  return digits.length >= 11 ? digits : null;
 }
 
 export default function OutreachPage({ searchParams }: { searchParams: Promise<{ lead?: string }> }) {

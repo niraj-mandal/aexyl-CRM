@@ -224,13 +224,13 @@ export async function setLeadOutcomeAction(leadId: string, outcome: string) {
   let message: string;
   if (outcome === "INTERESTED") {
     await ensureDeal();
-    await CrmService.updateLead(workspaceId, lead.id, { nextFollowUpAt: new Date(now.getTime() + 2 * DAY_MS) });
+    await CrmService.updateLead(workspaceId, lead.id, { status: "QUALIFIED", lastContactedAt: now, nextFollowUpAt: new Date(now.getTime() + 2 * DAY_MS) });
     message = "Deal created in your Pipeline. Follow-up set for 2 days.";
   } else if (outcome === "NOT_NOW") {
-    await CrmService.updateLead(workspaceId, lead.id, { status: "NURTURE", nextFollowUpAt: new Date(now.getTime() + 30 * DAY_MS) });
+    await CrmService.updateLead(workspaceId, lead.id, { status: "NURTURE", lastContactedAt: now, nextFollowUpAt: new Date(now.getTime() + 30 * DAY_MS) });
     message = "Moved to nurture. It'll come back in Today's list in 30 days.";
   } else if (outcome === "NOT_INTERESTED") {
-    await CrmService.updateLead(workspaceId, lead.id, { status: "LOST", nextFollowUpAt: null });
+    await CrmService.updateLead(workspaceId, lead.id, { status: "LOST", lastContactedAt: now, nextFollowUpAt: null });
     message = "Marked as lost.";
   } else {
     const deal = await ensureDeal();
@@ -249,7 +249,7 @@ export async function setLeadOutcomeAction(leadId: string, outcome: string) {
         ownerId: userId,
       });
     }
-    await CrmService.updateLead(workspaceId, lead.id, { status: "CONVERTED", nextFollowUpAt: null });
+    await CrmService.updateLead(workspaceId, lead.id, { status: "CONVERTED", lastContactedAt: now, nextFollowUpAt: null });
     message = "Won! Deal closed and a website project was created.";
   }
 

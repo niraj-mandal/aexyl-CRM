@@ -196,3 +196,13 @@ body {
     font-family: var(--font-mono);
   }
 }
+
+/* Undo toast: countdown bar for the 5 s undo window. */
+@keyframes undo-shrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.undo-bar {
+  transform-origin: left;
+  animation: undo-shrink 5s linear forwards;
+}

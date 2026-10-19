@@ -9,6 +9,7 @@ import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { googleMapsUrl } from "@/lib/maps";
 import { LeadOutcomeSelect } from "@/components/crm/LeadQuickActions";
 import { TodayProgress } from "@/components/crm/TodayProgress";
+import { CallSession, LeadQuickView } from "@/components/crm/LeadQuickView";
 
 const CLOSED = new Set(["CONVERTED", "LOST", "UNQUALIFIED"]);
 const NEW_PER_DAY = 5;
@@ -42,6 +43,8 @@ export function planToday(leads: OutreachLead[], now = new Date()) {
 export function TodayList() {
   const [leads, setLeads] = useState<OutreachLead[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState<OutreachLead | null>(null);
+  const [calling, setCalling] = useState(false);
 
   // GET (not a server action) so it loads in parallel with the dashboard's other panels.
   const load = () =>
@@ -70,7 +73,15 @@ export function TodayList() {
 
   return (
     <>
-    <TodayProgress done={contactedToday} target={target} next={next} />
+    <TodayProgress
+      done={contactedToday}
+      target={target}
+      next={next}
+      onOpenNext={() => next && setOpen(next)}
+      onStart={followUps.length + toContact.length > 0 ? () => setCalling(true) : undefined}
+    />
+    {open && <LeadQuickView lead={open} onClose={() => setOpen(null)} onChanged={load} />}
+    {calling && <CallSession queue={[...followUps, ...toContact]} onClose={() => setCalling(false)} onChanged={load} />}
     <GlassPanel className="p-5 space-y-5">
       <SectionHeader
         icon={Sparkles}
@@ -86,7 +97,7 @@ export function TodayList() {
           <p className="text-xs text-text-muted">None due. Leads you mark as contacted come back here 3 days later.</p>
         ) : (
           followUps.map((l) => (
-            <TodayRow key={l.id} lead={l} note={overdue(l) ? "Overdue" : "Due today"} urgent={overdue(l)} onOutcome={load} />
+            <TodayRow key={l.id} lead={l} note={overdue(l) ? "Overdue" : "Due today"} urgent={overdue(l)} onOutcome={load} onOpen={() => setOpen(l)} />
           ))
         )}
       </section>
@@ -101,7 +112,7 @@ export function TodayList() {
             {noContactCount > 0 && " Look up numbers with the Maps button in Leads, or approve more in Lead Discovery."}
           </p>
         ) : (
-          toContact.map((l) => <TodayRow key={l.id} lead={l} note={`Score ${l.score}`} />)
+          toContact.map((l) => <TodayRow key={l.id} lead={l} note={`Score ${l.score}`} onOpen={() => setOpen(l)} />)
         )}
         {(moreReachable > 0 || noContactCount > 0) && (
           <p className="text-xs text-text-muted">
@@ -120,11 +131,13 @@ export function TodayList() {
   );
 }
 
-function TodayRow({ lead, note, urgent, onOutcome }: { lead: OutreachLead; note: string; urgent?: boolean; onOutcome?: () => void }) {
+function TodayRow({ lead, note, urgent, onOutcome, onOpen }: { lead: OutreachLead; note: string; urgent?: boolean; onOutcome?: () => void; onOpen: () => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-lowest/60 px-3 py-2 transition-colors hover:border-border-strong">
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-text-primary truncate">{lead.businessName}</p>
+        <button type="button" onClick={onOpen} className="block max-w-full truncate text-left text-xs font-semibold text-text-primary hover:text-primary">
+          {lead.businessName}
+        </button>
         <p className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
           <span className={urgent ? "text-danger font-semibold" : ""}>{note}</span>
           {lead.phone && (
@@ -135,7 +148,7 @@ function TodayRow({ lead, note, urgent, onOutcome }: { lead: OutreachLead; note:
         </p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        {onOutcome && <LeadOutcomeSelect leadId={lead.id} compact onDone={onOutcome} />}
+        {onOutcome && <LeadOutcomeSelect leadId={lead.id} name={lead.businessName} onDone={onOutcome} />}
         <a
           href={googleMapsUrl(lead.businessName, lead.place)}
           target="_blank"

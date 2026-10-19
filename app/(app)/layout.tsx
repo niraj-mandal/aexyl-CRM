@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { AiCopilotDrawer } from "@/components/crm/AiCopilotDrawer";
+import { UndoToaster } from "@/components/ui/undo-toast";
 import { SectionTabs } from "@/components/layout/section-tabs";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       <CommandPalette />
       <AiCopilotDrawer />
+      <UndoToaster />
     </div>
   );
 }

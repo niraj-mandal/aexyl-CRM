@@ -133,7 +133,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   <td className="px-4 py-3 hidden md:table-cell">{lead.owner?.firstName}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <LeadOutcomeSelect leadId={lead.id} compact />
+                      <LeadOutcomeSelect leadId={lead.id} name={lead.company?.name || "Lead"} />
                       <DeleteLeadButton leadId={lead.id} leadName={lead.company?.name || "this lead"} />
                     </div>
                   </td>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Target } from "lucide-react";
+import { ArrowRight, PhoneCall, Target } from "lucide-react";
 
 /** Animates 0 → value once (respects reduced motion). */
 function useCountUp(value: number, durationMs = 900) {
@@ -30,10 +29,14 @@ export function TodayProgress({
   done,
   target,
   next,
+  onOpenNext,
+  onStart,
 }: {
   done: number;
   target: number;
-  next: { id: string; businessName: string } | null;
+  next: { businessName: string } | null;
+  onOpenNext: () => void;
+  onStart?: () => void;
 }) {
   const shown = useCountUp(done);
   const pct = target > 0 ? Math.min(100, Math.round((done / target) * 100)) : 0;
@@ -74,15 +77,27 @@ export function TodayProgress({
           <p className="mt-2 text-sm text-white/85">{message}</p>
         </div>
 
-        {next && (
-          <Link
-            href={`/outreach?lead=${next.id}`}
-            className="group inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#c81f1f] shadow-lg transition-transform hover:scale-[1.03]"
-          >
-            Next: <span className="max-w-[160px] truncate">{next.businessName}</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {onStart && (
+            <button
+              type="button"
+              onClick={onStart}
+              className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+            >
+              <PhoneCall className="h-4 w-4" /> Start calling
+            </button>
+          )}
+          {next && (
+            <button
+              type="button"
+              onClick={onOpenNext}
+              className="group inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#c81f1f] shadow-lg transition-transform hover:scale-[1.03]"
+            >
+              Next: <span className="max-w-[160px] truncate">{next.businessName}</span>
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="relative mt-5">
