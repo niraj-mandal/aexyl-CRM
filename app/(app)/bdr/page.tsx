@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { Display, PageTitle, MonoLabel } from "@/components/ui/typography";
+import { PageTitle, FieldLabel } from "@/components/ui/typography";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -69,24 +71,20 @@ export default function BdrPage({ searchParams }: { searchParams: Promise<{ tab?
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
-        <div>
-          <MonoLabel className="text-primary block mb-1">AI BDR ENGINE // PIPELINE AUTOPILOT</MonoLabel>
-          <Display>AI BDR</Display>
-        </div>
-        <Badge variant="primary" className="font-mono-code text-[11px] self-start">
-          <Sparkles className="h-3 w-3 mr-1" /> AUTONOMOUS OUTBOUND
-        </Badge>
-      </div>
+      <PageHeader
+        eyebrow="Sales · Autopilot"
+        title="AI BDR"
+        description="Find gyms without websites, review them, and run follow-up sequences. Nothing is sent without your approval."
+      />
 
-      <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-lowest border border-border-subtle">
+      <div className="flex items-center gap-1 overflow-x-auto rounded-xl border border-border-subtle bg-surface-lowest/70 p-1 scrollbar-thin">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => openTab(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               activeTab === tab.key
-                ? "bg-primary/15 text-primary border border-primary/30 shadow-sm"
+                ? "bg-surface-high text-text-primary shadow-sm ring-1 ring-inset ring-border-strong"
                 : "text-text-muted hover:text-text-secondary hover:bg-surface-high/50"
             }`}
           >
@@ -136,9 +134,9 @@ function DashboardTab() {
           <GlassCard key={m.label} className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <m.icon className={`h-4 w-4 ${m.color}`} />
-              <span className="text-xs font-mono-code text-text-muted uppercase">{m.label}</span>
+              <span className="text-xs text-text-muted">{m.label}</span>
             </div>
-            <div className="text-2xl font-semibold text-text-primary">{m.value}</div>
+            <div className="num text-2xl font-medium text-text-primary">{m.value}</div>
           </GlassCard>
         ))}
       </div>
@@ -167,7 +165,7 @@ function DashboardTab() {
       {profile && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <GlassPanel className="p-5">
-            <MonoLabel className="block mb-3 text-primary">ICP SUMMARY</MonoLabel>
+            <FieldLabel className="block mb-3 text-primary">ICP summary</FieldLabel>
             <p className="text-xs text-text-secondary mb-3">{profile.businessDescription}</p>
             <div className="flex flex-wrap gap-1.5">
               {(profile.topBuyerRoles as string[]).map((role) => (
@@ -177,7 +175,7 @@ function DashboardTab() {
           </GlassPanel>
 
           <GlassPanel className="p-5">
-            <MonoLabel className="block mb-3 text-secondary">RECENT SEQUENCES</MonoLabel>
+            <FieldLabel className="block mb-3 text-secondary">Recent sequences</FieldLabel>
             {data?.sequences.length === 0 ? (
               <p className="text-xs text-text-muted">No sequences yet. Create one from the Sequences tab.</p>
             ) : (
@@ -282,7 +280,7 @@ function IcpSetupTab() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <MonoLabel className="block mb-1.5 text-xs">YOUR WEBSITE (OPTIONAL)</MonoLabel>
+            <FieldLabel className="block mb-1.5 text-xs">Your website (optional)</FieldLabel>
             <div className="relative">
               <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
               <input
@@ -295,9 +293,9 @@ function IcpSetupTab() {
             </div>
           </div>
           <div>
-            <MonoLabel className="block mb-1.5 text-xs">
-              TARGET LOCATION <span className="text-danger">*</span>
-            </MonoLabel>
+            <FieldLabel className="block mb-1.5 text-xs">
+              Target location <span className="text-danger">*</span>
+            </FieldLabel>
             <input
               type="text"
               value={targetLocation}
@@ -329,7 +327,7 @@ function IcpSetupTab() {
           <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              <MonoLabel className="text-success text-xs">LIVE AI PREVIEW</MonoLabel>
+              <FieldLabel className="text-success text-xs">Live AI preview</FieldLabel>
             </div>
             <span className="text-xs text-text-muted">Generated data</span>
           </div>
@@ -570,9 +568,9 @@ function DiscoveryTab() {
             <GlassCard key={s.label} className="p-3">
               <div className="flex items-center gap-1.5 text-text-muted mb-1">
                 {s.icon}
-                <span className="text-xs font-mono-code uppercase">{s.label}</span>
+                <span className="text-xs">{s.label}</span>
               </div>
-              <span className="text-lg font-bold text-text-primary">{s.value}</span>
+              <span className="num text-xl font-medium text-text-primary">{s.value}</span>
             </GlassCard>
           ))}
         </div>
@@ -613,7 +611,7 @@ function DiscoveryTab() {
       )}
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-lowest border border-border-subtle">
+      <div className="flex items-center gap-1 overflow-x-auto rounded-xl border border-border-subtle bg-surface-lowest/70 p-1 scrollbar-thin">
         {([
           { key: "candidates" as const, label: `Pending Review (${candidates.length})` },
           { key: "batches" as const, label: "Run History" },
@@ -637,9 +635,22 @@ function DiscoveryTab() {
       {subTab === "candidates" && (
         <div className="space-y-3">
           {candidates.length === 0 ? (
-            <GlassPanel className="p-8 text-center">
-              <CheckCircle className="h-10 w-10 text-text-muted/30 mx-auto mb-3" />
-              <p className="text-sm text-text-muted">No candidates pending review. Run discovery to find new leads.</p>
+            <GlassPanel>
+              <EmptyState
+                icon={CheckCircle}
+                title="All caught up"
+                body="No gyms are waiting for review. Run discovery to look for more businesses without a website."
+                action={
+                  <button
+                    type="button"
+                    onClick={runDiscovery}
+                    disabled={running}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/30 disabled:opacity-50"
+                  >
+                    {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Run discovery now
+                  </button>
+                }
+              />
             </GlassPanel>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -655,9 +666,12 @@ function DiscoveryTab() {
       {subTab === "batches" && (
         <div className="space-y-3">
           {batches.length === 0 ? (
-            <GlassPanel className="p-8 text-center">
-              <Radar className="h-10 w-10 text-text-muted/30 mx-auto mb-3" />
-              <p className="text-sm text-text-muted">No discovery runs yet.</p>
+            <GlassPanel>
+              <EmptyState
+                icon={Radar}
+                title="No discovery runs yet"
+                body="Runs show up here after the daily search at 6:00 AM IST, or as soon as you press Run discovery now."
+              />
             </GlassPanel>
           ) : (
             <>
@@ -694,7 +708,7 @@ function DiscoveryTab() {
 
               {selectedBatchId && batchCandidates.length > 0 && (
                 <div className="space-y-2">
-                  <MonoLabel className="text-xs text-text-muted">CANDIDATES IN BATCH</MonoLabel>
+                  <FieldLabel className="text-xs text-text-muted">Candidates in batch</FieldLabel>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {batchCandidates.map((c) => (
                       <CandidateCard
@@ -718,7 +732,7 @@ function DiscoveryTab() {
           <PageTitle className="text-sm">Discovery Settings</PageTitle>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <MonoLabel className="block mb-1.5 text-xs">TARGET LOCATION</MonoLabel>
+              <FieldLabel className="block mb-1.5 text-xs">Target location</FieldLabel>
               <input
                 type="text"
                 value={location}
@@ -727,7 +741,7 @@ function DiscoveryTab() {
               />
             </div>
             <div>
-              <MonoLabel className="block mb-1.5 text-xs">CATEGORY</MonoLabel>
+              <FieldLabel className="block mb-1.5 text-xs">Category</FieldLabel>
               <input
                 type="text"
                 value={category}
@@ -736,7 +750,7 @@ function DiscoveryTab() {
               />
             </div>
             <div>
-              <MonoLabel className="block mb-1.5 text-xs">DAILY TARGET</MonoLabel>
+              <FieldLabel className="block mb-1.5 text-xs">Daily target</FieldLabel>
               <input
                 type="number"
                 min={1}
@@ -748,7 +762,7 @@ function DiscoveryTab() {
             </div>
           </div>
           <div>
-            <MonoLabel className="block mb-1.5 text-xs">DAILY CITY ROTATION (ONE PER LINE)</MonoLabel>
+            <FieldLabel className="block mb-1.5 text-xs">Daily city rotation (one per line)</FieldLabel>
             <textarea
               rows={5}
               value={rotationText}
@@ -1009,7 +1023,7 @@ function SequencesTab() {
         <GlassPanel className="p-5 space-y-4">
           <PageTitle className="text-sm">Create AI Sequence</PageTitle>
           <div>
-            <MonoLabel className="block mb-1.5 text-xs">TARGET PROSPECT PROFILE</MonoLabel>
+            <FieldLabel className="block mb-1.5 text-xs">Target prospect profile</FieldLabel>
             <input
               type="text"
               value={targetProfile}
@@ -1019,7 +1033,7 @@ function SequencesTab() {
             />
           </div>
           <div>
-            <MonoLabel className="block mb-1.5 text-xs">VALUE PROPOSITION</MonoLabel>
+            <FieldLabel className="block mb-1.5 text-xs">Value proposition</FieldLabel>
             <textarea
               rows={2}
               value={valueProp}
@@ -1067,9 +1081,12 @@ function SequencesTab() {
       )}
 
       {sequences.length === 0 ? (
-        <GlassPanel className="p-8 text-center">
-          <Send className="h-10 w-10 text-text-muted/30 mx-auto mb-3" />
-          <p className="text-sm text-text-muted">No sequences yet. Create your first AI-powered outreach sequence.</p>
+        <GlassPanel>
+          <EmptyState
+            icon={Send}
+            title="No sequences yet"
+            body="A sequence drafts timed follow-ups for a group of leads. Nothing is sent until you approve it. Create one above to start."
+          />
         </GlassPanel>
       ) : (
         <div className="space-y-2">

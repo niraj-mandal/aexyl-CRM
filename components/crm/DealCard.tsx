@@ -1,3 +1,4 @@
+import { rupees } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { Building2, User } from "lucide-react";
 import { deleteDealAction } from "@/app/actions/crm.actions";
@@ -55,7 +56,7 @@ export function DealCard({
 
       <div className="flex items-center justify-between mt-auto pt-3 border-t border-border-subtle">
         <div className="font-semibold text-sm text-text-primary">
-          ${Number(deal.value || 0).toLocaleString()}
+          {rupees(Number(deal.value || 0))}
         </div>
         {deal.owner && (
           <div className="flex items-center text-xs text-text-muted" title={`${deal.owner.firstName} ${deal.owner.lastName}`}>

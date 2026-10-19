@@ -1,4 +1,7 @@
-import { Display, Body } from "@/components/ui/typography";
+import { Kanban } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { rupees } from "@/lib/stages";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
@@ -20,27 +23,38 @@ export default async function PipelinePage() {
   const weightedPipelineValue = deals.reduce((sum, d) => sum + (Number(d.value || 0) * ((d.probability || 0) / 100)), 0);
 
   return (
-    <div className="space-y-8 flex flex-col h-[calc(100vh-80px)] animate-in fade-in duration-150">
+    <div className="space-y-6 flex flex-col h-[calc(100vh-80px)] animate-in fade-in duration-150">
       <LiveRefresher intervalMs={60000} />
 
-      <div className="flex justify-between items-end flex-shrink-0">
-        <section className="space-y-2">
-          <Display>Pipeline</Display>
-          <Body>Track and manage your deals. Drag cards between stages — changes persist instantly.</Body>
-        </section>
+      <PageHeader
+        eyebrow="Sales"
+        title="Pipeline"
+        description="Drag deals between stages. Changes save instantly."
+        actions={
+          <>
+            <div className="glass rounded-lg px-3.5 py-2">
+              <p className="text-xs text-text-muted">Total</p>
+              <p className="num text-base font-medium text-text-primary">{rupees(totalPipelineValue)}</p>
+            </div>
+            <div className="glass rounded-lg px-3.5 py-2">
+              <p className="text-xs text-text-muted">Weighted</p>
+              <p className="num text-base font-medium text-text-primary">{rupees(weightedPipelineValue)}</p>
+            </div>
+            <CreateDealButton companies={companyOptions} />
+          </>
+        }
+      />
 
-        <div className="flex items-center space-x-6">
-          <div>
-            <div className="text-sm text-text-secondary">Total Value</div>
-            <div className="text-xl font-light text-text-primary">${totalPipelineValue.toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-sm text-text-secondary">Weighted Value</div>
-            <div className="text-xl font-light text-text-primary">${weightedPipelineValue.toLocaleString()}</div>
-          </div>
-          <CreateDealButton companies={companyOptions} />
+      {deals.length === 0 && (
+        <div className="glass-panel shrink-0">
+          <EmptyState
+            icon={Kanban}
+            title="No deals yet"
+            body="When a gym says they're interested, mark them Interested from the Today list or Leads and a deal appears here automatically."
+            action={{ href: "/sales/leads", label: "Go to Leads" }}
+          />
         </div>
-      </div>
+      )}
 
       <div className="flex-1 overflow-hidden min-h-0">
         <KanbanBoard initialDeals={deals} companyOptions={companyOptions} />

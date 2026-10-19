@@ -10,19 +10,13 @@ import { useRealtimeTelemetry } from "@/lib/hooks/use-realtime-telemetry";
 import { DailyBrief } from "@/components/crm/DailyBrief";
 import { TodayList } from "@/components/crm/TodayList";
 import { useCountUp } from "@/components/crm/TodayProgress";
+import { DEAL_STAGES, rupees } from "@/lib/stages";
 
-const STAGES = [
-  { key: "QUALIFIED", label: "Qualified", color: "#9B9BA4" },
-  { key: "CALL_BOOKED", label: "Call booked", color: "#F5C84C" },
-  { key: "PROPOSAL", label: "Proposal", color: "#2B66FF" },
-  { key: "NEGOTIATION", label: "Negotiation", color: "#E5322D" },
-  { key: "WON", label: "Won", color: "#2FA36B" },
-];
+const STAGES = DEAL_STAGES.filter((s) => s.key !== "LOST");
 
 // shortcut: fixed goal for everyone; move to workspace settings if the team wants to change it.
 const MONTHLY_WIN_GOAL = 5;
 
-const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 /** "Won this month vs goal" ring; the arc and number animate in. */
 function GoalRing({ won, goal }: { won: number | null; goal: number }) {

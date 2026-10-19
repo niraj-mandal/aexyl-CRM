@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, use } from "react";
-import { Display, PageTitle, MonoLabel } from "@/components/ui/typography";
+import { PageTitle, FieldLabel } from "@/components/ui/typography";
+import { PageHeader } from "@/components/ui/page-header";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { waNumber } from "@/lib/phone";
@@ -170,19 +171,17 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
   const telHref = selected?.phone ? `tel:${selected.phone.replace(/[^\d+]/g, "")}` : null;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
-        <div>
-          <MonoLabel className="text-primary block mb-1">OUTREACH // AI PITCH WRITER</MonoLabel>
-          <Display>Outreach Engine</Display>
-          <p className="mt-1 text-xs text-text-muted">
-            Pick a lead and get a WhatsApp message, call script and email written from its real details. You review and send — nothing goes out automatically.
-          </p>
-        </div>
-        <Badge variant="secondary" className="font-mono-code text-xs self-start sm:self-auto">
-          CONTACTABLE LEADS: {contactableCount}
-        </Badge>
-      </div>
+    <div className="space-y-6 animate-in fade-in duration-150">
+      <PageHeader
+        eyebrow="Sales · AI pitch writer"
+        title="Outreach"
+        description="Pick a lead and get a WhatsApp message, call script and email written from its real details. You review and send; nothing goes out automatically."
+        actions={
+          <span className="num inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-low/70 px-3 py-1 text-xs text-text-secondary">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" /> {contactableCount} contactable
+          </span>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lead picker */}
@@ -274,7 +273,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <MonoLabel className="block mb-1.5 text-xs">YOUR NAME / BUSINESS</MonoLabel>
+                <FieldLabel className="block mb-1.5 text-xs">Your name / business</FieldLabel>
                 <input
                   type="text"
                   value={senderName}
@@ -285,7 +284,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <MonoLabel className="block mb-1.5 text-xs">TONE</MonoLabel>
+                  <FieldLabel className="block mb-1.5 text-xs">Tone</FieldLabel>
                   <select
                     value={tone}
                     onChange={(e) => setTone(e.target.value)}
@@ -296,7 +295,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                   </select>
                 </div>
                 <div>
-                  <MonoLabel className="block mb-1.5 text-xs">LANGUAGE</MonoLabel>
+                  <FieldLabel className="block mb-1.5 text-xs">Language</FieldLabel>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
@@ -310,7 +309,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               </div>
             </div>
             <div>
-              <MonoLabel className="block mb-1.5 text-xs">WHAT YOU OFFER</MonoLabel>
+              <FieldLabel className="block mb-1.5 text-xs">What you offer</FieldLabel>
               <textarea
                 rows={2}
                 value={offer}
@@ -351,7 +350,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               <GlassCard className="p-4 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <MessageCircle className="h-4 w-4 text-success" />
-                  <MonoLabel className="text-success">WHATSAPP MESSAGE</MonoLabel>
+                  <FieldLabel className="text-success">WhatsApp message</FieldLabel>
                   <span className="ml-auto text-xs text-text-muted">{whatsapp.length} chars</span>
                 </div>
                 <textarea
@@ -383,7 +382,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               <GlassCard className="p-4 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-primary" />
-                  <MonoLabel className="text-primary">CALL SCRIPT</MonoLabel>
+                  <FieldLabel className="text-primary">Call script</FieldLabel>
                 </div>
                 <textarea
                   rows={9}
@@ -410,7 +409,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
               <GlassCard className="p-4 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-tertiary" />
-                  <MonoLabel className="text-tertiary">EMAIL</MonoLabel>
+                  <FieldLabel className="text-tertiary">Email</FieldLabel>
                 </div>
                 <input
                   type="text"

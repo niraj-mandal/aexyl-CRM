@@ -23,8 +23,9 @@ import { SortableDealCard } from "./SortableDealCard";
 import { DealCard, type DealCardData } from "./DealCard";
 import { CreateDealButton } from "./CreateDealButton";
 import { updateDealStageAction } from "@/app/actions/crm.actions";
+import { DEAL_STAGES, rupees } from "@/lib/stages";
 
-const STAGES = ["QUALIFIED", "CALL_BOOKED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"];
+const STAGES = DEAL_STAGES.map((s) => s.key);
 
 export function KanbanBoard({
   initialDeals,
@@ -48,10 +49,10 @@ export function KanbanBoard({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const columns = STAGES.map((stage) => {
-    const stageDeals = deals.filter((d) => d.stage === stage);
+  const columns = DEAL_STAGES.map((stage) => {
+    const stageDeals = deals.filter((d) => d.stage === stage.key);
     const value = stageDeals.reduce((sum, d) => sum + Number(d.value || 0), 0);
-    return { id: stage, title: stage.replace("_", " "), deals: stageDeals, value };
+    return { id: stage.key, title: stage.label, color: stage.color, deals: stageDeals, value };
   });
 
   return (
@@ -64,17 +65,27 @@ export function KanbanBoard({
         onDragEnd={handleDragEnd}
       >
         {columns.map((col) => (
-          <div key={col.id} className="flex-shrink-0 w-80 snap-start flex flex-col">
+          <div key={col.id} className="flex-shrink-0 w-72 snap-start flex flex-col">
             {/* Column Header */}
-            <div className="mb-4 px-2">
-              <h3 className="text-sm font-semibold tracking-wider text-text-muted uppercase flex justify-between items-center">
-                <span>{col.title} ({col.deals.length})</span>
-                <span>${col.value.toLocaleString()}</span>
-              </h3>
+            <div className="mb-3 flex items-center justify-between px-1">
+              <span className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: col.color }} />
+                {col.title}
+                <span className="num rounded-full bg-surface-high px-1.5 py-0.5 text-[11px] font-normal text-text-muted">{col.deals.length}</span>
+              </span>
+              <span className="num text-xs text-text-muted">{rupees(col.value)}</span>
             </div>
 
             {/* Column Body */}
-            <div className="glass-panel flex-1 bg-surface-glass/30 border-dashed min-h-[500px] p-3 flex flex-col space-y-3">
+            <div
+              className="flex min-h-[420px] flex-1 flex-col space-y-3 rounded-xl border border-border-subtle bg-surface-lowest/40 p-3"
+              style={{ borderTop: `2px solid ${col.color}` }}
+            >
+              {col.deals.length === 0 && (
+                <p className="rounded-lg border border-dashed border-border-subtle px-3 py-6 text-center text-xs text-text-muted">
+                  No deals in {col.title.toLowerCase()}
+                </p>
+              )}
               <SortableContext items={col.deals.map((d) => d.id)} strategy={verticalListSortingStrategy}>
                 {col.deals.map((deal) => (
                   <SortableDealCard key={deal.id} deal={deal} onDeleted={removeDeal} />

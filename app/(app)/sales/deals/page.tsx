@@ -1,3 +1,6 @@
+import { Handshake } from "lucide-react";
+import { rupees } from "@/lib/stages";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Display, Body } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
@@ -60,7 +63,7 @@ export default async function DealsPage() {
                     </Link>
                   </td>
                   <td className="px-6 py-4">{deal.company?.name || "—"}</td>
-                  <td className="px-6 py-4 font-semibold">${Number(deal.value || 0).toLocaleString()}</td>
+                  <td className="px-6 py-4 font-semibold">{rupees(Number(deal.value || 0))}</td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 bg-surface-elevated text-xs rounded-md border border-border-subtle">
                       {deal.stage}
@@ -75,8 +78,13 @@ export default async function DealsPage() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-text-muted">
-                    No deals yet. Move a qualified lead to a deal to get started.
+                  <td colSpan={8}>
+                    <EmptyState
+                      icon={Handshake}
+                      title="No deals yet"
+                      body="Mark a gym Interested from the Today list or Leads and a deal is created here automatically."
+                      action={{ href: "/sales/leads", label: "Go to Leads" }}
+                    />
                   </td>
                 </tr>
               )}

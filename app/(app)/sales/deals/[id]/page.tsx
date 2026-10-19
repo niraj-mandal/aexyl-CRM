@@ -1,3 +1,4 @@
+import { rupees } from "@/lib/stages";
 import { Display, Body } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
@@ -53,7 +54,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           <GlassCard className="p-5 bg-gradient-to-br from-surface to-surface-elevated">
             <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Value</h4>
             <div className="text-4xl font-light text-text-primary mb-1">
-              ${Number(deal.value || 0).toLocaleString()}
+              {rupees(Number(deal.value || 0))}
             </div>
             <div className="text-sm text-text-secondary">
               {deal.currency}

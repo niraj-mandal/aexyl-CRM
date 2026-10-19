@@ -3,7 +3,7 @@ import { HTMLAttributes, forwardRef } from "react";
 
 export const Display = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h1 ref={ref} className={cn("text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-[-0.03em] text-text-primary", className)} {...props} />
+    <h1 ref={ref} className={cn("text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary", className)} {...props} />
   )
 );
 Display.displayName = "Display";
@@ -42,3 +42,11 @@ export const MonoLabel = forwardRef<HTMLSpanElement, HTMLAttributes<HTMLSpanElem
   )
 );
 MonoLabel.displayName = "MonoLabel";
+
+/** Form field label: quiet sentence case, not shouty mono caps. */
+export const FieldLabel = forwardRef<HTMLSpanElement, HTMLAttributes<HTMLSpanElement>>(
+  ({ className, ...props }, ref) => (
+    <span ref={ref} className={cn("text-xs font-medium text-text-secondary", className)} {...props} />
+  )
+);
+FieldLabel.displayName = "FieldLabel";
