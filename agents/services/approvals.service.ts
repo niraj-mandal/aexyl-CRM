@@ -17,18 +17,34 @@ export type ApprovalOutcome =
   | { ok: true; message: string; result?: unknown }
   | { ok: false; message: string };
 
-/** Mark expired approvals (cheap, call on list/read paths). */
+/**
+ * Mark expired approvals, and close runs left waiting on approvals that no longer
+ * exist (all expired/cancelled), the same way a rejection closes a run. Both run in
+ * parallel (cheap, call on list/read paths); a run whose approval expires in this
+ * call is closed on the next one. The 10-minute guard skips runs still being set up.
+ */
 export async function expireStaleApprovals(workspaceId: string) {
-  await db
-    .update(agentApprovals)
-    .set({ status: "EXPIRED" })
-    .where(
-      and(
-        eq(agentApprovals.workspaceId, workspaceId),
-        eq(agentApprovals.status, "PENDING"),
-        lt(agentApprovals.expiresAt, new Date())
-      )
-    );
+  await Promise.all([
+    db
+      .update(agentApprovals)
+      .set({ status: "EXPIRED" })
+      .where(
+        and(
+          eq(agentApprovals.workspaceId, workspaceId),
+          eq(agentApprovals.status, "PENDING"),
+          lt(agentApprovals.expiresAt, new Date())
+        )
+      ),
+    db.execute(sql`
+      UPDATE agent_runs r
+      SET status = 'COMPLETED', completed_at = now(),
+          result = coalesce(r.result, '{}'::jsonb) || '{"approvalsClosed":true}'::jsonb
+      WHERE r.workspace_id = ${workspaceId}
+        AND r.status = 'AWAITING_APPROVAL'
+        AND r.created_at < now() - interval '10 minutes'
+        AND NOT EXISTS (SELECT 1 FROM agent_approvals a WHERE a.run_id = r.id AND a.status = 'PENDING')
+    `),
+  ]);
 }
 
 export async function approveAndExecute(params: {

@@ -45,7 +45,8 @@ export const maxDuration = 300;
 const FOLLOWUP_EVENT_WINDOW_HOURS = 6;
 const SYSTEM_CLERK_ID = "system-cron";
 const FOLLOWUP_SCAN_LIMIT = 50;
-const EVENT_BATCH_SIZE = 10;
+// An agent run takes ~45 s (AI planning); 5 per tick stays inside the 300 s limit. Leftovers carry to the next tick.
+const EVENT_BATCH_SIZE = 5;
 /** A hot lead with no contact for this long fires `lead.stale` (at most once per this window). */
 const STALE_AFTER_DAYS = 7;
 

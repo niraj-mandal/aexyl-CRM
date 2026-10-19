@@ -55,8 +55,6 @@ export async function runAgentAction(agentKey: string, objective: string, inputC
     inputContext,
   });
 
-  // Opportunistically drain pending automation events too.
-  await AgentEventBus.processPending(workspaceId, userId, 3);
   revalidatePath("/agents");
   return result;
 }
