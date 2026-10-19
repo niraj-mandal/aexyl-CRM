@@ -53,7 +53,7 @@ export default function IntelligencePage() {
           <button
             onClick={handleRunAudit}
             disabled={loading}
-            className="inline-flex items-center justify-center space-x-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 disabled:opacity-50 transition-all"
+            className="inline-flex items-center justify-center space-x-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 disabled:opacity-50 transition-all"
           >
             {loading ? (
               <Cpu className="h-4 w-4 animate-spin text-white" />

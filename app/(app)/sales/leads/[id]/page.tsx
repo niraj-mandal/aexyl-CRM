@@ -113,7 +113,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </a>
             <Link
               href={`/outreach?lead=${lead.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-black transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
             >
               <Sparkles className="h-4 w-4" /> Write pitch
             </Link>

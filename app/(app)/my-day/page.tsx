@@ -267,7 +267,7 @@ export default async function MyDayPage() {
                 <p className="text-sm text-text-secondary">No gyms reached yet today.</p>
                 <Link
                   href="/"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-black transition-transform hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
                 >
                   <PhoneCall className="h-4 w-4" /> Start calling
                 </Link>
@@ -324,9 +324,9 @@ export default async function MyDayPage() {
                   </span>
                   <Link href="/agents/approvals" className="font-medium text-primary hover:underline">Review</Link>
                 </p>
-                <ul className="space-y-1.5">
+                <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60">
                   {pendingDrafts.map((d) => (
-                    <li key={d.approvalId} className="truncate rounded-lg border border-border-subtle bg-surface-lowest/40 px-3 py-2 text-sm text-text-secondary">
+                    <li key={d.approvalId} className="truncate px-3.5 py-2.5 text-sm text-text-secondary">
                       <span className="text-text-primary">{d.leadCompany ?? d.toEmail}</span> · {d.subject}
                     </li>
                   ))}
@@ -339,12 +339,12 @@ export default async function MyDayPage() {
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-text-primary">
                   <CalendarClock className="h-3.5 w-3.5 text-tertiary" /> Quiet for 7+ days
                 </p>
-                <ul className="space-y-1.5">
+                <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60">
                   {quietLeads.map((l) => (
                     <li key={l.id}>
                       <Link
                         href={`/sales/leads/${l.id}`}
-                        className="group flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-lowest/40 px-3 py-2 hover:border-border-strong"
+                        className="group flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-white/[0.04]"
                       >
                         <span className="truncate text-sm text-text-primary group-hover:text-primary">{l.company?.name ?? "Unknown"}</span>
                         <span className="shrink-0 text-xs text-text-muted">
@@ -362,12 +362,12 @@ export default async function MyDayPage() {
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-text-primary">
                   <ArrowRight className="h-3.5 w-3.5 text-danger" /> Deals to move
                 </p>
-                <ul className="space-y-1.5">
+                <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60">
                   {deals.slice(0, 5).map((d) => (
                     <li key={d.id}>
                       <Link
                         href={`/sales/deals/${d.id}`}
-                        className="group flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-lowest/40 px-3 py-2 hover:border-border-strong"
+                        className="group flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-white/[0.04]"
                       >
                         <span className="truncate text-sm text-text-primary group-hover:text-primary">{d.name}</span>
                         <span className="num shrink-0 text-xs text-text-muted">

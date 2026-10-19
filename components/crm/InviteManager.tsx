@@ -92,7 +92,7 @@ export function InviteForm() {
         <button
           type="submit"
           disabled={pending || !email.trim()}
-          className="inline-flex items-center space-x-2 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition disabled:bg-surface-high disabled:text-text-muted disabled:cursor-not-allowed"
+          className="inline-flex items-center space-x-2 rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition disabled:bg-surface-high disabled:text-text-muted disabled:cursor-not-allowed"
         >
           {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
           <span>{pending ? "Inviting…" : "Invite"}</span>

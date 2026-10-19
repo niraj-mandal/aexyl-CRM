@@ -12,9 +12,9 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
   const today = new Date();
   const { pending, failedRuns } = useActionNeededCount();
   const actionNeeded = pending > 0 || failedRuns > 0;
-  
+
   return (
-    <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between gap-2 px-4 md:px-8 bg-surface-lowest/80 backdrop-blur-xl border-b border-border-subtle">
+    <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between gap-2 px-4 md:px-8 bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b border-border-subtle">
       <div className="flex items-center space-x-3 md:space-x-6">
         <button
           type="button"
@@ -62,7 +62,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
           </kbd>
         </button>
 
-        <UserButton 
+        <UserButton
           appearance={{
             elements: {
               avatarBox: "w-8 h-8 rounded-lg border border-border-subtle hover:border-primary/50 transition-colors",

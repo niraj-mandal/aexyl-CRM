@@ -2,43 +2,45 @@
 
 :root {
   color-scheme: dark;
-  /* AEXYL brand: true black, neutral greys, red as the only accent. */
-  --background: #080808;
-  --foreground: #EDEDED;
+  /* Apple dark palette: black canvas, #1C1C1E grouped cards, #2C2C2E raised fills. */
+  --background: #000000;
+  --foreground: #FFFFFF;
 
-  --surface-container-lowest: #050505;
-  --surface-container-low: #111111;
-  --surface: #141414;
-  --surface-container-high: #1D1D1D;
-  --surface-container-highest: #292929;
+  --surface-container-lowest: #141416;
+  --surface-container-low: #1C1C1E;
+  --surface: #1C1C1E;
+  --surface-container-high: #2C2C2E;
+  --surface-container-highest: #3A3A3C;
 
-  --surface-glass: #0F0F0F;
-  --surface-glass-floating: rgba(17, 17, 17, 0.94);
+  --surface-glass: #1C1C1E;
+  --surface-glass-floating: rgba(28, 28, 30, 0.86);
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --border-focus: rgba(255, 255, 255, 0.5);
+  /* Apple separator: grey with a little transparency */
+  --border-subtle: rgba(84, 84, 88, 0.45);
+  --border-strong: rgba(84, 84, 88, 0.8);
+  --border-focus: rgba(255, 69, 58, 0.7);
 
   /* Text */
-  --text-primary: #F2F2F2;
-  --text-secondary: #C4C4C4;
-  --text-muted: #9A9A9A;
+  --text-primary: #FFFFFF;
+  --text-secondary: #D1D1D6;
+  --text-muted: #98989F;
 
   /* Core Accents */
-  /* Accent is white (black text on it); red is kept for brand moments only. */
-  --primary: #F2F2F2;
-  --primary-glow: rgba(255, 255, 255, 0.14);
+  /* Tint colour, Apple-style: red text, icons and tinted fills (#FF453A is Apple's dark-mode red). */
+  --primary: #FF453A;
+  --primary-glow: rgba(255, 69, 58, 0.25);
+  /* Solid red for filled buttons: white text on it stays readable (4.5:1). */
   --brand: #E0312C;
   --secondary: #4EDEA3;
   --tertiary: #FFB95F;
   --danger: #FFB4AB;
 
-  /* Radii: tight, confident corners */
-  --radius-sm: 0.125rem;
-  --radius-md: 0.25rem;
-  --radius-lg: 0.375rem;
-  --radius-xl: 0.5rem;
-  --radius-2xl: 0.625rem;
+  /* Radii: Apple's soft, generous corners */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
 }
 
 @theme inline {
@@ -71,27 +73,27 @@
   --radius-xl: var(--radius-xl);
   --radius-2xl: var(--radius-2xl);
 
-  --font-sans: var(--font-geist), system-ui, -apple-system, sans-serif;
+  /* San Francisco on Apple devices (system font); Geist everywhere else. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-geist), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {
   background-color: var(--background);
-  /* One faint brand-red light from the top; otherwise plain black. */
-  background-image: radial-gradient(ellipse 60% 40% at 50% -14%, rgba(235, 59, 54, 0.12), transparent 70%);
+  /* Soft colour behind the glass: brand red, warm amber and a little violet, fixed so cards frost it as you scroll. */
+  background-image:
+    radial-gradient(40rem 32rem at 12% -6%, rgba(255, 69, 58, 0.22), transparent 70%),
+    radial-gradient(36rem 30rem at 92% 18%, rgba(255, 159, 10, 0.12), transparent 70%),
+    radial-gradient(44rem 36rem at 70% 108%, rgba(124, 77, 255, 0.14), transparent 70%);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+/* SF Symbols-weight icons: lighter strokes than lucide's default 2. */
+svg.lucide {
+  stroke-width: 1.75;
 }
 
 /* Themed scrollbars — replaces the default OS scrollbar (white Windows bar) */
@@ -173,11 +175,24 @@ body::after {
 /* Glass & Specular Spec Layering */
 @layer utilities {
   /* Flat cards with a crisp hairline; depth comes from contrast, not glow. */
+  /* Apple grouped cards: flat #1C1C1E, no visible border, soft corners. */
+  /* Frosted glass: translucent fill, blur of what's behind, a bright hairline on top. */
   .glass,
   .glass-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 120px), var(--surface-glass);
-    border: 1px solid var(--border-subtle);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 60%), rgba(28, 28, 30, 0.55);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 32px -12px rgba(0, 0, 0, 0.6);
+  }
+  /* Glass can't help readability with "reduce transparency" on: fall back to solid cards. */
+  @media (prefers-reduced-transparency: reduce) {
+    .glass,
+    .glass-panel {
+      background: var(--surface-glass);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
   }
   .glass-panel {
     border-radius: var(--radius-lg);

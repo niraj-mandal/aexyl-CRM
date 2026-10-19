@@ -62,7 +62,6 @@ export function TodayProgress({
     >
       {/* soft highlight + texture */}
       <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
-      <div className="bg-stripes pointer-events-none absolute inset-0 opacity-60" />
 
       <div className="relative flex flex-wrap items-end justify-between gap-6">
         <div>

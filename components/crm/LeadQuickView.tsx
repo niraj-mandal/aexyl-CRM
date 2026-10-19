@@ -26,7 +26,7 @@ function Modal({ label, onClose, children }: { label: string; onClose: () => voi
       aria-label={label}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
-      className="m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-border-strong bg-surface-low p-0 text-text-primary shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150"
+      className="m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[rgba(28,28,30,0.88)] p-0 backdrop-blur-2xl text-text-primary shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150"
     >
       {children}
     </dialog>
@@ -155,7 +155,7 @@ function LeadPanel({ lead, onAct, onChanged, onUndo }: { lead: OutreachLead; onA
           <button
             type="button"
             onClick={() => outcome(primary.value)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-black transition-transform hover:-translate-y-0.5"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
           >
             {primary.label} <ArrowRight className="h-4 w-4" />
           </button>
@@ -223,7 +223,7 @@ export function CallSession({ queue, onClose, onChanged }: { queue: OutreachLead
             <p className="text-lg font-semibold">{left === 0 ? "Time's up" : "List done"}</p>
             <p className="num mt-1 text-sm text-text-muted">{logged} call{logged === 1 ? "" : "s"} logged this session.</p>
           </div>
-          <button type="button" onClick={onClose} className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-black">
+          <button type="button" onClick={onClose} className="w-full rounded-lg bg-brand py-2.5 text-sm font-semibold text-white">
             Close
           </button>
         </div>

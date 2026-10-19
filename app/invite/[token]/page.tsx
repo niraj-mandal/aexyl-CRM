@@ -52,7 +52,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             </Body>
             <Link
               href="/"
-              className="mt-6 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition"
+              className="mt-6 inline-flex items-center rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition"
             >
               Open the CRM
             </Link>
@@ -69,7 +69,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             </Body>
             <Link
               href="/"
-              className="mt-6 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition"
+              className="mt-6 inline-flex items-center rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition"
             >
               Go to Aexyl
             </Link>
@@ -101,7 +101,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                     This invite only works for <span className="font-medium">{invite.email}</span>.
                   </p>
                   <SignOutButton redirectUrl={`/sign-in?redirect_url=/invite/${token}`}>
-                    <button className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition">
+                    <button className="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition">
                       Sign out and switch to {invite.email}
                     </button>
                   </SignOutButton>
@@ -113,7 +113,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                   <p className="text-xs text-text-muted">Sign in first — then you&apos;ll land back here.</p>
                   <Link
                     href={`/sign-in?redirect_url=/invite/${token}`}
-                    className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition"
+                    className="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition"
                   >
                     Sign in to accept
                   </Link>

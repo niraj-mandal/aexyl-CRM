@@ -39,7 +39,7 @@ export function SectionTabs() {
   if (!group) return null;
 
   return (
-    <nav aria-label="Section" className="mb-6 flex flex-wrap items-center gap-1 rounded-lg border border-border-subtle bg-surface-lowest p-1 w-fit">
+    <nav aria-label="Section" className="mb-6 inline-flex w-fit flex-wrap items-center gap-0.5 rounded-[10px] bg-surface-high p-0.5">
       {group.map((tab) => {
         const active = tab.href === pathname;
         return (
@@ -48,10 +48,10 @@ export function SectionTabs() {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              "flex items-center gap-2 rounded-[8px] px-3.5 py-1 text-[13px] font-medium transition-all duration-200",
               active
-                ? "bg-primary/15 text-primary border border-primary/30 shadow-sm"
-                : "text-text-muted hover:text-text-secondary hover:bg-surface-high/50 border border-transparent",
+                ? "bg-surface-highest text-text-primary shadow-[0_1px_4px_rgba(0,0,0,0.45)]"
+                : "text-text-secondary hover:text-text-primary",
             )}
           >
             {tab.name}

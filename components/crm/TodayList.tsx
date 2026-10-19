@@ -13,6 +13,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CallSession, LeadQuickView } from "@/components/crm/LeadQuickView";
 import { HotLeads } from "@/components/crm/HotLeads";
 
+/** Apple inset-grouped list: one rounded block, hairlines between rows. */
+const GROUP = "stagger divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60";
+
 const CLOSED = new Set(["CONVERTED", "LOST", "UNQUALIFIED"]);
 const NEW_PER_DAY = 5;
 
@@ -97,20 +100,22 @@ export function TodayList() {
         meta={`${followUps.length} follow-up${followUps.length === 1 ? "" : "s"} · ${toContact.length} new`}
       />
 
-      <section aria-label="Follow-ups due" className="stagger space-y-2">
+      <section aria-label="Follow-ups due" className="space-y-2">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
           <CalendarClock className="h-3.5 w-3.5 text-tertiary" /> Follow-ups due
         </h3>
         {followUps.length === 0 ? (
           <p className="text-xs text-text-muted">None due. Leads you mark as contacted come back here 3 days later.</p>
         ) : (
-          followUps.map((l) => (
-            <TodayRow key={l.id} lead={l} note={overdue(l) ? "Overdue" : "Due today"} urgent={overdue(l)} onOutcome={load} onOpen={() => setOpen(l)} />
-          ))
+          <div className={GROUP}>
+            {followUps.map((l) => (
+              <TodayRow key={l.id} lead={l} note={overdue(l) ? "Overdue" : "Due today"} urgent={overdue(l)} onOutcome={load} onOpen={() => setOpen(l)} />
+            ))}
+          </div>
         )}
       </section>
 
-      <section aria-label="New leads to contact" className="stagger space-y-2">
+      <section aria-label="New leads to contact" className="space-y-2">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
           <UserPlus className="h-3.5 w-3.5 text-secondary" /> New leads to contact
         </h3>
@@ -120,7 +125,9 @@ export function TodayList() {
             {noContactCount > 0 && " Look up numbers with the Maps button in Leads, or approve more in Lead Discovery."}
           </p>
         ) : (
-          toContact.map((l) => <TodayRow key={l.id} lead={l} note={`Score ${l.score}`} onOpen={() => setOpen(l)} />)
+          <div className={GROUP}>
+            {toContact.map((l) => <TodayRow key={l.id} lead={l} note={`Score ${l.score}`} onOpen={() => setOpen(l)} />)}
+          </div>
         )}
         {(moreReachable > 0 || noContactCount > 0) && (
           <p className="text-xs text-text-muted">
@@ -142,7 +149,7 @@ export function TodayList() {
 
 function TodayRow({ lead, note, urgent, onOutcome, onOpen }: { lead: OutreachLead; note: string; urgent?: boolean; onOutcome?: () => void; onOpen: () => void }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-lowest/60 px-3 py-2 transition-colors hover:border-border-strong">
+    <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 transition-colors hover:bg-white/[0.04]">
       <div className="min-w-0">
         <button type="button" onClick={onOpen} className="block max-w-full truncate text-left text-xs font-semibold text-text-primary hover:text-primary">
           {lead.businessName}
@@ -156,7 +163,7 @@ function TodayRow({ lead, note, urgent, onOutcome, onOpen }: { lead: OutreachLea
           )}
         </p>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex flex-wrap items-center gap-1.5">
         {onOutcome && <LeadOutcomeSelect leadId={lead.id} name={lead.businessName} onDone={onOutcome} />}
         <a
           href={googleMapsUrl(lead.businessName, lead.place)}

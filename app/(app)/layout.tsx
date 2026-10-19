@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await syncProfileName({ firstName: user.firstName, lastName: user.lastName });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-text-primary antialiased font-sans">
+    <div className="flex h-screen overflow-hidden text-text-primary antialiased font-sans">
       <Sidebar />
       {/* Header scrolls with the page (sticky) so its frosted glass blurs content passing under it. */}
       <div className="flex flex-1 flex-col overflow-y-auto scrollbar-thin">

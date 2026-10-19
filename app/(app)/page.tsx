@@ -102,10 +102,10 @@ export default function CommandCenter() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="num text-xs font-medium uppercase tracking-[0.18em] text-[#F04A45]" suppressHydrationWarning>
+          <p className="text-sm font-semibold text-text-muted" suppressHydrationWarning>
             {now.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
           </p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tighter text-text-primary sm:text-5xl" suppressHydrationWarning>
+          <h1 className="mt-0.5 text-[34px] font-bold leading-tight tracking-tight text-text-primary sm:text-[40px]" suppressHydrationWarning>
             {greeting(now.getHours())}
             {name ? <span className="text-text-muted">, {name}</span> : null}
           </h1>
@@ -121,11 +121,11 @@ export default function CommandCenter() {
       <section aria-label="Key numbers" className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href} className="glass group relative overflow-hidden rounded-xl transition-transform hover:-translate-y-0.5">
-            <div className="bg-stripes flex items-center justify-between border-b border-border-subtle px-4 py-2.5">
+            <div className="flex items-center justify-between px-4 pt-3.5">
               <span className="text-xs text-text-secondary">{k.label}</span>
               <k.icon className="h-3.5 w-3.5 text-text-muted transition-colors group-hover:text-primary" />
             </div>
-            <div className="px-4 py-3.5">
+            <div className="px-4 pb-3.5 pt-1.5">
               <p className="num text-2xl font-medium text-text-primary sm:text-[28px]">{k.value}</p>
               <p className="mt-1 flex items-center gap-1 text-xs text-text-muted">
                 {k.noteIcon && <k.noteIcon className="h-3 w-3 text-tertiary" />}

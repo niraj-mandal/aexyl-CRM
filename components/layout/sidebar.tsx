@@ -112,7 +112,7 @@ export function Sidebar() {
     <aside
       id="app-sidebar"
       className={cn(
-        "h-full w-[260px] flex-col bg-surface-lowest border-r border-border-subtle overflow-hidden select-none",
+        "h-full w-[260px] flex-col bg-[rgba(28,28,30,0.72)] backdrop-blur-2xl backdrop-saturate-150 border-r border-border-subtle overflow-hidden select-none",
         open ? "fixed inset-y-0 left-0 z-[60] flex shadow-2xl" : "hidden",
         "md:static md:z-auto md:flex md:shadow-none",
       )}
@@ -167,9 +167,9 @@ export function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "group relative flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150",
+                    "group relative flex items-center justify-between rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                     isActive
-                      ? "bg-gradient-to-r from-brand/[0.16] via-brand/[0.05] to-transparent text-text-primary border border-brand/20"
+                      ? "bg-white/10 text-text-primary border border-transparent"
                       : "text-text-secondary hover:bg-surface-high/50 hover:text-text-primary border border-transparent"
                   )}
                 >
@@ -203,9 +203,6 @@ export function Sidebar() {
                     />
                   )}
 
-                  {isActive && (
-                    <div className="absolute -left-px top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-brand shadow-[0_0_10px_var(--brand)]" />
-                  )}
                 </Link>
               );
             })}

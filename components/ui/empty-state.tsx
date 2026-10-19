@@ -25,7 +25,7 @@ export function EmptyState({
           {typeof action === "object" && action !== null && "href" in action ? (
             <Link
               href={action.href}
-              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
             >
               {action.label}
             </Link>

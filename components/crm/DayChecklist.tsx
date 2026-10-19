@@ -69,7 +69,7 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
       {items.length === 0 ? (
         <p className="text-sm text-text-muted">Nothing left on today&apos;s list.</p>
       ) : (
-        <ul className="stagger space-y-1">
+        <ul className="stagger divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60">
           {items.map((item) => {
             const isChecked = checked.has(item.key);
             const label = (
@@ -84,7 +84,7 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
               </span>
             );
             return (
-              <li key={item.key} className="group flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-lg px-1 py-1.5 hover:bg-surface-high/30">
+              <li key={item.key} className="group flex flex-wrap items-start gap-x-3 gap-y-1.5 px-3 py-2.5 hover:bg-white/[0.04]">
                 <span className="num w-12 shrink-0 pt-1 text-right text-xs text-text-muted">{item.time ?? ""}</span>
                 {item.action ? (
                   <button
