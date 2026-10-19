@@ -155,7 +155,7 @@ function LeadPanel({ lead, onAct, onChanged, onUndo }: { lead: OutreachLead; onA
           <button
             type="button"
             onClick={() => outcome(primary.value)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition-transform hover:-translate-y-0.5"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-black transition-transform hover:-translate-y-0.5"
           >
             {primary.label} <ArrowRight className="h-4 w-4" />
           </button>
@@ -223,7 +223,7 @@ export function CallSession({ queue, onClose, onChanged }: { queue: OutreachLead
             <p className="text-lg font-semibold">{left === 0 ? "Time's up" : "List done"}</p>
             <p className="num mt-1 text-sm text-text-muted">{logged} call{logged === 1 ? "" : "s"} logged this session.</p>
           </div>
-          <button type="button" onClick={onClose} className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white">
+          <button type="button" onClick={onClose} className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-black">
             Close
           </button>
         </div>

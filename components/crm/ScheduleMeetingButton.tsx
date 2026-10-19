@@ -53,7 +53,7 @@ export function ScheduleMeetingButton({ compact = false }: { compact?: boolean }
         className={
           compact
             ? "inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-surface-elevated px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-elevated/80 transition"
-            : "inline-flex items-center space-x-2 rounded-md bg-primary text-white px-4 py-2 text-sm font-medium hover:bg-primary/90 transition shadow-[0_0_15px_rgba(43,102,255,0.35)]"
+            : "inline-flex items-center space-x-2 rounded-md bg-primary text-black px-4 py-2 text-sm font-medium hover:bg-primary/90 transition"
         }
       >
         <CalendarPlus className="h-4 w-4" />
@@ -112,7 +112,7 @@ export function ScheduleMeetingButton({ compact = false }: { compact?: boolean }
           <button
             type="submit"
             disabled={saving || !title.trim() || !when}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50 transition"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-medium text-black hover:bg-primary/90 disabled:opacity-50 transition"
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />}
             Save to calendar

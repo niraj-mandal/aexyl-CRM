@@ -3,41 +3,43 @@
 
 :root {
   color-scheme: dark;
-  /* Stitch Obsidian Operating Matrix Palette */
-  --background: #0F0F11;
-  --foreground: #E3E2E6;
-  
-  --surface-container-lowest: #0B0B0D;
-  --surface-container-low: #17171A;
-  --surface: #1B1B1E;
-  --surface-container-high: #242428;
-  --surface-container-highest: #2E2E33;
-  
-  --surface-glass: #141416;
-  --surface-glass-floating: rgba(28, 28, 31, 0.92);
-  
-  /* Specular Hairline Glass Borders */
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-focus: rgba(43, 102, 255, 0.6);
-  
+  /* AEXYL brand: true black, neutral greys, red as the only accent. */
+  --background: #080808;
+  --foreground: #EDEDED;
+
+  --surface-container-lowest: #050505;
+  --surface-container-low: #111111;
+  --surface: #141414;
+  --surface-container-high: #1D1D1D;
+  --surface-container-highest: #292929;
+
+  --surface-glass: #0F0F0F;
+  --surface-glass-floating: rgba(17, 17, 17, 0.94);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-focus: rgba(255, 255, 255, 0.5);
+
   /* Text */
-  --text-primary: #EDEDEF;
-  --text-secondary: #C8C8CE;
-  --text-muted: #9B9BA4;
-  
+  --text-primary: #F2F2F2;
+  --text-secondary: #C4C4C4;
+  --text-muted: #9A9A9A;
+
   /* Core Accents */
-  --primary: #2B66FF;
-  --primary-glow: rgba(43, 102, 255, 0.25);
+  /* Accent is white (black text on it); red is kept for brand moments only. */
+  --primary: #F2F2F2;
+  --primary-glow: rgba(255, 255, 255, 0.14);
+  --brand: #E0312C;
   --secondary: #4EDEA3;
   --tertiary: #FFB95F;
   --danger: #FFB4AB;
-  
-  /* Radii */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1.25rem;
+
+  /* Radii: tight, confident corners */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
 }
 
 @theme inline {
@@ -49,36 +51,35 @@
   --color-surface-high: var(--surface-container-high);
   --color-surface-highest: var(--surface-container-highest);
   --color-surface-elevated: var(--surface-container-high);
-  
+
   --color-border-subtle: var(--border-subtle);
   --color-border-strong: var(--border-strong);
   --color-border-focus: var(--border-focus);
-  
+
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
-  
+
   --color-primary: var(--primary);
+  --color-brand: var(--brand);
   --color-secondary: var(--secondary);
   --color-tertiary: var(--tertiary);
   --color-danger: var(--danger);
-  
+
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
-  
+  --radius-2xl: var(--radius-2xl);
+
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
 body {
   background-color: var(--background);
-  /* Soft blue glow from the top + faint dot grid: the "techy" canvas behind every page. */
-  background-image:
-    radial-gradient(ellipse 70% 45% at 55% -12%, rgba(43, 102, 255, 0.16), transparent 70%),
-    radial-gradient(rgba(255, 255, 255, 0.065) 1px, transparent 1px);
-  background-size: 100% 100%, 22px 22px;
+  /* One faint brand-red light from the top; otherwise plain black. */
+  background-image: radial-gradient(ellipse 60% 40% at 50% -14%, rgba(235, 59, 54, 0.12), transparent 70%);
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -162,18 +163,14 @@ body {
 
 /* Glass & Specular Spec Layering */
 @layer utilities {
-  /* Solid cards with a gradient hairline border (bright top edge fading down). */
+  /* Flat cards with a crisp hairline; depth comes from contrast, not glow. */
   .glass,
   .glass-panel {
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 120px) padding-box,
-      linear-gradient(var(--surface-glass), var(--surface-glass)) padding-box,
-      linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04) 35%, rgba(255, 255, 255, 0.03)) border-box;
-    border: 1px solid transparent;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
   }
   .glass-panel {
     border-radius: var(--radius-lg);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), 0 12px 32px -18px rgba(0, 0, 0, 0.7);
   }
   /* Monospace, fixed-width digits for metrics, phones and counts. */
   .num {

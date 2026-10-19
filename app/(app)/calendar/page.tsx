@@ -130,7 +130,7 @@ export default async function CalendarPage({
         {/* Upcoming meetings rail */}
         <GlassCard>
           <div className="mb-4">
-            <SectionHeader icon={Users} title="Upcoming meetings" meta={`${counts.MEETING} this month`} tone="secondary" />
+            <SectionHeader icon={Users} title="Upcoming meetings" meta={`${counts.MEETING} this month`} />
           </div>
           {upcomingMeetings.length === 0 ? (
             <EmptyState

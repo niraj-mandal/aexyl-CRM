@@ -169,7 +169,7 @@ export function Sidebar() {
                   className={cn(
                     "group relative flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150",
                     isActive
-                      ? "bg-gradient-to-r from-primary/[0.14] via-primary/[0.05] to-transparent text-text-primary border border-primary/15"
+                      ? "bg-gradient-to-r from-brand/[0.16] via-brand/[0.05] to-transparent text-text-primary border border-brand/20"
                       : "text-text-secondary hover:bg-surface-high/50 hover:text-text-primary border border-transparent"
                   )}
                 >
@@ -177,7 +177,7 @@ export function Sidebar() {
                     <item.icon
                       className={cn(
                         "h-4 w-4 transition-colors",
-                        isActive ? "text-primary" : "text-text-muted group-hover:text-text-secondary"
+                        isActive ? "text-brand" : "text-text-muted group-hover:text-text-secondary"
                       )}
                     />
                     <span>{item.name}</span>
@@ -204,7 +204,7 @@ export function Sidebar() {
                   )}
 
                   {isActive && (
-                    <div className="absolute -left-px top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary shadow-[0_0_10px_var(--primary)]" />
+                    <div className="absolute -left-px top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-brand shadow-[0_0_10px_var(--brand)]" />
                   )}
                 </Link>
               );
@@ -220,12 +220,12 @@ export function Sidebar() {
           className={cn(
             "flex items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors",
             pathname.startsWith("/settings")
-              ? "bg-primary/15 text-text-primary border border-primary/30"
+              ? "bg-brand/15 text-text-primary border border-brand/30"
               : "text-text-secondary hover:bg-surface-high/50 hover:text-text-primary border border-transparent"
           )}
         >
           <div className="flex items-center space-x-2.5">
-            <Settings className={cn("h-4 w-4", pathname.startsWith("/settings") ? "text-primary" : "text-text-muted")} />
+            <Settings className={cn("h-4 w-4", pathname.startsWith("/settings") ? "text-brand" : "text-text-muted")} />
             <span>Settings & Rules</span>
           </div>
           <kbd className="font-mono-code text-xs text-text-muted bg-surface-high px-1.5 py-0.5 rounded border border-border-subtle">

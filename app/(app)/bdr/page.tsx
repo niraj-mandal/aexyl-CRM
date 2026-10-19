@@ -155,7 +155,7 @@ function DashboardTab() {
               const event = new CustomEvent("bdr-tab-change", { detail: "icp" });
               window.dispatchEvent(event);
             }}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-all"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black hover:bg-primary/90 transition-all"
           >
             <Sparkles className="h-4 w-4" />
             Get Started
@@ -310,7 +310,7 @@ function IcpSetupTab() {
         <button
           onClick={generate}
           disabled={loading || businessDesc.length < 10}
-          className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/80 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(43,102,255,0.3)] hover:shadow-[0_0_30px_rgba(43,102,255,0.4)] transition-all disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/80 px-4 py-3 text-sm font-semibold text-white transition-all disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {loading ? "Generating..." : "Show me my pipeline preview"}
@@ -549,7 +549,7 @@ function DiscoveryTab() {
         <button
           onClick={runDiscovery}
           disabled={running}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-all disabled:opacity-50 self-start"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition-all disabled:opacity-50 self-start"
         >
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
           {running ? "Running Discovery..." : "Run Discovery Now"}
@@ -646,7 +646,7 @@ function DiscoveryTab() {
                     type="button"
                     onClick={runDiscovery}
                     disabled={running}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/30 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
                   >
                     {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Run discovery now
                   </button>
@@ -780,7 +780,7 @@ function DiscoveryTab() {
             <button
               onClick={saveSettings}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition-all disabled:opacity-50"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Settings
@@ -1013,7 +1013,7 @@ function SequencesTab() {
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-all"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition-all"
         >
           <Plus className="h-4 w-4" />
           New Sequence
@@ -1046,7 +1046,7 @@ function SequencesTab() {
           <button
             onClick={createSequence}
             disabled={creating || targetProfile.length < 5 || valueProp.length < 10}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition-all disabled:opacity-50"
           >
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {creating ? "Generating..." : "Generate Sequence"}
@@ -1161,7 +1161,7 @@ function ReactivationTab() {
         <button
           onClick={findDormant}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-all disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition-all disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
           {loading ? "Scanning..." : "Find Dormant Leads"}

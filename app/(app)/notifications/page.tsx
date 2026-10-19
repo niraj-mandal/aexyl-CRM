@@ -57,7 +57,7 @@ export default async function NotificationsPage() {
                 >
                   <span
                     className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                      !n.readAt ? "bg-primary shadow-[0_0_8px_rgba(43,102,255,0.6)]" : "bg-border-subtle"
+                      !n.readAt ? "bg-primary" : "bg-border-subtle"
                     }`}
                   />
                   <div className="min-w-0 flex-1">

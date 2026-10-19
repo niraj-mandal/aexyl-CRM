@@ -16,8 +16,8 @@ export function PageHeader({
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow && <p className="num text-xs uppercase tracking-wider text-text-muted">{eyebrow}</p>}
-        <Display className={eyebrow ? "mt-1.5" : undefined}>{title}</Display>
+        {eyebrow && <p className="num text-xs font-medium uppercase tracking-[0.18em] text-[#F04A45]">{eyebrow}</p>}
+        <Display className={eyebrow ? "mt-2" : undefined}>{title}</Display>
         {description && <p className="mt-1.5 text-sm text-text-secondary">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

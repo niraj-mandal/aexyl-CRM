@@ -64,7 +64,7 @@ function GoalRing({ won, goal }: { won: number | null; goal: number }) {
       </div>
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 text-xs font-medium text-text-secondary">
-          <Target className="h-3.5 w-3.5 text-primary" /> Monthly goal
+          <Target className="h-3.5 w-3.5 text-brand" /> Monthly goal
         </p>
         <p className="mt-1 text-lg font-semibold text-text-primary">Gyms signed</p>
         <p className="mt-1 text-xs text-text-muted">
@@ -101,10 +101,10 @@ export default function CommandCenter() {
     <div className="space-y-6 animate-in fade-in duration-150">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="num text-xs uppercase tracking-wider text-text-muted" suppressHydrationWarning>
+          <p className="num text-xs font-medium uppercase tracking-[0.18em] text-[#F04A45]" suppressHydrationWarning>
             {now.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
           </p>
-          <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl" suppressHydrationWarning>
+          <h1 className="mt-2 text-4xl font-bold tracking-tighter text-text-primary sm:text-5xl" suppressHydrationWarning>
             {greeting(now.getHours())}
             {name ? <span className="text-text-muted">, {name}</span> : null}
           </h1>

@@ -2,7 +2,7 @@
 export const DEAL_STAGES = [
   { key: "QUALIFIED", label: "Qualified", color: "#9B9BA4" },
   { key: "CALL_BOOKED", label: "Call booked", color: "#F5C84C" },
-  { key: "PROPOSAL", label: "Proposal", color: "#2B66FF" },
+  { key: "PROPOSAL", label: "Proposal", color: "#F26B3A" },
   { key: "NEGOTIATION", label: "Negotiation", color: "#E5322D" },
   { key: "WON", label: "Won", color: "#2FA36B" },
   { key: "LOST", label: "Lost", color: "#5A5A63" },

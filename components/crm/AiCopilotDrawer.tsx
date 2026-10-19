@@ -1061,7 +1061,7 @@ export function AiCopilotDrawer() {
         aria-expanded={isOpen}
         aria-keyshortcuts="Control+J Meta+J"
         title={`Open AI Copilot (${mod}+J)`}
-        className="fixed bottom-6 right-6 z-50 flex items-center space-x-2 rounded-full bg-gradient-to-r from-primary via-indigo-600 to-tertiary px-4 py-3 text-xs font-bold text-white shadow-[0_0_25px_rgba(43,102,255,0.4)] hover:scale-105 hover:shadow-[0_0_35px_rgba(43,102,255,0.6)] transition-all duration-300 group"
+        className="fixed bottom-6 right-6 z-50 flex items-center space-x-2 rounded-full bg-primary px-4 py-3 text-xs font-bold text-black hover:scale-105 transition-all duration-300 group"
       >
         <Sparkles className="h-4 w-4 animate-pulse group-hover:rotate-12 transition-transform" />
         <span>AI COPILOT</span>
@@ -1211,7 +1211,7 @@ export function AiCopilotDrawer() {
                   <div
                     className={`max-w-[92%] rounded-xl p-3 text-xs leading-relaxed ${
                       m.role === "user"
-                        ? "bg-primary text-white font-medium rounded-br-none"
+                        ? "bg-primary text-black font-medium rounded-br-none"
                         : "bg-surface-elevated border border-border-subtle text-text-primary rounded-bl-none shadow-sm"
                     }`}
                   >
@@ -1589,7 +1589,7 @@ export function AiCopilotDrawer() {
                   aria-label="Send message"
                   aria-keyshortcuts="Enter"
                   title="Send (Enter)"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-50 hover:bg-primary/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-black disabled:opacity-50 hover:bg-primary/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <Send className="h-3.5 w-3.5" />
                 </button>
@@ -1681,7 +1681,7 @@ function LocalLeadsBlock({
         <button
           onClick={importSelected}
           disabled={selectedFresh.length === 0 || bulkState === "importing"}
-          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold text-black hover:bg-primary/90 disabled:opacity-40 transition-colors"
         >
           {bulkState === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
           {allDone ? "All in CRM" : `Import ${selectedFresh.length}`}
@@ -1807,7 +1807,7 @@ function GooglePlacesBlock({
         <button
           onClick={importSelected}
           disabled={selectedFresh.length === 0 || bulkState === "importing"}
-          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold text-black hover:bg-primary/90 disabled:opacity-40 transition-colors"
         >
           {bulkState === "importing" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
           {allDone ? "All in CRM" : `Import ${selectedFresh.length}`}

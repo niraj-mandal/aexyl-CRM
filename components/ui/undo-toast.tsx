@@ -87,7 +87,7 @@ export function UndoToaster() {
           <button
             type="button"
             onClick={() => pending?.undo()}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-3 py-1 font-semibold text-white hover:bg-primary/85"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-3 py-1 font-semibold text-black hover:bg-primary/85"
           >
             <Undo2 className="h-3 w-3" /> Undo
           </button>

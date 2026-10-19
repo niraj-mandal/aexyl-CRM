@@ -41,7 +41,7 @@ export function CreateProjectButton({ companies }: { companies: { id: string; na
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center space-x-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white shadow-[0_0_20px_rgba(43,102,255,0.3)] hover:bg-primary/90 transition-all"
+        className="inline-flex items-center justify-center space-x-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition-all"
       >
         <Plus className="h-4 w-4" />
         <span>New Project</span>
@@ -126,7 +126,7 @@ export function CreateProjectButton({ companies }: { companies: { id: string; na
       <button
         type="submit"
         disabled={saving || !name.trim()}
-        className="w-full inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:bg-surface-high disabled:text-text-muted disabled:cursor-not-allowed transition"
+        className="w-full inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-black hover:bg-primary/90 disabled:bg-surface-high disabled:text-text-muted disabled:cursor-not-allowed transition"
       >
         {saving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
         {saving ? "Creating..." : "Create Project"}

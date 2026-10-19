@@ -109,7 +109,7 @@ export function WorkspaceNameEditor({ name }: { name: string }) {
         <button
           onClick={save}
           disabled={pending || value.trim().length < 2}
-          className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary/90 transition disabled:bg-surface-high disabled:text-text-muted disabled:cursor-not-allowed"
+          className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-black text-sm font-semibold rounded-md hover:bg-primary/90 transition disabled:bg-surface-high disabled:text-text-muted disabled:cursor-not-allowed"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           <span>{pending ? "Saving..." : "Save"}</span>
@@ -177,8 +177,8 @@ export function AutomationControls({ settings }: { settings: WorkspaceSettings }
           }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              sweepEnabled ? "translate-x-6" : "translate-x-1"
+            className={`inline-block h-4 w-4 transform rounded-full transition-transform ${
+              sweepEnabled ? "translate-x-6 bg-black" : "translate-x-1 bg-white"
             }`}
           />
         </button>

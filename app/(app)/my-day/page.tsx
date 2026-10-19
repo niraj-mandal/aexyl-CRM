@@ -27,7 +27,7 @@ const OUTCOMES: { key: keyof DayStat; label: string; color: string }[] = [
 ];
 
 const KIND: Record<CalendarEvent["kind"], { label: string; color: string }> = {
-  MEETING: { label: "Meeting", color: "#2B66FF" },
+  MEETING: { label: "Meeting", color: "#EDEDED" },
   FOLLOW_UP: { label: "Follow-up", color: "#F5C84C" },
   TASK: { label: "Task", color: "#8B7CF6" },
   DEAL_CLOSE: { label: "Deal close", color: "#2FA36B" },
@@ -261,13 +261,13 @@ export default async function MyDayPage() {
         {/* Wrap-up + tomorrow */}
         <div className="min-w-0 space-y-6 lg:col-span-2">
           <GlassPanel className="p-5">
-            <SectionHeader icon={MoonStar} title="Wrap-up" tone="tertiary" />
+            <SectionHeader icon={MoonStar} title="Wrap-up" />
             {today.contacted === 0 ? (
               <div className="mt-3 space-y-3">
                 <p className="text-sm text-text-secondary">No gyms reached yet today.</p>
                 <Link
                   href="/"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition-transform hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-black transition-transform hover:-translate-y-0.5"
                 >
                   <PhoneCall className="h-4 w-4" /> Start calling
                 </Link>
@@ -281,7 +281,7 @@ export default async function MyDayPage() {
           </GlassPanel>
 
           <GlassPanel className="p-5">
-            <SectionHeader icon={CalendarClock} title="Tomorrow" meta={plural(tomorrowEvents.length, "item")} tone="secondary" />
+            <SectionHeader icon={CalendarClock} title="Tomorrow" meta={plural(tomorrowEvents.length, "item")} />
             {tomorrowEvents.length === 0 ? (
               <p className="mt-3 text-sm text-text-muted">Nothing lined up yet. Leads you reach today come back as follow-ups in 2–3 days.</p>
             ) : (

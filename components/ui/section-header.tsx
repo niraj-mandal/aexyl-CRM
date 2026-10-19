@@ -6,24 +6,16 @@ export function SectionHeader({
   title,
   meta,
   action,
-  tone = "primary",
 }: {
   icon: ComponentType<{ className?: string }>;
   title: string;
   meta?: ReactNode;
   action?: ReactNode;
-  tone?: "primary" | "secondary" | "tertiary";
 }) {
-  const toneClass = {
-    primary: "text-primary bg-primary/10 ring-primary/20",
-    secondary: "text-secondary bg-secondary/10 ring-secondary/20",
-    tertiary: "text-tertiary bg-tertiary/10 ring-tertiary/20",
-  }[tone];
-
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1 ring-inset ${toneClass}`}>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
           <Icon className="h-3.5 w-3.5" />
         </span>
         <h2 className="truncate text-sm font-semibold text-text-primary">{title}</h2>

@@ -113,7 +113,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </a>
             <Link
               href={`/outreach?lead=${lead.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-black transition-transform hover:-translate-y-0.5"
             >
               <Sparkles className="h-4 w-4" /> Write pitch
             </Link>
@@ -148,7 +148,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           </GlassPanel>
 
           <GlassPanel className="p-5">
-            <SectionHeader icon={Handshake} title="Deals" meta={String(lead.deals.length)} tone="secondary" />
+            <SectionHeader icon={Handshake} title="Deals" meta={String(lead.deals.length)} />
             {lead.deals.length === 0 ? (
               <p className="mt-4 text-sm text-text-muted">No deal yet. Mark this gym Interested and one is created automatically.</p>
             ) : (
@@ -203,7 +203,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         {/* Side column */}
         <div className="space-y-6">
           <GlassPanel className="p-5">
-            <SectionHeader icon={Clock} title="At a glance" tone="tertiary" />
+            <SectionHeader icon={Clock} title="At a glance" />
             <dl className="mt-4 grid grid-cols-2 gap-4">
               <div>
                 <dt className="text-xs text-text-muted">Score</dt>

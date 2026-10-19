@@ -3,7 +3,7 @@ import { HTMLAttributes, forwardRef } from "react";
 
 export const Display = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h1 ref={ref} className={cn("text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary", className)} {...props} />
+    <h1 ref={ref} className={cn("text-4xl sm:text-5xl font-bold tracking-tighter text-text-primary", className)} {...props} />
   )
 );
 Display.displayName = "Display";

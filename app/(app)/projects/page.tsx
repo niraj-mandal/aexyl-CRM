@@ -131,7 +131,7 @@ export default async function ProjectsPage() {
                           ? "bg-danger"
                           : project.health === "AT_RISK"
                             ? "bg-tertiary"
-                            : "bg-gradient-to-r from-primary to-secondary"
+                            : "bg-gradient-to-r from-primary to-[#F26B3A]"
                       }`}
                       style={{ width: `${project.progress}%` }}
                     />

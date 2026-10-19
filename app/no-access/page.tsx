@@ -59,7 +59,7 @@ export default async function NoAccessPage() {
             </Body>
             <Link
               href={`/invite/${pendingInvite.token}`}
-              className="mt-6 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition"
+              className="mt-6 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition"
             >
               Open invite and join
             </Link>
@@ -72,7 +72,7 @@ export default async function NoAccessPage() {
           access. Ask the workspace owner for an invite link, then open it while signed in with the invited account.
         </Body>
         <SignOutButton redirectUrl="/sign-in">
-          <button className="mt-6 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition">
+          <button className="mt-6 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary/90 transition">
             Sign out and use another account
           </button>
         </SignOutButton>
