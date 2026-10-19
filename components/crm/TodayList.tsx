@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarClock, MapPin, Phone, Sparkles, UserPlus } from "lucide-react";
+import { CalendarClock, MapPin, Phone, PhoneCall, Sparkles, UserPlus } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
@@ -104,7 +104,7 @@ export function TodayList() {
     {calling && <CallSession queue={[...followUps, ...toContact]} onClose={() => setCalling(false)} onChanged={load} />}
     <GlassPanel className="p-5 space-y-5">
       <SectionHeader
-        icon={Sparkles}
+        icon={PhoneCall}
         title="Today's outreach"
         meta={`${followUps.length} follow-up${followUps.length === 1 ? "" : "s"} · ${toContact.length} new`}
       />

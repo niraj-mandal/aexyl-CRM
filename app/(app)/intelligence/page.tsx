@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Cpu, CheckCircle2, RefreshCw, TrendingDown, Clock, Building2, AlertTriangle, CalendarClock } from "lucide-react";
+import { Cpu, CheckCircle2, RefreshCw, TrendingDown, Clock, Building2, AlertTriangle, CalendarClock } from "lucide-react";
 import { runPipelineStrategicAuditAction } from "@/app/actions/ai.actions";
 import Link from "next/link";
 
@@ -48,7 +48,7 @@ export default function IntelligencePage() {
         </div>
         <div className="flex items-center space-x-3">
           <Badge variant="outline" className="font-mono-code text-xs">
-            {audit ? `LAST AUDIT: ${new Date(audit.auditedAt).toLocaleTimeString()}` : "NOT YET RUN"}
+            {audit ? `Last checked ${new Date(audit.auditedAt).toLocaleTimeString()}` : "Not checked yet"}
           </Badge>
           <button
             onClick={handleRunAudit}
@@ -58,9 +58,9 @@ export default function IntelligencePage() {
             {loading ? (
               <Cpu className="h-4 w-4 animate-spin text-white" />
             ) : (
-              <Sparkles className="h-4 w-4" />
+              <RefreshCw className="h-4 w-4" />
             )}
-            <span>{loading ? "Auditing Pipeline..." : audit ? "Re-run Audit" : "Run Strategic Audit"}</span>
+            <span>{loading ? "Checking…" : audit ? "Check again" : "Check pipeline"}</span>
           </button>
         </div>
       </div>
@@ -75,8 +75,8 @@ export default function IntelligencePage() {
       {/* Empty state */}
       {!audit && !loading && !error && (
         <GlassPanel className="p-10 text-center">
-          <Sparkles className="h-8 w-8 text-primary mx-auto mb-4" />
-          <PageTitle className="text-base mb-2">Strategic Audit Engine</PageTitle>
+          <TrendingDown className="h-8 w-8 text-primary mx-auto mb-4" />
+          <PageTitle className="text-base mb-2">Pipeline check</PageTitle>
           <Body className="text-xs text-text-muted max-w-md mx-auto leading-relaxed">
             Runs a live risk audit over your entire pipeline: stalled deals, overdue close dates,
             closing-window pressure, lead hygiene, high-value exposure, and account whitespace.
@@ -90,7 +90,7 @@ export default function IntelligencePage() {
         <GlassPanel className="p-6">
           <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
             <div>
-              <PageTitle className="text-lg">Executive Telemetry & Risk Radar</PageTitle>
+              <PageTitle className="text-lg">Pipeline health</PageTitle>
               <Body className="text-xs text-text-muted">
                 {m.totalDealsAnalyzed} deals · {m.activeLeadsCount} active leads analyzed
               </Body>

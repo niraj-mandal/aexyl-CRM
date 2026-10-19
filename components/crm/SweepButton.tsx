@@ -11,7 +11,7 @@ import { queueStaleFollowUpsAction } from "@/app/actions/crm.actions";
  */
 export function SweepButton({
   onDone,
-  label = "Run Agentic Follow-up Sweep",
+  label = "Schedule follow-ups",
   className,
 }: {
   onDone?: (report: Awaited<ReturnType<typeof queueStaleFollowUpsAction>>) => void;

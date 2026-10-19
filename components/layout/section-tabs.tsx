@@ -28,8 +28,8 @@ export const SECTION_GROUPS: SectionTab[][] = [
     { name: "All Deals", href: "/sales/deals" },
   ],
   [
-    { name: "Executive Matrix", href: "/intelligence" },
-    { name: "Attention Required", href: "/attention" },
+    { name: "Insights", href: "/intelligence" },
+    { name: "Attention", href: "/attention" },
   ],
 ];
 

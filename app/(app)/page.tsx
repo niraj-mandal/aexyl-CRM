@@ -69,7 +69,7 @@ function GoalRing({ won, goal }: { won: number | null; goal: number }) {
         </p>
         <p className="mt-1 text-lg font-semibold text-text-primary">Gyms signed</p>
         <p className="mt-1 text-xs text-text-muted">
-          {won === null ? "Loading…" : left === 0 ? "Goal hit this month. 🎉" : `${left} more to hit this month's goal.`}
+          {won === null ? "Loading…" : left === 0 ? "Goal hit this month." : `${left} more to hit this month's goal.`}
         </p>
       </div>
     </GlassPanel>
@@ -83,7 +83,7 @@ function greeting(hour: number) {
 }
 
 export default function CommandCenter() {
-  const { stats, connected } = useRealtimeTelemetry();
+  const { stats } = useRealtimeTelemetry();
   // Clerk's live user object re-renders as soon as the profile name is edited.
   const { user: clerkUser } = useUser();
   const name = clerkUser?.firstName || stats?.user?.firstName;
@@ -110,10 +110,6 @@ export default function CommandCenter() {
             {name ? <span className="text-text-muted">, {name}</span> : null}
           </h1>
         </div>
-        <span className="num inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-low/70 px-3 py-1 text-[11px] uppercase tracking-wider text-text-muted">
-          <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-secondary shadow-[0_0_8px_var(--secondary)]" : "bg-text-muted"}`} />
-          {connected ? "Synced" : "Connecting"}
-        </span>
       </header>
 
       <TodayList />

@@ -157,7 +157,7 @@ export function AutomationControls({ settings }: { settings: WorkspaceSettings }
       {/* Sweep toggle */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-text-primary">Agentic follow-up sweep</p>
+          <p className="text-sm font-medium text-text-primary">Automatic follow-up scheduling</p>
           <p className="mt-1 text-xs text-text-muted">
             When on, the Copilot and My Day can automatically schedule follow-ups for stale
             leads. When off, sweeps are disabled workspace-wide.

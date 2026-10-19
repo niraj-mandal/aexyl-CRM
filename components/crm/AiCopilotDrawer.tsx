@@ -193,7 +193,7 @@ export function AiCopilotDrawer() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      text: "Hello, Operator. I am AEXYL — your AI CRM Copilot with full CRM control. I can create leads, deals, companies & contacts, update any record, send emails, manage outreach sequences, handle objections, analyze intent, and discover new prospects — all through natural language. Try: \"create a lead for Acme Corp\", \"move the Tesla deal to negotiation\", \"email john@acme.com a follow-up\", or \"find gyms in Austin\".",
+      text: "Hi! Ask me about your leads and pipeline, or tell me what to do. For example: \"show overdue follow-ups\", \"draft a pitch for Biofit Gym\", \"move a deal to proposal\" or \"find gyms in Jorhat\". Anything that changes data or sends a message waits for your approval.",
       ephemeral: true,
     },
   ]);
@@ -216,7 +216,7 @@ export function AiCopilotDrawer() {
       ...prev,
       {
         role: "assistant",
-        text: `📊 Attached ${res.fileName} — ${res.rowCount} row${res.rowCount === 1 ? "" : "s"} × ${res.headers?.length ?? 0} columns.${res.truncated ? " (parsed up to the size cap)" : ""} Ask what's in it, or say "add all the data from the sheet to the leads" to import every row.`,
+        text: `Attached ${res.fileName} — ${res.rowCount} row${res.rowCount === 1 ? "" : "s"} × ${res.headers?.length ?? 0} columns.${res.truncated ? " (parsed up to the size cap)" : ""} Ask what's in it, or say "add all the data from the sheet to the leads" to import every row.`,
         ephemeral: true,
       },
     ]);
@@ -233,7 +233,7 @@ export function AiCopilotDrawer() {
 
   const attachSheetFile = async (file: File) => {
     if (sheetBusy) return;
-    setMessages((prev) => [...prev, { role: "user", text: `📎 ${file.name}`, ephemeral: true }]);
+    setMessages((prev) => [...prev, { role: "user", text: `${file.name}`, ephemeral: true }]);
     setSheetBusy(true);
     try {
       const fd = new FormData();
@@ -250,7 +250,7 @@ export function AiCopilotDrawer() {
   };
 
   const handleSheetUrl = async (url: string) => {
-    setMessages((prev) => [...prev, { role: "user", text: `📎 ${url}`, ephemeral: true }]);
+    setMessages((prev) => [...prev, { role: "user", text: `${url}`, ephemeral: true }]);
     setSheetBusy(true);
     try {
       const fd = new FormData();
@@ -341,7 +341,7 @@ export function AiCopilotDrawer() {
         ...prev,
         {
           role: "assistant",
-          text: "I hit an issue reaching my services. Telemetry remains operational — try again.",
+          text: "I couldn't reach the AI service just now. Please try again.",
         },
       ]);
     } finally {
@@ -351,7 +351,7 @@ export function AiCopilotDrawer() {
 
   const handleDiscover = async (query: string) => {
     if (!query.trim() || discovering) return;
-    setMessages((prev) => [...prev, { role: "user", text: `🔎 Find leads: ${query.trim()}` }]);
+    setMessages((prev) => [...prev, { role: "user", text: `Find leads: ${query.trim()}` }]);
     setPrompt("");
     setDiscovering(true);
     setMessages((prev) => [
@@ -393,7 +393,7 @@ export function AiCopilotDrawer() {
 
   const handleDiscoverLocal = async (category: string, city: string) => {
     if (!category.trim() || !city.trim() || discovering) return;
-    setMessages((prev) => [...prev, { role: "user", text: `📍 Find local ${category.trim()} in ${city.trim()}` }]);
+    setMessages((prev) => [...prev, { role: "user", text: `Find local ${category.trim()} in ${city.trim()}` }]);
     setPrompt("");
     setDiscovering(true);
     setMessages((prev) => [
@@ -436,7 +436,7 @@ export function AiCopilotDrawer() {
 
   const handleDiscoverGoogle = async (category: string, city: string) => {
     if (!category.trim() || !city.trim() || discovering) return;
-    setMessages((prev) => [...prev, { role: "user", text: `🗺️ Google Maps: ${category.trim()} in ${city.trim()}` }]);
+    setMessages((prev) => [...prev, { role: "user", text: `Google Maps: ${category.trim()} in ${city.trim()}` }]);
     setPrompt("");
     setDiscovering(true);
     setMessages((prev) => [
@@ -549,7 +549,7 @@ export function AiCopilotDrawer() {
   };
 
   const handleEnrichLead = async (companyName: string, website: string | null, location: string | null, industry: string | null) => {
-    setMessages((prev) => [...prev, { role: "user", text: `🔍 Enrich: ${companyName}` }]);
+    setMessages((prev) => [...prev, { role: "user", text: `Enrich: ${companyName}` }]);
     setLoading(true);
     setMessages((prev) => [
       ...prev,
@@ -592,7 +592,7 @@ export function AiCopilotDrawer() {
   };
 
   const handleCampaignAnalytics = async () => {
-    setMessages((prev) => [...prev, { role: "user", text: "📊 Campaign Analytics" }]);
+    setMessages((prev) => [...prev, { role: "user", text: "Campaign Analytics" }]);
     setLoading(true);
     try {
       const data = await getCampaignAnalyticsAction();
@@ -717,7 +717,7 @@ export function AiCopilotDrawer() {
   const executeAction = async (action: { label: string; actionType: string; payload: Record<string, unknown> }) => {
     // Agentic actions actually mutate CRM state; NAVIGATE just moves the user.
     if (action.actionType === "RUN_SWEEP") {
-      setMessages((prev) => [...prev, { role: "user", text: "⚡ Execute follow-up sweep" }]);
+      setMessages((prev) => [...prev, { role: "user", text: "Execute follow-up sweep" }]);
       setLoading(true);
     try {
       const report = await queueStaleFollowUpsAction();
@@ -823,7 +823,7 @@ export function AiCopilotDrawer() {
       const res: CopilotWriteResult = await executeCopilotWriteAction(token);
       if (res.success) {
         setWrite(key, "done", res.message);
-        setMessages((prev) => [...prev, { role: "assistant", text: `✅ ${res.message}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", text: `${res.message}` }]);
         router.refresh();
       } else {
         setWrite(key, "error", res.message);
@@ -838,14 +838,15 @@ export function AiCopilotDrawer() {
   const mod = isMac ?"⌘" : "Ctrl";
   const alt = isMac ? "⌥" : "Alt";
 
+  const CHIP = "bg-surface-high/60 text-text-secondary border-border-subtle hover:text-text-primary hover:border-border-strong";
   const quickPrompts: { label: string; className: string; run: () => void }[] = [
-    { label: "☀️ Today", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20", run: () => handleSend("What should I do today?") },
-    { label: "⚡ Audit Risk", className: "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20", run: () => handleSend("Audit pipeline risk") },
-    { label: "🎯 Hot Leads", className: "bg-secondary/10 text-secondary border-secondary/30 hover:bg-secondary/20", run: () => handleSend("Summarize hot leads") },
-    { label: "🏢 Clients", className: "bg-tertiary/10 text-tertiary border-tertiary/30 hover:bg-tertiary/20", run: () => handleSend("Client account stats") },
-    { label: "🔎 Scrape Leads", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20", run: () => handleDiscover("B2B agencies that need automation services") },
-    { label: "➕ New Lead", className: "bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20", run: () => handleSend("Create a new lead") },
-    { label: "📨 Sequences", className: "bg-sky-500/10 text-sky-400 border-sky-500/30 hover:bg-sky-500/20", run: () => handleSend("Show my outreach sequences and BDR stats") },
+    { label: "Plan my day", className: CHIP, run: () => handleSend("What should I do today?") },
+    { label: "Pipeline risks", className: CHIP, run: () => handleSend("Audit pipeline risk") },
+    { label: "Hot leads", className: CHIP, run: () => handleSend("Summarize hot leads") },
+    { label: "Clients", className: CHIP, run: () => handleSend("Client account stats") },
+    { label: "Find gyms", className: CHIP, run: () => handleDiscover("gyms without a website in Jorhat, Assam") },
+    { label: "New lead", className: CHIP, run: () => handleSend("Create a new lead") },
+    { label: "Sequences", className: CHIP, run: () => handleSend("Show my outreach sequences and BDR stats") },
   ];
 
   const shortcutList: { keys: string; action: string }[] = [
@@ -1107,10 +1108,10 @@ export function AiCopilotDrawer() {
                   <Bot className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 id="copilot-title" className="text-xs font-semibold text-text-primary tracking-wide">AEXYL AI COPILOT</h3>
-                  <span className="text-xs font-mono-code text-secondary flex items-center space-x-1">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-secondary animate-ping mr-1"></span>
-                    {engine === "llm" ? "LLM REASONING ONLINE" : engine === "deterministic" ? "DETERMINISTIC ENGINE" : "AUTONOMOUS AGENT ACTIVE"}
+                  <h3 id="copilot-title" className="text-sm font-semibold text-text-primary">Copilot</h3>
+                  <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-success"></span>
+                    {engine === "deterministic" ? "Online · basic mode" : "Online"}
                   </span>
                 </div>
               </div>
@@ -1502,7 +1503,7 @@ export function AiCopilotDrawer() {
                       ? "Reading spreadsheet…"
                       : discovering
                         ? "Scanning the web for prospects…"
-                        : "Synthesizing CRM telemetry context..."}
+                        : "Thinking…"}
                   </span>
                 </div>
               )}
@@ -1716,7 +1717,7 @@ function LocalLeadsBlock({
                   <p className="text-xs text-text-muted truncate">{lead.location ?? "—"}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-muted">
                     {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{lead.phone}</span>}
-                    {lead.openingHours && <span title={lead.openingHours}>🕒 {lead.openingHours.slice(0, 24)}</span>}
+                    {lead.openingHours && <span title={lead.openingHours}>{lead.openingHours.slice(0, 24)}</span>}
                     {lead.website ? (
                       <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
                         <Globe className="h-2.5 w-2.5" />site
@@ -1848,7 +1849,7 @@ function GooglePlacesBlock({
                       </span>
                     )}
                     {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{lead.phone}</span>}
-                    {lead.openingHours && <span title={lead.openingHours}>🕒 {lead.openingHours.slice(0, 24)}</span>}
+                    {lead.openingHours && <span title={lead.openingHours}>{lead.openingHours.slice(0, 24)}</span>}
                     {lead.website ? (
                       <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
                         <Globe className="h-2.5 w-2.5" />site

@@ -275,7 +275,7 @@ export default async function MyDayPage() {
             ) : (
               <p className="mt-3 text-sm leading-relaxed text-text-secondary">
                 {wrapUp(today)}{" "}
-                {today.contacted >= DAILY_GOAL ? "Goal hit. 🎉" : `${DAILY_GOAL - today.contacted} more to hit today's goal.`}
+                {today.contacted >= DAILY_GOAL ? "Goal hit for today." : `${DAILY_GOAL - today.contacted} more to hit today's goal.`}
               </p>
             )}
           </GlassPanel>

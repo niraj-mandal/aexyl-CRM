@@ -136,7 +136,6 @@ export function Sidebar() {
             priority
             className="logo-wordmark h-3 w-auto"
           />
-          <span className="ml-0.5 font-mono-code text-xs text-text-muted tracking-widest uppercase">OS v2.4</span>
         </Link>
       </div>
 

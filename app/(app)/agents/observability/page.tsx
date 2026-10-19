@@ -191,7 +191,7 @@ export default async function ObservabilityPage() {
             <StatCard
               label="FEEDBACK"
               value={helpful + notHelpful === 0 ? "—" : `${Math.round((helpful / (helpful + notHelpful)) * 100)}%`}
-              sub={`${helpful} 👍 · ${notHelpful} 👎`}
+              sub={`${helpful} helpful · ${notHelpful} not helpful`}
             />
           </div>
         </section>

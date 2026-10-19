@@ -73,7 +73,7 @@ export default function BdrPage({ searchParams }: { searchParams: Promise<{ tab?
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Sales · Autopilot"
+        eyebrow="Sales"
         title="AI BDR"
         description="Find gyms without websites, review them, and run follow-up sequences. Nothing is sent without your approval."
       />
@@ -531,7 +531,7 @@ function DiscoveryTab() {
     setBatchCandidates(data);
   };
 
-  if (loading) return <LoadingState text="Loading Discovery Engine..." />;
+  if (loading) return <LoadingState text="Loading lead discovery" />;
 
   return (
     <div className="space-y-6">
@@ -540,10 +540,10 @@ function DiscoveryTab() {
         <div>
           <PageTitle className="text-base flex items-center gap-2">
             <Radar className="h-4 w-4 text-primary" />
-            Discovery Engine
+            Lead discovery
           </PageTitle>
           <p className="text-xs text-text-muted mt-1">
-            Automated local business discovery via OpenStreetMap. Free, legal, no API keys.
+            Finds local gyms from public map data and checks whether they have a website.
           </p>
         </div>
         <button
@@ -1039,7 +1039,7 @@ function SequencesTab() {
               rows={2}
               value={valueProp}
               onChange={(e) => setValueProp(e.target.value)}
-              placeholder="We help teams double their pipeline with AI-powered outbound..."
+              placeholder="We build simple, mobile-friendly websites for local gyms so new members can find them on Google."
               className="w-full rounded-lg bg-surface-low border border-border-subtle px-3 py-2 text-xs text-text-primary focus:border-primary focus:outline-none resize-none"
             />
           </div>
@@ -1153,7 +1153,7 @@ function ReactivationTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <PageTitle className="text-base">Reactivation Engine</PageTitle>
+          <PageTitle className="text-base">Win back quiet leads</PageTitle>
           <p className="text-xs text-text-muted mt-1">
             Re-engage dormant leads at the right time based on their stated timeline.
           </p>
