@@ -1,6 +1,7 @@
 import { db } from "@/db";
-import { companies, contacts, leads, deals, projects, tasks } from "@/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { companies, contacts, leads, deals, projects, tasks, discoveryCandidates } from "@/db/schema";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { leadCity } from "@/lib/maps";
 
 // ---------------------------------------------------------------------------
 // PROJECT DELIVERY
@@ -282,13 +283,42 @@ export class CrmService {
     });
   }
 
-  /** Total active-lead count for pagination. */
-  static async countLeads(workspaceId: string): Promise<number> {
-    const [row] = await db
-      .select({ n: sql<number>`count(*)::int` })
+  /** Leads by id (one page of a filtered list), newest first. */
+  static async getLeadsByIds(workspaceId: string, ids: string[]) {
+    if (ids.length === 0) return [];
+    return db.query.leads.findMany({
+      where: and(eq(leads.workspaceId, workspaceId), inArray(leads.id, ids)),
+      orderBy: [desc(leads.createdAt)],
+      with: {
+        company: { columns: { name: true, location: true, website: true } },
+        contact: { columns: { firstName: true, lastName: true, email: true, phone: true } },
+        owner: { columns: { firstName: true, lastName: true } }
+      }
+    });
+  }
+
+  /** Every lead's id and city, newest first — small enough to filter and count in memory. */
+  static async getLeadCityIndex(workspaceId: string) {
+    const rows = await db
+      .select({
+        id: leads.id,
+        location: companies.location,
+        source: leads.source,
+        candidateCity: discoveryCandidates.city,
+      })
       .from(leads)
-      .where(eq(leads.workspaceId, workspaceId));
-    return row?.n ?? 0;
+      .innerJoin(companies, eq(companies.id, leads.companyId))
+      .leftJoin(
+        discoveryCandidates,
+        and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)),
+      )
+      .where(eq(leads.workspaceId, workspaceId))
+      .orderBy(desc(leads.createdAt));
+    // A lead can match more than one discovery record; keep the first.
+    const seen = new Set<string>();
+    return rows
+      .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+      .map((r) => ({ id: r.id, city: leadCity(r) }));
   }
 
   static async getLeadById(workspaceId: string, leadId: string) {

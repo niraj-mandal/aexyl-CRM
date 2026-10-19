@@ -16,7 +16,7 @@ export function LeadPhoneEditor({ leadId, phone }: { leadId: string; phone: stri
 
   if (phone && !editing) {
     return (
-      <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1 text-xs text-success hover:underline">
+      <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-success hover:underline">
         <Phone className="h-3 w-3" /> {phone}
       </a>
     );
