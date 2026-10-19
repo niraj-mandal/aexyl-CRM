@@ -10,6 +10,7 @@ import { googleMapsUrl } from "@/lib/maps";
 import { LeadOutcomeSelect } from "@/components/crm/LeadQuickActions";
 import { TodayProgress } from "@/components/crm/TodayProgress";
 import { CallSession, LeadQuickView } from "@/components/crm/LeadQuickView";
+import { HotLeads } from "@/components/crm/HotLeads";
 
 const CLOSED = new Set(["CONVERTED", "LOST", "UNQUALIFIED"]);
 const NEW_PER_DAY = 5;
@@ -127,6 +128,7 @@ export function TodayList() {
         )}
       </section>
     </GlassPanel>
+    <HotLeads leads={leads} onOpen={setOpen} />
     </>
   );
 }

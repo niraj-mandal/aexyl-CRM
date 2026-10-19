@@ -428,6 +428,7 @@ export class CrmService {
         openValue: sql<string>`coalesce(sum(case when ${deals.stage} not in ('WON', 'LOST') then ${deals.value} else 0 end), 0)`,
         total: sql<number>`count(*)::int`,
         won: sql<number>`(count(*) filter (where ${deals.stage} = 'WON'))::int`,
+        wonThisMonth: sql<number>`(count(*) filter (where ${deals.stage} = 'WON' and ${deals.updatedAt} >= date_trunc('month', now())))::int`,
         open: sql<number>`(count(*) filter (where ${deals.stage} not in ('WON', 'LOST')))::int`,
         fresh: sql<number>`(count(*) filter (where ${deals.stage} not in ('WON', 'LOST') and ${deals.updatedAt} > now() - interval '14 days'))::int`,
       })
@@ -468,6 +469,7 @@ export class CrmService {
       activeLeads: leadAgg?.active ?? 0,
       hotLeads: leadAgg?.hot ?? 0,
       activeDeals: openDeals,
+      wonThisMonth: dealAgg?.wonThisMonth ?? 0,
       activeCompanies: companyAgg?.active ?? 0,
       winRate: totalDeals > 0 ? (((dealAgg?.won ?? 0) / totalDeals) * 100).toFixed(1) + "%" : "—",
       pipelineHealth:

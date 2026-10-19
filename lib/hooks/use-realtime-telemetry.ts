@@ -13,6 +13,7 @@ export interface RealtimeStats {
   activeLeads: number;
   hotLeads: number;
   activeDeals: number;
+  wonThisMonth: number;
   activeCompanies: number;
   winRate: string;
   pipelineHealth: string;
@@ -59,6 +60,7 @@ function parseStats(data: Record<string, unknown>): RealtimeStats {
     activeLeads: num(data.activeLeads),
     hotLeads: num(data.hotLeads),
     activeDeals: num(data.activeDeals),
+    wonThisMonth: num(data.wonThisMonth),
     activeCompanies: num(data.activeCompanies),
     winRate: str(data.winRate, "—"),
     pipelineHealth: str(data.pipelineHealth, "—"),

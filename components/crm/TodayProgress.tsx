@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, PhoneCall, Target } from "lucide-react";
 
 /** Animates 0 → value once (respects reduced motion). */
-function useCountUp(value: number, durationMs = 900) {
+export function useCountUp(value: number, durationMs = 900) {
   const [shown, setShown] = useState(0);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
