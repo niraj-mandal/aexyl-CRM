@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getPipelineAuditAction, runPipelineStrategicAuditAction } from "@/app/actions/ai.actions";
 import type { PipelineAudit } from "@/services/ai/ai-agent.service";
 import { GlassCard } from "@/components/ui/glass-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Flame, RefreshCw } from "lucide-react";
 
@@ -53,7 +54,15 @@ export function DailyBrief() {
     return (
       <GlassCard className="p-5">
         <h2 className="text-base font-semibold text-text-primary">Daily brief</h2>
-        <p className="mt-2 text-xs text-text-muted">Auditing live pipeline data…</p>
+        <div role="status" aria-label="Loading daily brief" className="mt-4 space-y-3">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-9" />
+            ))}
+          </div>
+          <Skeleton className="h-10 rounded-lg" />
+          <Skeleton className="h-10 w-4/5 rounded-lg" />
+        </div>
       </GlassCard>
     );
   }

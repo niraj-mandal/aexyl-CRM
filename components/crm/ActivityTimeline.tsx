@@ -1,16 +1,17 @@
 import { formatDistanceToNow } from "date-fns";
-import { MessageSquare, Phone, Mail, Calendar, ArrowRightLeft, Sparkles, StickyNote, type LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { MessageSquare, Phone, Mail, Calendar, ArrowRightLeft, Sparkles, StickyNote, History, type LucideIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
-const iconMap: Record<string, LucideIcon> = {
-  NOTE: StickyNote,
-  CALL: Phone,
-  EMAIL: Mail,
-  MEETING: Calendar,
-  OUTREACH: MessageSquare,
-  FOLLOW_UP: Calendar,
-  STAGE_CHANGE: ArrowRightLeft,
-  STATUS_CHANGE: Sparkles,
+// Icon + tint per event, so a glance shows calls vs. messages vs. stage moves.
+const STYLE: Record<string, { icon: LucideIcon; cls: string }> = {
+  NOTE: { icon: StickyNote, cls: "text-text-secondary bg-surface-high" },
+  CALL: { icon: Phone, cls: "text-success bg-success/15" },
+  EMAIL: { icon: Mail, cls: "text-primary bg-primary/15" },
+  MEETING: { icon: Calendar, cls: "text-secondary bg-secondary/15" },
+  OUTREACH: { icon: MessageSquare, cls: "text-success bg-success/15" },
+  FOLLOW_UP: { icon: Calendar, cls: "text-tertiary bg-tertiary/15" },
+  STAGE_CHANGE: { icon: ArrowRightLeft, cls: "text-primary bg-primary/15" },
+  STATUS_CHANGE: { icon: Sparkles, cls: "text-tertiary bg-tertiary/15" },
 };
 
 interface TimelineActivity {
@@ -25,48 +26,43 @@ interface TimelineActivity {
 export function ActivityTimeline({ activities }: { activities: TimelineActivity[] }) {
   if (!activities || activities.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-text-muted">
-        No activity recorded yet.
-      </div>
+      <EmptyState
+        icon={History}
+        title="No history yet"
+        body="Calls, pitches, outcomes and notes for this lead will show up here, newest first."
+      />
     );
   }
 
   return (
-    <div className="relative border-l border-border-strong ml-4 space-y-8 pb-4">
-      {activities.map((activity, index) => {
-        const Icon = iconMap[activity.type] || MessageSquare;
-        
+    <ol className="relative space-y-5 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border-subtle">
+      {activities.map((activity) => {
+        const { icon: Icon, cls } = STYLE[activity.type] ?? { icon: MessageSquare, cls: "text-text-secondary bg-surface-high" };
+        const when = new Date(activity.occurredAt);
         return (
-          <div key={activity.id} className="relative pl-8 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${index * 50}ms` }}>
-            <div className="absolute -left-3.5 top-1 bg-surface border border-border-strong rounded-full p-1.5 shadow-sm">
-              <Icon className="w-4 h-4 text-text-secondary" />
-            </div>
-            
-            <div className="flex flex-col space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-text-primary">
-                  {activity.title}
-                </span>
-                <span className="text-xs text-text-muted" title={new Date(activity.occurredAt).toLocaleString()}>
-                  {formatDistanceToNow(new Date(activity.occurredAt), { addSuffix: true })}
-                </span>
+          <li key={activity.id} className="relative flex gap-3">
+            <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-4 ring-surface-low ${cls}`}>
+              <Icon className="h-3.5 w-3.5" />
+            </span>
+            <div className="min-w-0 flex-1 pt-1">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="text-sm font-medium text-text-primary">{activity.title}</span>
+                <time className="num text-xs text-text-muted" dateTime={when.toISOString()} title={when.toLocaleString()}>
+                  {formatDistanceToNow(when, { addSuffix: true })}
+                </time>
               </div>
-              
               {activity.description && (
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  {activity.description}
+                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-text-secondary">{activity.description}</p>
+              )}
+              {activity.actor && (
+                <p className="mt-1 text-xs text-text-muted">
+                  by {activity.actor.firstName} {activity.actor.lastName}
                 </p>
               )}
-
-              {activity.actor && (
-                <div className="text-xs text-text-muted mt-2">
-                  by {activity.actor.firstName} {activity.actor.lastName}
-                </div>
-              )}
             </div>
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }

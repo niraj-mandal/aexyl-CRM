@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarClock, Loader2, MapPin, Phone, Sparkles, UserPlus } from "lucide-react";
+import { CalendarClock, MapPin, Phone, Sparkles, UserPlus } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { googleMapsUrl } from "@/lib/maps";
 import { LeadOutcomeSelect } from "@/components/crm/LeadQuickActions";
 import { TodayProgress } from "@/components/crm/TodayProgress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CallSession, LeadQuickView } from "@/components/crm/LeadQuickView";
 import { HotLeads } from "@/components/crm/HotLeads";
 
@@ -60,9 +61,15 @@ export function TodayList() {
   if (failed) return null;
   if (!leads) {
     return (
-      <GlassPanel className="p-5 flex items-center text-xs text-text-muted">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Planning your day…
-      </GlassPanel>
+      <div role="status" aria-label="Planning your day" className="space-y-6">
+        <Skeleton className="h-[164px] rounded-2xl" />
+        <GlassPanel className="space-y-3 p-5">
+          <Skeleton className="h-4 w-40" />
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 rounded-lg" />
+          ))}
+        </GlassPanel>
+      </div>
     );
   }
 

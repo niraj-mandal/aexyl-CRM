@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, use } from "react";
 import { PageTitle, FieldLabel } from "@/components/ui/typography";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { waNumber } from "@/lib/phone";
@@ -209,8 +210,10 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
 
           <div className="flex-1 overflow-y-auto scrollbar-thin -mx-1 px-1 space-y-1.5" role="listbox" aria-label="Leads">
             {loadingLeads ? (
-              <div className="flex items-center justify-center py-10 text-xs text-text-muted">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading leads…
+              <div role="status" aria-label="Loading leads" className="space-y-1.5">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <Skeleton key={i} className="h-[52px] rounded-lg" />
+                ))}
               </div>
             ) : visible.length === 0 ? (
               <p className="py-10 text-center text-xs text-text-muted">No leads match.</p>

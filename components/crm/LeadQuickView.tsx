@@ -36,6 +36,24 @@ function Modal({ label, onClose, children }: { label: string; onClose: () => voi
 const fmtDay = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "—";
 
+/** New → Contacted → Interested → Won, or a "lost" note. */
+export function LeadStageStepper({ status }: { status: string }) {
+  const step = STEP_OF[status] ?? 0;
+  if (status === "LOST" || status === "UNQUALIFIED") {
+    return <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs font-medium text-danger">Marked as lost.</p>;
+  }
+  return (
+    <ol className="grid grid-cols-4 gap-1.5" aria-label="Lead stage">
+      {STEPS.map((s, i) => (
+        <li key={s} aria-current={i === step ? "step" : undefined}>
+          <span className={`block h-1.5 rounded-full transition-colors ${i <= step ? "bg-primary" : "bg-surface-high"}`} />
+          <span className={`mt-1.5 block text-xs ${i === step ? "font-semibold text-text-primary" : "text-text-muted"}`}>{s}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 /** Lead details plus the actions that move it along. `onAct` fires once an action is queued. */
 function LeadPanel({ lead, onAct, onChanged, onUndo }: { lead: OutreachLead; onAct: () => void; onChanged: () => void; onUndo?: () => void }) {
   const step = STEP_OF[lead.status] ?? 0;
@@ -81,20 +99,7 @@ function LeadPanel({ lead, onAct, onChanged, onUndo }: { lead: OutreachLead; onA
         </div>
       </div>
 
-      {lost ? (
-        <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs font-medium text-danger">Marked as lost.</p>
-      ) : (
-        <div>
-          <ol className="grid grid-cols-4 gap-1.5" aria-label="Lead stage">
-            {STEPS.map((s, i) => (
-              <li key={s} aria-current={i === step ? "step" : undefined}>
-                <span className={`block h-1.5 rounded-full transition-colors ${i <= step ? "bg-primary" : "bg-surface-high"}`} />
-                <span className={`mt-1.5 block text-xs ${i === step ? "font-semibold text-text-primary" : "text-text-muted"}`}>{s}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+      <LeadStageStepper status={lead.status} />
 
       <dl className="grid grid-cols-2 gap-2 rounded-xl bg-surface-lowest/60 p-3 text-xs">
         <div>

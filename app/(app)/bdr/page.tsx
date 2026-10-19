@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { PageTitle, FieldLabel } from "@/components/ui/typography";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
@@ -1221,9 +1222,17 @@ function ReactivationTab() {
 
 function LoadingState({ text }: { text: string }) {
   return (
-    <div className="flex items-center justify-center py-16">
-      <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
-      <span className="text-xs text-text-muted">{text}</span>
+    <div role="status" aria-label={text} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <Skeleton key={i} className="h-[76px] rounded-xl" />
+        ))}
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-36 rounded-xl" />
+        ))}
+      </div>
     </div>
   );
 }

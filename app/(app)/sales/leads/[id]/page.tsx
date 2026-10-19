@@ -1,308 +1,244 @@
-import { Display, MonoLabel, PageTitle, Body, Metadata } from "@/components/ui/typography";
-import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { formatDistanceToNow, format } from "date-fns";
+import { ArrowLeft, Clock, Handshake, History, Info, MapPin, MessageCircle, Phone, Sparkles } from "lucide-react";
 import { ActivityTimeline } from "@/components/crm/ActivityTimeline";
 import { LogActivityForm } from "@/components/crm/LogActivityForm";
 import { ConvertLeadButton } from "@/components/crm/ConvertLeadButton";
 import { ConfirmLeadButton } from "@/components/crm/ConfirmLeadButton";
 import { CallScriptCard } from "@/components/crm/CallScriptCard";
+import { LeadOutcomeSelect } from "@/components/crm/LeadQuickActions";
+import { LeadStageStepper } from "@/components/crm/LeadQuickView";
 import { ActivityService } from "@/services/activity.service";
-import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
-import { formatDistanceToNow, format } from "date-fns";
-
-const STATUS_VARIANT: Record<string, "primary" | "secondary" | "tertiary" | "outline" | "danger"> = {
-  NEW: "outline",
-  CONTACTED: "secondary",
-  QUALIFIED: "primary",
-  UNQUALIFIED: "danger",
-  NURTURE: "tertiary",
-  CONVERTED: "primary",
-  LOST: "danger",
-};
+import { GlassPanel } from "@/components/ui/glass-card";
+import { Display } from "@/components/ui/typography";
+import { SectionHeader } from "@/components/ui/section-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { googleMapsUrl, placeFromLeadSource } from "@/lib/maps";
+import { waNumber } from "@/lib/phone";
+import { DEAL_STAGES, LEAD_STAGE, rupees } from "@/lib/stages";
 
 function Field({ label, value, href }: { label: string; value: React.ReactNode; href?: string }) {
+  const empty = value === null || value === undefined || value === "";
   return (
-    <div>
-      <MonoLabel className="block mb-1">{label}</MonoLabel>
-      {value === null || value === undefined || value === "" ? (
-        <span className="text-sm text-text-muted">—</span>
-      ) : href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="text-sm text-text-primary hover:text-primary hover:underline break-words">
-          {value}
-        </a>
-      ) : (
-        <span className="text-sm text-text-primary break-words">{value}</span>
-      )}
+    <div className="min-w-0">
+      <dt className="text-xs text-text-muted">{label}</dt>
+      <dd className="mt-0.5 whitespace-pre-line break-words text-sm text-text-primary">
+        {empty ? (
+          <span className="text-text-muted">—</span>
+        ) : href ? (
+          <a href={href} target="_blank" rel="noreferrer" className="hover:text-primary hover:underline">
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }
 
-function formatDate(d: Date | null | undefined) {
-  if (!d) return null;
-  return format(d, "d MMM yyyy, HH:mm");
-}
+const day = (d: Date | null | undefined) => (d ? format(d, "d MMM yyyy") : null);
+
+const actionBtn =
+  "inline-flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { workspaceId } = await requireWorkspace();
   const { id: leadId } = await params;
 
-  const lead = await db.query.leads.findFirst({
-    where: and(eq(leads.id, leadId), eq(leads.workspaceId, workspaceId)),
-    with: {
-      company: true,
-      contact: true,
-      owner: true,
-      deals: true,
-    },
-  });
-
+  const [lead, activities] = await Promise.all([
+    db.query.leads.findFirst({
+      where: and(eq(leads.id, leadId), eq(leads.workspaceId, workspaceId)),
+      with: { company: true, contact: true, owner: true, deals: true },
+    }),
+    ActivityService.getActivitiesForEntity(workspaceId, "leadId", leadId),
+  ]);
   if (!lead) notFound();
 
-  const activities = await ActivityService.getActivitiesForEntity(workspaceId, "leadId", leadId);
-
-  const company = lead.company;
-  const contact = lead.contact;
-  const displayName = company?.name || [contact?.firstName, contact?.lastName].filter(Boolean).join(" ") || "Untitled lead";
+  const { company, contact } = lead;
+  const name = company?.name || [contact?.firstName, contact?.lastName].filter(Boolean).join(" ") || "Untitled lead";
+  const stage = LEAD_STAGE[lead.status] ?? { label: lead.status, color: "#9B9BA4" };
+  const place = company?.location || placeFromLeadSource(lead.source);
+  const tel = contact?.phone?.replace(/[^\d+]/g, "");
+  const wa = waNumber(contact?.phone ?? null);
+  const realContact = contact && !/^team\b/i.test(contact.firstName);
+  const overdue = lead.nextFollowUpAt && lead.nextFollowUpAt < new Date(new Date().setHours(0, 0, 0, 0));
+  const open = lead.status !== "CONVERTED" && lead.status !== "LOST";
 
   return (
-    <div className="space-y-8 max-w-5xl animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex justify-between items-start gap-6 flex-wrap">
-        <section className="space-y-2">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Display>{displayName}</Display>
-            <Badge variant={STATUS_VARIANT[lead.status] ?? "outline"} className="font-mono-code">
-              {lead.status}
-            </Badge>
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-            <span className="text-text-secondary">Owner: {lead.owner ? `${lead.owner.firstName ?? ""} ${lead.owner.lastName ?? ""}`.trim() || lead.owner.email : "Unassigned"}</span>
-            <span className="text-border-strong">•</span>
-            <span className="text-text-secondary">Source: {lead.source || "Unknown"}</span>
-            <span className="text-border-strong">•</span>
-            <span className="text-text-secondary">Created {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })}</span>
-          </div>
-        </section>
+    <div className="max-w-6xl space-y-6 animate-in fade-in duration-150">
+      <Link href="/sales/leads" className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary">
+        <ArrowLeft className="h-3.5 w-3.5" /> Leads
+      </Link>
 
-        <div className="flex flex-col items-end space-y-3">
-          <div className="flex flex-wrap gap-3 justify-end">
+      {/* Header */}
+      <header className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              style={{ background: `${stage.color}22`, color: stage.color }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: stage.color }} />
+              {stage.label}
+            </span>
+            <Display className="mt-2 break-words">{name}</Display>
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-secondary">
+              {place && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-text-muted" /> {place}
+                </span>
+              )}
+              <span className="text-text-muted">· added {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })}</span>
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {tel && (
+              <a href={`tel:${tel}`} className={`${actionBtn} border-success/40 text-success hover:text-success`}>
+                <Phone className="h-4 w-4" /> Call
+              </a>
+            )}
+            {wa && (
+              <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer" className={actionBtn}>
+                <MessageCircle className="h-4 w-4" /> WhatsApp
+              </a>
+            )}
+            <a href={googleMapsUrl(name, place)} target="_blank" rel="noopener noreferrer" className={actionBtn}>
+              <MapPin className="h-4 w-4" /> Maps
+            </a>
+            <Link
+              href={`/outreach?lead=${lead.id}`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition-transform hover:-translate-y-0.5"
+            >
+              <Sparkles className="h-4 w-4" /> Write pitch
+            </Link>
+          </div>
+        </div>
+
+        <GlassPanel className="space-y-4 p-5">
+          <LeadStageStepper status={lead.status} />
+          <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle pt-4">
+            {open && <LeadOutcomeSelect leadId={lead.id} name={name} />}
             <LogActivityForm entityType="lead" entityId={leadId} />
-            {lead.status !== "CONVERTED" && lead.status !== "LOST" && (
+            {open && (
               <ConfirmLeadButton
                 leadId={leadId}
                 companyName={company?.name || "this prospect"}
-                contactName={contact ? `${contact.firstName} ${contact.lastName ?? ""}`.trim() : undefined}
+                contactName={realContact ? `${contact.firstName} ${contact.lastName ?? ""}`.trim() : undefined}
               />
             )}
-            {lead.status !== "CONVERTED" && (
-              <ConvertLeadButton leadId={leadId} companyName={company?.name || "Prospect"} />
-            )}
+            {lead.status !== "CONVERTED" && <ConvertLeadButton leadId={leadId} companyName={company?.name || "Prospect"} />}
           </div>
-          {lead.status === "CONVERTED" && (
-            <span className="text-xs font-mono-code text-secondary">LEAD CONVERTED — see pipeline</span>
-          )}
-        </div>
-      </div>
+        </GlassPanel>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Main column */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Lead record — every field in the leads table */}
-          <GlassPanel className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <PageTitle>Lead record</PageTitle>
-              <MonoLabel>LEAD // {lead.id.slice(0, 8)}</MonoLabel>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              <Field label="Status" value={lead.status} />
-              <Field label="Stage" value={lead.stage} />
-              <Field label="Temperature" value={lead.temperature} />
-              <Field label="Score" value={lead.score} />
-              <Field label="Source" value={lead.source} />
-              <Field
-                label="Owner"
-                value={lead.owner ? (lead.owner.firstName || lead.owner.email) : null}
-              />
-              <Field label="Last contacted" value={formatDate(lead.lastContactedAt)} />
-              <Field label="Next follow-up" value={formatDate(lead.nextFollowUpAt)} />
-              <Field label="Created" value={formatDate(new Date(lead.createdAt))} />
-              <Field label="Last updated" value={formatDate(new Date(lead.updatedAt))} />
-              <div className="sm:col-span-2">
-                <Field label="Notes" value={lead.notes} />
-              </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Main column: history first — it's what you read before a follow-up call */}
+        <div className="space-y-6 lg:col-span-2">
+          <GlassPanel className="p-5">
+            <SectionHeader icon={History} title="Activity" meta={`${activities.length} events`} />
+            <div className="mt-5">
+              <ActivityTimeline activities={activities} />
             </div>
           </GlassPanel>
 
-          {/* Company */}
-          <GlassCard className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <PageTitle>Company</PageTitle>
-              {company?.status && <Badge variant="outline" className="font-mono-code">{company.status}</Badge>}
-            </div>
-            {company ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                <Field label="Name" value={company.name} />
-                <Field label="Website" value={company.website} href={company.website ? (company.website.startsWith("http") ? company.website : `https://${company.website}`) : undefined} />
-                <Field label="Industry" value={company.industry} />
-                <Field label="Location" value={company.location} />
-                <Field label="Size" value={company.size} />
-                <Field label="Source" value={company.source} />
-                <div className="sm:col-span-2">
-                  <Field label="Notes" value={company.notes} />
-                </div>
-              </div>
-            ) : (
-              <Body>No company linked to this lead.</Body>
-            )}
-          </GlassCard>
-
-          {/* Contact */}
-          <GlassCard className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <PageTitle>Contact</PageTitle>
-              {contact?.status && <Badge variant="outline" className="font-mono-code">{contact.status}</Badge>}
-            </div>
-            {contact ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                <Field label="Name" value={`${contact.firstName} ${contact.lastName ?? ""}`.trim()} />
-                <Field label="Job title" value={contact.jobTitle} />
-                <Field label="Email" value={contact.email} href={contact.email ? `mailto:${contact.email}` : undefined} />
-                <Field label="Phone" value={contact.phone} href={contact.phone ? `tel:${contact.phone}` : undefined} />
-                <Field label="LinkedIn" value={contact.linkedinUrl} href={contact.linkedinUrl ?? undefined} />
-                <Field label="Company" value={contact.companyId ? (company?.name ?? null) : null} />
-                <div className="sm:col-span-2">
-                  <Field label="Notes" value={contact.notes} />
-                </div>
-              </div>
-            ) : (
-              <Body>No contact assigned.</Body>
-            )}
-          </GlassCard>
-
-          {/* Linked deals */}
-          <GlassCard className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <PageTitle>Deals</PageTitle>
-              <Badge variant="secondary" className="font-mono-code">{lead.deals.length}</Badge>
-            </div>
+          <GlassPanel className="p-5">
+            <SectionHeader icon={Handshake} title="Deals" meta={String(lead.deals.length)} tone="secondary" />
             {lead.deals.length === 0 ? (
-              <Body>No deals yet — convert this lead to open a pipeline deal.</Body>
+              <p className="mt-4 text-sm text-text-muted">No deal yet. Mark this gym Interested and one is created automatically.</p>
             ) : (
-              <div className="space-y-2">
-                {lead.deals.map((deal) => (
-                  <Link
-                    key={deal.id}
-                    href={`/sales/pipeline`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border-subtle/60 bg-surface-lowest/40 px-3 py-2.5 hover:bg-surface-elevated/60 transition group"
-                  >
-                    <span className="text-sm text-text-primary group-hover:text-primary transition truncate">
-                      {deal.name}
-                    </span>
-                    <span className="flex items-center gap-2 shrink-0">
-                      {deal.value && (
-                        <span className="font-mono-code text-xs text-text-secondary">
-                          ${Number(deal.value).toLocaleString("en-US")}
+              <div className="mt-4 space-y-2">
+                {lead.deals.map((deal) => {
+                  const ds = DEAL_STAGES.find((s) => s.key === deal.stage);
+                  return (
+                    <Link
+                      key={deal.id}
+                      href={`/sales/deals/${deal.id}`}
+                      className="group flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-lowest/40 px-3 py-2.5 transition-colors hover:border-border-strong"
+                    >
+                      <span className="truncate text-sm text-text-primary group-hover:text-primary">{deal.name}</span>
+                      <span className="flex shrink-0 items-center gap-3 text-xs">
+                        {deal.value && <span className="num text-text-secondary">{rupees(Number(deal.value))}</span>}
+                        <span className="inline-flex items-center gap-1.5 text-text-secondary">
+                          <span className="h-2 w-2 rounded-full" style={{ background: ds?.color ?? "#9B9BA4" }} />
+                          {ds?.label ?? deal.stage}
                         </span>
-                      )}
-                      <Badge variant="outline" className="font-mono-code text-xs">{deal.stage}</Badge>
-                    </span>
-                  </Link>
-                ))}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             )}
-          </GlassCard>
+          </GlassPanel>
 
-          {/* Activity timeline */}
-          <GlassPanel className="p-6">
-            <h3 className="text-lg font-medium text-text-primary mb-6">Activity Timeline</h3>
-            <ActivityTimeline activities={activities} />
+          <GlassPanel className="p-5">
+            <SectionHeader icon={Info} title="Details" />
+            <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              <Field label="Phone" value={contact?.phone} href={tel ? `tel:${tel}` : undefined} />
+              <Field label="Email" value={contact?.email} href={contact?.email ? `mailto:${contact.email}` : undefined} />
+              <Field label="Contact person" value={realContact ? `${contact.firstName} ${contact.lastName ?? ""}`.trim() : null} />
+              <Field label="Role" value={contact?.jobTitle} />
+              <Field
+                label="Website"
+                value={company?.website ?? "No website"}
+                href={company?.website ? (company.website.startsWith("http") ? company.website : `https://${company.website}`) : undefined}
+              />
+              <Field label="Industry" value={company?.industry} />
+              <Field label="Address" value={company?.location} />
+              <Field label="Source" value={lead.source} />
+              {(lead.notes || company?.notes) && (
+                <div className="sm:col-span-2">
+                  <Field label="Notes" value={[lead.notes, company?.notes].filter(Boolean).join("\n\n")} />
+                </div>
+              )}
+            </dl>
           </GlassPanel>
         </div>
 
-        {/* Sidebar */}
+        {/* Side column */}
         <div className="space-y-6">
-          <GlassCard className="p-5">
-            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Lead Status</h4>
-            <div className="space-y-4">
+          <GlassPanel className="p-5">
+            <SectionHeader icon={Clock} title="At a glance" tone="tertiary" />
+            <dl className="mt-4 grid grid-cols-2 gap-4">
               <div>
-                <div className="text-xs text-text-secondary mb-1">Stage</div>
-                <div className="font-medium text-text-primary">{lead.stage || "—"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-text-secondary mb-1">Temperature</div>
-                <div className={`font-medium ${
-                  lead.temperature === "HOT" ? "text-danger" :
-                  lead.temperature === "WARM" ? "text-warning" : "text-text-primary"
-                }`}>
-                  {lead.temperature}
-                </div>
+                <dt className="text-xs text-text-muted">Score</dt>
+                <dd className="num mt-0.5 text-2xl font-medium text-text-primary">{lead.score}</dd>
               </div>
               <div>
-                <div className="text-xs text-text-secondary mb-1">Score</div>
-                <div className="text-2xl font-light text-text-primary">{lead.score}</div>
+                <dt className="text-xs text-text-muted">Temperature</dt>
+                <dd className={`mt-1 text-sm font-medium ${lead.temperature === "HOT" ? "text-danger" : lead.temperature === "WARM" ? "text-tertiary" : "text-text-primary"}`}>
+                  {lead.temperature ? lead.temperature.charAt(0) + lead.temperature.slice(1).toLowerCase() : "—"}
+                </dd>
               </div>
+              <Field label="Last contacted" value={day(lead.lastContactedAt) ?? "Never"} />
               <div>
-                <div className="text-xs text-text-secondary mb-1">Next follow-up</div>
-                <div className="text-sm text-text-primary">
-                  {lead.nextFollowUpAt ? format(new Date(lead.nextFollowUpAt), "d MMM yyyy") : "Not scheduled"}
-                </div>
+                <dt className="text-xs text-text-muted">Next follow-up</dt>
+                <dd className={`mt-0.5 text-sm ${overdue ? "font-medium text-danger" : "text-text-primary"}`}>
+                  {day(lead.nextFollowUpAt) ?? "Not set"}
+                  {overdue && " · overdue"}
+                </dd>
               </div>
-            </div>
-          </GlassCard>
-
-          <GlassCard className="p-5">
-            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Contact Info</h4>
-            {contact ? (
-              <div className="space-y-3">
-                <div>
-                  <div className="text-xs text-text-secondary mb-0.5">Name</div>
-                  <div className="text-sm text-text-primary">{contact.firstName} {contact.lastName}</div>
-                </div>
-                {contact.jobTitle && (
-                  <div>
-                    <div className="text-xs text-text-secondary mb-0.5">Role</div>
-                    <div className="text-sm text-text-primary">{contact.jobTitle}</div>
-                  </div>
-                )}
-                {contact.email && (
-                  <div>
-                    <div className="text-xs text-text-secondary mb-0.5">Email</div>
-                    <a href={`mailto:${contact.email}`} className="text-sm text-text-primary hover:underline">{contact.email}</a>
-                  </div>
-                )}
-                {contact.phone && (
-                  <div>
-                    <div className="text-xs text-text-secondary mb-0.5">Phone</div>
-                    <a href={`tel:${contact.phone}`} className="text-sm text-text-primary hover:underline">{contact.phone}</a>
-                  </div>
-                )}
-                {contact.linkedinUrl && (
-                  <div>
-                    <div className="text-xs text-text-secondary mb-0.5">LinkedIn</div>
-                    <a href={contact.linkedinUrl} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">Open profile</a>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-text-muted">No contact assigned.</div>
-            )}
-          </GlassCard>
+              <Field label="Owner" value={lead.owner ? lead.owner.firstName || lead.owner.email : "Unassigned"} />
+              <Field label="Updated" value={day(new Date(lead.updatedAt))} />
+            </dl>
+          </GlassPanel>
 
           <CallScriptCard leadId={leadId} />
 
-          <GlassCard className="p-5">
-            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Record</h4>
-            <div className="space-y-2">
-              <Metadata className="block">Lead ID: {lead.id}</Metadata>
-              <Metadata className="block">Created: {format(new Date(lead.createdAt), "d MMM yyyy, HH:mm")}</Metadata>
-              <Metadata className="block">Updated: {format(new Date(lead.updatedAt), "d MMM yyyy, HH:mm")}</Metadata>
-            </div>
-          </GlassCard>
+          {!contact?.phone && (
+            <GlassPanel>
+              <EmptyState
+                icon={Phone}
+                title="No phone yet"
+                body="Open this gym on Google Maps, copy its number, and add it from the Leads list."
+              />
+            </GlassPanel>
+          )}
         </div>
       </div>
     </div>
