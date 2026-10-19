@@ -1,4 +1,7 @@
-import { Display, MonoLabel } from "@/components/ui/typography";
+import { MonoLabel } from "@/components/ui/typography";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { rupees } from "@/lib/stages";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { ProjectService } from "@/services/crm.service";
@@ -31,6 +34,9 @@ const HEALTH_ICON: Record<string, typeof CheckCircle2> = {
   OFF_TRACK: AlertTriangle,
 };
 
+/** "IN_PROGRESS" → "In progress" */
+const sentence = (v: string) => v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
+
 function formatDate(d: Date | string | null) {
   if (!d) return null;
   const date = typeof d === "string" ? new Date(d) : d;
@@ -54,44 +60,33 @@ export default async function ProjectsPage() {
       : 0;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-6 animate-in fade-in duration-150">
       <LiveRefresher intervalMs={60000} />
 
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
-        <div>
-          <MonoLabel className="text-primary block mb-1">OPERATIONS // DELIVERABLES</MonoLabel>
-          <Display>Projects Directory</Display>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary" className="font-mono-code text-xs">
-            {active.length} ACTIVE · {delivered.length} DELIVERED
-          </Badge>
-          <Badge variant="outline" className="font-mono-code text-xs">
-            AVG PROGRESS: {avgProgress}%
-          </Badge>
-          {atRisk.length > 0 && (
-            <Badge variant="danger" className="font-mono-code text-xs">
-              {atRisk.length} AT RISK
-            </Badge>
-          )}
-          <CreateProjectButton companies={companyOptions} />
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Delivery"
+        title="Projects"
+        description={`${active.length} active · ${delivered.length} delivered · ${avgProgress}% average progress`}
+        actions={
+          <>
+            {atRisk.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-danger/10 px-3 py-1 text-xs font-medium text-danger">
+                <AlertTriangle className="h-3.5 w-3.5" /> {atRisk.length} at risk
+              </span>
+            )}
+            <CreateProjectButton companies={companyOptions} />
+          </>
+        }
+      />
 
       {projects.length === 0 ? (
-        <GlassPanel className="p-12 flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <FolderKanban className="h-7 w-7" />
-          </div>
-          <h2 className="mt-5 text-lg font-semibold text-text-primary">No projects yet</h2>
-          <p className="mt-2 max-w-md text-sm text-text-muted">
-            Create your first delivery project and attach it to a client. Projects won from
-            deals can also be tracked here as they move into delivery.
-          </p>
-          <div className="mt-6">
-            <CreateProjectButton companies={companyOptions} />
-          </div>
+        <GlassPanel>
+          <EmptyState
+            icon={FolderKanban}
+            title="No projects yet"
+            body="When you mark a gym Won, its website project is created here automatically. You can also start one by hand."
+            action={<CreateProjectButton companies={companyOptions} />}
+          />
         </GlassPanel>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -108,7 +103,7 @@ export default async function ProjectsPage() {
               : null;
 
             return (
-              <GlassPanel key={project.id} className="p-6 transition-all hover:border-primary/40 group">
+              <GlassPanel key={project.id} className="group p-5 transition-transform duration-200 hover:-translate-y-0.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <MonoLabel>
@@ -119,15 +114,15 @@ export default async function ProjectsPage() {
                     </h3>
                   </div>
                   <Badge variant={STATUS_VARIANT[project.status] ?? "outline"}>
-                    {project.status.replace("_", " ")}
+                    {sentence(project.status)}
                   </Badge>
                 </div>
 
                 {/* Progress bar */}
                 <div className="mt-6 space-y-2">
-                  <div className="flex justify-between text-xs font-mono-code">
-                    <span className="text-text-muted">MILESTONE PROGRESS</span>
-                    <span className="text-text-primary font-semibold">{project.progress}%</span>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-text-muted">Progress</span>
+                    <span className="num font-medium text-text-primary">{project.progress}%</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-surface-low overflow-hidden border border-border-subtle">
                     <div
@@ -163,14 +158,14 @@ export default async function ProjectsPage() {
                       <User className="mr-1 h-3 w-3" /> {ownerName}
                     </span>
                   )}
-                  <span className={`flex items-center font-mono-code ${HEALTH_STYLE[project.health] ?? ""}`}>
-                    <HealthIcon className="mr-1 h-3 w-3" /> {project.health.replace("_", " ")}
+                  <span className={`flex items-center ${HEALTH_STYLE[project.health] ?? ""}`}>
+                    <HealthIcon className="mr-1 h-3 w-3" /> {sentence(project.health)}
                   </span>
                   {project.budget && (
-                    <span className="font-mono-code">${Number(project.budget).toLocaleString()} budget</span>
+                    <span className="num">{rupees(Number(project.budget))} budget</span>
                   )}
                   {project.status === "DELIVERED" && project.deliveredAt && (
-                    <span className="flex items-center text-secondary font-mono-code">
+                    <span className="flex items-center text-secondary">
                       <CheckCircle2 className="mr-1 h-3 w-3" /> Delivered {formatDate(project.deliveredAt)}
                     </span>
                   )}

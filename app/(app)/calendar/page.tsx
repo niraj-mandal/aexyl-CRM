@@ -4,7 +4,11 @@ import { CalendarGrid } from "@/components/crm/CalendarGrid";
 import { EventContextMenu } from "@/components/crm/EventContextMenu";
 import { ScheduleMeetingButton } from "@/components/crm/ScheduleMeetingButton";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import { MonoLabel } from "@/components/ui/typography";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionHeader } from "@/components/ui/section-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarDays, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -56,18 +60,13 @@ export default async function CalendarPage({
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
-        <div>
-          <MonoLabel className="text-primary block mb-1">OPERATIONS // TIME</MonoLabel>
-          <Display>Calendar</Display>
-          <Body className="mt-2">
-            Every dated commitment in the workspace — meetings, task deadlines, deal
-            close dates, follow-ups, and project due dates — straight from the database.
-          </Body>
-        </div>
-        <ScheduleMeetingButton />
-      </div>
+    <div className="space-y-6 animate-in fade-in duration-150">
+      <PageHeader
+        eyebrow="Overview"
+        title="Calendar"
+        description="Meetings, follow-ups, task deadlines, deal close dates and project due dates in one place."
+        actions={<ScheduleMeetingButton />}
+      />
 
       <CalendarGrid
         year={year}
@@ -79,17 +78,15 @@ export default async function CalendarPage({
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Month agenda */}
         <GlassCard>
-          <div className="flex items-center justify-between mb-4">
-            <PageTitle>{MONTH_NAMES[month - 1]} agenda</PageTitle>
-            <Badge variant="outline" className="font-mono-code text-xs">
-              {events.length} items
-            </Badge>
+          <div className="mb-4">
+            <SectionHeader icon={CalendarDays} title={`${MONTH_NAMES[month - 1]} agenda`} meta={`${events.length} items`} />
           </div>
           {events.length === 0 ? (
-            <Body>
-              Nothing scheduled this month yet. Use “Schedule meeting” to add your first
-              commitment — it will appear here and on the grid.
-            </Body>
+            <EmptyState
+              icon={CalendarDays}
+              title="Nothing this month"
+              body="Follow-ups you set on leads and meetings you schedule show up here and on the grid."
+            />
           ) : (
             <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
               {Array.from(agendaByDay.entries()).map(([day, dayEvents]) => (
@@ -132,17 +129,16 @@ export default async function CalendarPage({
 
         {/* Upcoming meetings rail */}
         <GlassCard>
-          <div className="flex items-center justify-between mb-4">
-            <PageTitle>Upcoming meetings</PageTitle>
-            <Badge variant="secondary" className="font-mono-code text-xs">
-              {counts.MEETING} this month
-            </Badge>
+          <div className="mb-4">
+            <SectionHeader icon={Users} title="Upcoming meetings" meta={`${counts.MEETING} this month`} tone="secondary" />
           </div>
           {upcomingMeetings.length === 0 ? (
-            <Body>
-              No meetings on the books. Scheduled meetings persist as real MEETING
-              activities — they also appear on lead and deal timelines.
-            </Body>
+            <EmptyState
+              icon={Users}
+              title="No meetings booked"
+              body="When a gym agrees to meet, schedule it here. It also shows on that lead's timeline."
+              action={<ScheduleMeetingButton />}
+            />
           ) : (
             <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
               {upcomingMeetings.map((m) => (

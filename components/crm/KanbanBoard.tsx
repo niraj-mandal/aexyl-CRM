@@ -12,6 +12,7 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -77,10 +78,7 @@ export function KanbanBoard({
             </div>
 
             {/* Column Body */}
-            <div
-              className="flex min-h-[420px] flex-1 flex-col space-y-3 rounded-xl border border-border-subtle bg-surface-lowest/40 p-3"
-              style={{ borderTop: `2px solid ${col.color}` }}
-            >
+            <DroppableColumn id={col.id} color={col.color}>
               {col.deals.length === 0 && (
                 <p className="rounded-lg border border-dashed border-border-subtle px-3 py-6 text-center text-xs text-text-muted">
                   No deals in {col.title.toLowerCase()}
@@ -94,7 +92,7 @@ export function KanbanBoard({
               {companyOptions.length > 0 && (
                 <CreateDealButton companies={companyOptions} defaultStage={col.id} compact />
               )}
-            </div>
+            </DroppableColumn>
           </div>
         ))}
 
@@ -132,8 +130,9 @@ export function KanbanBoard({
         const overIndex = deals.findIndex((t) => t.id === overId);
         
         if (deals[activeIndex].stage !== deals[overIndex].stage) {
+          // Copy, don't mutate: the drag-start snapshot must keep the old stage for rollback.
           const newDeals = [...deals];
-          newDeals[activeIndex].stage = deals[overIndex].stage;
+          newDeals[activeIndex] = { ...deals[activeIndex], stage: deals[overIndex].stage };
           return arrayMove(newDeals, activeIndex, overIndex);
         }
 
@@ -146,9 +145,10 @@ export function KanbanBoard({
     if (isActiveDeal && isOverColumn) {
       setDeals((deals) => {
         const activeIndex = deals.findIndex((t) => t.id === activeId);
+        if (deals[activeIndex].stage === overId) return deals;
         const newDeals = [...deals];
-        newDeals[activeIndex].stage = overId as string;
-        return arrayMove(newDeals, activeIndex, activeIndex);
+        newDeals[activeIndex] = { ...deals[activeIndex], stage: overId as string };
+        return newDeals;
       });
     }
   }
@@ -175,4 +175,20 @@ export function KanbanBoard({
       snapshotRef.current = null;
     }
   }
+}
+
+/** Registers the column as a drop target so deals can land in an empty stage. */
+function DroppableColumn({ id, color, children }: { id: string; color: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex min-h-[420px] flex-1 flex-col space-y-3 rounded-xl border p-3 transition-colors ${
+        isOver ? "border-border-strong bg-surface-high/50" : "border-border-subtle bg-surface-lowest/40"
+      }`}
+      style={{ borderTop: `2px solid ${color}` }}
+    >
+      {children}
+    </div>
+  );
 }
