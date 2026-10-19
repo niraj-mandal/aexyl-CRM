@@ -8,6 +8,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { googleMapsUrl } from "@/lib/maps";
 import { LeadOutcomeSelect } from "@/components/crm/LeadQuickActions";
+import { TodayProgress } from "@/components/crm/TodayProgress";
 
 const CLOSED = new Set(["CONVERTED", "LOST", "UNQUALIFIED"]);
 const NEW_PER_DAY = 5;
@@ -22,6 +23,10 @@ export function planToday(leads: OutreachLead[], now = new Date()) {
     .filter((l) => l.nextFollowUpAt && new Date(l.nextFollowUpAt) <= endOfToday)
     .sort((a, b) => new Date(a.nextFollowUpAt!).getTime() - new Date(b.nextFollowUpAt!).getTime());
 
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const contactedToday = leads.filter((l) => l.lastContactedAt && new Date(l.lastContactedAt) >= startOfToday).length;
+
   const neverContacted = open.filter((l) => !l.lastContactedAt && !followUps.includes(l));
   const reachable = neverContacted.filter((l) => l.phone || l.email).sort((a, b) => b.score - a.score);
 
@@ -30,6 +35,7 @@ export function planToday(leads: OutreachLead[], now = new Date()) {
     toContact: reachable.slice(0, NEW_PER_DAY),
     moreReachable: Math.max(0, reachable.length - NEW_PER_DAY),
     noContactCount: neverContacted.length - reachable.length,
+    contactedToday,
   };
 }
 
@@ -56,10 +62,15 @@ export function TodayList() {
     );
   }
 
-  const { followUps, toContact, moreReachable, noContactCount } = planToday(leads);
+  const { followUps, toContact, moreReachable, noContactCount, contactedToday } = planToday(leads);
+  // Contacted leads leave both lists, so today's target = done + what's still queued.
+  const target = contactedToday + followUps.length + toContact.length;
+  const next = followUps[0] ?? toContact[0] ?? null;
   const overdue = (l: OutreachLead) => new Date(l.nextFollowUpAt!) < new Date(new Date().setHours(0, 0, 0, 0));
 
   return (
+    <>
+    <TodayProgress done={contactedToday} target={target} next={next} />
     <GlassPanel className="p-5 space-y-5">
       <SectionHeader
         icon={Sparkles}
@@ -105,6 +116,7 @@ export function TodayList() {
         )}
       </section>
     </GlassPanel>
+    </>
   );
 }
 

@@ -59,6 +59,8 @@ export default function CommandCenter() {
         </span>
       </header>
 
+      <TodayList />
+
       <section aria-label="Key numbers" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href} className="glass group relative overflow-hidden rounded-xl transition-transform hover:-translate-y-0.5">
@@ -76,8 +78,6 @@ export default function CommandCenter() {
           </Link>
         ))}
       </section>
-
-      <TodayList />
 
       <GlassPanel className="p-5">
         <SectionHeader
