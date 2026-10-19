@@ -1,4 +1,4 @@
-import { Display, Body } from "@/components/ui/typography";
+import { Display } from "@/components/ui/typography";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { companies } from "@/db/schema";

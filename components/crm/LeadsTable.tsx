@@ -9,6 +9,7 @@ import { LeadOutcomeSelect, LeadPhoneEditor } from "@/components/crm/LeadQuickAc
 import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
 import { LeadQuickView } from "@/components/crm/LeadQuickView";
 import { EmptyState } from "@/components/ui/empty-state";
+import { GymAvatar } from "@/components/ui/gym-avatar";
 import { googleMapsUrl } from "@/lib/maps";
 import { waNumber } from "@/lib/phone";
 import { LEAD_STAGE } from "@/lib/stages";
@@ -55,7 +56,14 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
                 <tr key={lead.id} className="group transition-colors hover:bg-surface-high/40">
                   <td className="max-w-[260px] px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: stage.color }} aria-hidden />
+                      <span className="relative shrink-0">
+                        <GymAvatar name={lead.businessName} size={34} />
+                        <span
+                          className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[var(--surface-glass)]"
+                          style={{ background: stage.color }}
+                          aria-hidden
+                        />
+                      </span>
                       <div className="min-w-0">
                         <button
                           type="button"

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -121,11 +121,9 @@ export default async function ObservabilityPage() {
     <div className="space-y-8">
       <LiveRefresher intervalMs={60000} />
 
-      <div className="space-y-2 pb-4 border-b border-border-subtle/50">
-        <MonoLabel className="text-primary block mb-1">
-          <Link href="/agents" className="hover:underline">AGENTS</Link>{" // "}OBSERVABILITY
-        </MonoLabel>
-        <Display>Agent Observability</Display>
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-text-muted"><Link href="/agents" className="hover:text-text-primary">Agents</Link> · Last 7 days</p>
+        <Display>Observability</Display>
         <Body>Production metrics from real run/trace/approval data — last 7 days unless noted.</Body>
       </div>
 

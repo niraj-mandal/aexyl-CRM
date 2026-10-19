@@ -5,6 +5,7 @@ import { UserButton } from "@clerk/nextjs";
 import { format } from "date-fns";
 import { Search, Command, ShieldAlert, Menu } from "lucide-react";
 import { TOGGLE_SIDEBAR_EVENT } from "@/components/layout/sidebar";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ActionNeededBadge, useActionNeededCount } from "@/components/layout/ActionNeededBadge";
 
@@ -14,7 +15,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
   const actionNeeded = pending > 0 || failedRuns > 0;
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between gap-2 px-4 md:px-8 bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b border-border-subtle">
+    <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between gap-2 px-4 md:px-8 bg-[var(--chrome-bg)] backdrop-blur-2xl backdrop-saturate-150 border-b border-border-subtle">
       <div className="flex items-center space-x-3 md:space-x-6">
         <button
           type="button"
@@ -31,6 +32,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
       </div>
 
       <div className="flex items-center space-x-2 md:space-x-4">
+        <ThemeToggle />
         {/* Pinned approvals shortcut — review inbox always one click away */}
         <Link
           href="/agents/approvals"

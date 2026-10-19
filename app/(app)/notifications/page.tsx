@@ -1,5 +1,5 @@
 import { notificationsPageAction } from "@/app/actions/production.actions";
-import { Display, MonoLabel, Body } from "@/components/ui/typography";
+import { Display, Body } from "@/components/ui/typography";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -17,9 +17,9 @@ export default async function NotificationsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <section className="space-y-2">
-          <MonoLabel className="text-primary block mb-1">SYSTEM // INBOX</MonoLabel>
+          <p className="text-sm font-semibold text-text-muted">Inbox</p>
           <Display>Notifications</Display>
           <Body>
             {unread > 0

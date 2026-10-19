@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, Phone, Plus, X } from "lucide-react";
 import { setLeadOutcomeAction, setLeadPhoneAction } from "@/app/actions/outreach.actions";
 import { queueWithUndo } from "@/components/ui/undo-toast";
+import { celebrate } from "@/components/ui/celebrate";
 
 /** Shows the lead's phone, or an inline "+ Add phone" to paste one found on Google Maps. */
 export function LeadPhoneEditor({ leadId, phone }: { leadId: string; phone: string | null }) {
@@ -85,7 +86,9 @@ export const OUTCOME_OPTIONS = [
 /** Records an outcome after a 5 s undo window. */
 export function recordOutcome(leadId: string, outcome: string, name: string, opts: { onDone?: () => void; onUndo?: () => void } = {}) {
   const done = OUTCOME_OPTIONS.find((o) => o.value === outcome)?.done ?? outcome;
-  queueWithUndo(`${done} · ${name}`, () => setLeadOutcomeAction(leadId, outcome), opts);
+  // A won gym deserves a moment: confetti once the save actually succeeds.
+  const onDone = outcome === "WON" ? () => { celebrate(); opts.onDone?.(); } : opts.onDone;
+  queueWithUndo(`${done} · ${name}`, () => setLeadOutcomeAction(leadId, outcome), { ...opts, onDone });
 }
 
 /** One-click result of a conversation; moves the lead to deal / nurture / lost / won. */

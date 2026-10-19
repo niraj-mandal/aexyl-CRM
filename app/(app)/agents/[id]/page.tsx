@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -43,11 +43,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 pb-4 border-b border-border-subtle/50 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <section className="space-y-2">
-          <MonoLabel className="text-primary block mb-1">
-            <Link href="/agents" className="hover:underline">AGENTS</Link>{" // "}{agent.agentKey.toUpperCase()}
-          </MonoLabel>
+          <p className="text-sm font-semibold text-text-muted"><Link href="/agents" className="hover:text-text-primary">Agents</Link></p>
           <Display>{agent.name}</Display>
           <Body>{agent.description}</Body>
         </section>

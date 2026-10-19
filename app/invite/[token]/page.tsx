@@ -76,7 +76,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           </>
         ) : (
           <>
-            <MonoLabel className="text-primary block mb-2">WORKSPACE INVITATION</MonoLabel>
+            <MonoLabel className="text-primary block mb-2">Workspace invitation</MonoLabel>
             <h1 className="text-lg font-semibold text-text-primary">
               Join {invite.workspace?.name ?? "Aexyl"}
             </h1>

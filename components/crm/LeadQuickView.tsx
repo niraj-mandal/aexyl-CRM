@@ -9,6 +9,7 @@ import { OUTCOME_OPTIONS, recordOutcome } from "@/components/crm/LeadQuickAction
 import { queueWithUndo } from "@/components/ui/undo-toast";
 import { googleMapsUrl } from "@/lib/maps";
 import { waNumber } from "@/lib/phone";
+import { GymAvatar } from "@/components/ui/gym-avatar";
 
 const STEPS = ["New", "Contacted", "Interested", "Won"];
 const STEP_OF: Record<string, number> = { NEW: 0, CONTACTED: 1, NURTURE: 1, QUALIFIED: 2, CONVERTED: 3 };
@@ -26,7 +27,7 @@ function Modal({ label, onClose, children }: { label: string; onClose: () => voi
       aria-label={label}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
-      className="m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[rgba(28,28,30,0.88)] p-0 backdrop-blur-2xl text-text-primary shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150"
+      className="m-auto max-h-[92dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl max-sm:mb-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:slide-in-from-bottom-10 border border-border-subtle bg-[var(--surface-glass-floating)] p-0 backdrop-blur-2xl text-text-primary shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150"
     >
       {children}
     </dialog>
@@ -87,6 +88,7 @@ function LeadPanel({ lead, onAct, onChanged, onUndo }: { lead: OutreachLead; onA
   return (
     <div className="space-y-5 p-5">
       <div className="min-w-0 pr-8">
+        <GymAvatar name={lead.businessName} size={44} className="mb-3" />
         <h2 className="truncate text-lg font-semibold">{lead.businessName}</h2>
         <p className="mt-0.5 truncate text-xs text-text-muted">{lead.area ?? "No address"}</p>
         <div className="mt-2 flex flex-wrap gap-1.5 text-xs">

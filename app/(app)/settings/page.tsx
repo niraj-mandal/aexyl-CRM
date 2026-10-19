@@ -1,4 +1,4 @@
-import { Display, PageTitle, SectionTitle, Body, MonoLabel } from "@/components/ui/typography";
+import { Display, PageTitle, SectionTitle, Body } from "@/components/ui/typography";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -99,9 +99,9 @@ export default async function SettingsPage({
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border-subtle/50">
+      <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <MonoLabel className="text-primary block mb-1">SYSTEM // CONFIGURATION</MonoLabel>
+          <p className="text-sm font-semibold text-text-muted">Workspace</p>
           <Display>Settings</Display>
         </div>
         <Badge variant="outline" className="font-mono-code text-xs self-start sm:self-auto">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -56,10 +56,8 @@ export default async function AgentRunDetailPage({ params }: { params: Promise<{
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="space-y-2 pb-4 border-b border-border-subtle/50">
-        <MonoLabel className="text-primary block mb-1">
-          <Link href="/agents" className="hover:underline">AGENTS</Link>{" // "}RUN DETAIL
-        </MonoLabel>
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-text-muted"><Link href="/agents" className="hover:text-text-primary">Agents</Link> · Run</p>
         <div className="flex flex-wrap items-center gap-3">
           <Display>{run.agent.name}</Display>
           <Badge

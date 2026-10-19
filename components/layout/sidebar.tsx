@@ -112,7 +112,7 @@ export function Sidebar() {
     <aside
       id="app-sidebar"
       className={cn(
-        "h-full w-[260px] flex-col bg-[rgba(28,28,30,0.72)] backdrop-blur-2xl backdrop-saturate-150 border-r border-border-subtle overflow-hidden select-none",
+        "h-full w-[260px] flex-col bg-[var(--chrome-bg)] backdrop-blur-2xl backdrop-saturate-150 border-r border-border-subtle overflow-hidden select-none",
         open ? "fixed inset-y-0 left-0 z-[60] flex shadow-2xl" : "hidden",
         "md:static md:z-auto md:flex md:shadow-none",
       )}
@@ -134,7 +134,7 @@ export function Sidebar() {
             width={874}
             height={150}
             priority
-            className="h-3 w-auto"
+            className="logo-wordmark h-3 w-auto"
           />
           <span className="ml-0.5 font-mono-code text-xs text-text-muted tracking-widest uppercase">OS v2.4</span>
         </Link>
@@ -169,7 +169,7 @@ export function Sidebar() {
                   className={cn(
                     "group relative flex items-center justify-between rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                     isActive
-                      ? "bg-white/10 text-text-primary border border-transparent"
+                      ? "bg-[var(--fill-active)] text-text-primary border border-transparent"
                       : "text-text-secondary hover:bg-surface-high/50 hover:text-text-primary border border-transparent"
                   )}
                 >

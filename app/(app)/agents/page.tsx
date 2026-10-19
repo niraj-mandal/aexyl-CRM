@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -90,9 +90,9 @@ export default async function AgentsPage() {
       <LiveRefresher intervalMs={60000} />
 
       {/* Header */}
-      <div className="flex flex-col gap-4 pb-4 border-b border-border-subtle/50 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <section className="space-y-2">
-          <MonoLabel className="text-primary block mb-1">AGENTIC LAYER // CONTROLLED SOFTWARE ACTORS</MonoLabel>
+          <p className="text-sm font-semibold text-text-muted">Automation</p>
           <Display>Aexyl Agents</Display>
           <Body>
             {enabledCount} of {agentRows.length} agents enabled · every action planned, policy-checked, and audited. Writes require human approval.

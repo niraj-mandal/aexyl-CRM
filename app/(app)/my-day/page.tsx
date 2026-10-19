@@ -344,7 +344,7 @@ export default async function MyDayPage() {
                     <li key={l.id}>
                       <Link
                         href={`/sales/leads/${l.id}`}
-                        className="group flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-white/[0.04]"
+                        className="group flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-[var(--fill-hover)]"
                       >
                         <span className="truncate text-sm text-text-primary group-hover:text-primary">{l.company?.name ?? "Unknown"}</span>
                         <span className="shrink-0 text-xs text-text-muted">
@@ -367,7 +367,7 @@ export default async function MyDayPage() {
                     <li key={d.id}>
                       <Link
                         href={`/sales/deals/${d.id}`}
-                        className="group flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-white/[0.04]"
+                        className="group flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-[var(--fill-hover)]"
                       >
                         <span className="truncate text-sm text-text-primary group-hover:text-primary">{d.name}</span>
                         <span className="num shrink-0 text-xs text-text-muted">

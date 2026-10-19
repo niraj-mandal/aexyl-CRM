@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { celebrate } from "@/components/ui/celebrate";
 import { ArrowRight, PhoneCall, Target } from "lucide-react";
 
 /** Animates 0 → value once (respects reduced motion). */
@@ -45,6 +46,13 @@ export function TodayProgress({
     const id = requestAnimationFrame(() => setBarPct(pct));
     return () => cancelAnimationFrame(id);
   }, [pct]);
+
+  // Confetti when today's goal is reached during the session (not on every load of a finished day).
+  const prevDone = useRef(done);
+  useEffect(() => {
+    if (target > 0 && prevDone.current < target && done >= target) celebrate();
+    prevDone.current = done;
+  }, [done, target]);
 
   const remaining = Math.max(0, target - done);
   const message =

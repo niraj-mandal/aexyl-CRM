@@ -171,10 +171,10 @@ export function AgentFlow({ agents, rules, killSwitch, pendingApprovals, events7
         onClick={() => setSelected(selected === n.id ? null : n.id)}
         aria-pressed={selected === n.id}
         className={`glass relative flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all duration-300 ${
-          isCurrent ? "scale-[1.04] ring-2 ring-primary shadow-[0_0_28px_-4px_rgba(255,69,58,0.6)]" : lit ? "ring-1 ring-primary/50" : selected === n.id ? "ring-1 ring-white/30" : "hover:ring-1 hover:ring-white/15"
+          isCurrent ? "scale-[1.04] ring-2 ring-primary shadow-[0_0_28px_-4px_rgba(255,69,58,0.6)]" : lit ? "ring-1 ring-primary/50" : selected === n.id ? "ring-1 ring-border-strong" : "hover:ring-1 hover:ring-border-strong"
         }`}
       >
-        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${lit ? "bg-primary/20 text-primary" : "bg-[rgba(124,77,255,0.16)] text-[#B9A3FF]"}`}>
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${lit ? "bg-primary/20 text-primary" : "bg-[rgba(124,77,255,0.14)] text-[#8B7CF6]"}`}>
           <n.icon className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1">
@@ -193,7 +193,7 @@ export function AgentFlow({ agents, rules, killSwitch, pendingApprovals, events7
 
   const col = (label: string, children: React.ReactNode) => (
     <div className="flex min-w-0 flex-col justify-center gap-2.5">
-      <p className="mb-1 text-center text-[11px] font-semibold uppercase tracking-wider text-[#B9A3FF]/80">{label}</p>
+      <p className="mb-1 text-center text-[11px] font-semibold uppercase tracking-wider text-text-muted">{label}</p>
       {children}
     </div>
   );

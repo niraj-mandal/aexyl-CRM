@@ -3,6 +3,7 @@
 import { Flame, Phone } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { SectionHeader } from "@/components/ui/section-header";
+import { GymAvatar } from "@/components/ui/gym-avatar";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 
 const RANK: Record<string, number> = { QUALIFIED: 3, CONTACTED: 2, NURTURE: 1, NEW: 0 };
@@ -49,7 +50,10 @@ export function HotLeads({ leads, onOpen }: { leads: OutreachLead[]; onOpen: (l:
                 <span className="truncate">{tile.label}</span>
                 <span className="num shrink-0">{l.score}</span>
               </span>
-              <span className="line-clamp-2 text-sm font-semibold leading-snug">{l.businessName}</span>
+              <span className="flex items-center gap-2">
+                <GymAvatar name={l.businessName} size={26} className="bg-black/20" />
+                <span className="line-clamp-2 text-sm font-semibold leading-snug">{l.businessName}</span>
+              </span>
               <span className="flex items-center gap-1.5 text-xs opacity-75">
                 {l.phone && <Phone className="h-3 w-3 shrink-0" />}
                 <span className="truncate">{l.area ?? "No address"}</span>

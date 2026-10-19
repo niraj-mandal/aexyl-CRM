@@ -84,7 +84,7 @@ export function DayChecklist({ items, done }: { items: ChecklistItem[]; done: Do
               </span>
             );
             return (
-              <li key={item.key} className="group flex flex-wrap items-start gap-x-3 gap-y-1.5 px-3 py-2.5 hover:bg-white/[0.04]">
+              <li key={item.key} className="group flex flex-wrap items-start gap-x-3 gap-y-1.5 px-3 py-2.5 hover:bg-[var(--fill-hover)]">
                 <span className="num w-12 shrink-0 pt-1 text-right text-xs text-text-muted">{item.time ?? ""}</span>
                 {item.action ? (
                   <button

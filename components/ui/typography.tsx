@@ -38,7 +38,7 @@ Metadata.displayName = "Metadata";
 
 export const MonoLabel = forwardRef<HTMLSpanElement, HTMLAttributes<HTMLSpanElement>>(
   ({ className, ...props }, ref) => (
-    <span ref={ref} className={cn("font-mono-code text-xs tracking-[0.04em] uppercase text-text-muted", className)} {...props} />
+    <span ref={ref} className={cn("text-xs font-medium text-text-muted", className)} {...props} />
   )
 );
 MonoLabel.displayName = "MonoLabel";

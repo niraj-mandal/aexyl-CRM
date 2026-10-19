@@ -41,10 +41,10 @@ export default function IntelligencePage() {
   return (
     <div className="space-y-8">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <MonoLabel className="text-secondary block mb-1">STRATEGIC PRESETS // EXECUTIVE THINKING MATRIX</MonoLabel>
-          <Display>Aexyl Intelligence Matrix</Display>
+          <p className="text-sm font-semibold text-text-muted">Strategy</p>
+          <Display>Insights</Display>
         </div>
         <div className="flex items-center space-x-3">
           <Badge variant="outline" className="font-mono-code text-xs">
@@ -102,7 +102,7 @@ export default function IntelligencePage() {
 
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
-              <MonoLabel>DEAL STALENESS INDEX</MonoLabel>
+              <MonoLabel>Deal staleness index</MonoLabel>
               <div className={`mt-2 text-2xl font-bold ${m.stalledDealsCount > 0 ? "text-tertiary" : "text-secondary"}`}>
                 {m.dealStalenessIndex}
               </div>
@@ -110,7 +110,7 @@ export default function IntelligencePage() {
             </div>
 
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
-              <MonoLabel>REVENUE AT RISK</MonoLabel>
+              <MonoLabel>Revenue at risk</MonoLabel>
               <div className={`mt-2 text-2xl font-bold ${m.totalRevenueAtRisk > 0 ? "text-tertiary" : "text-secondary"}`}>
                 ₹{m.totalRevenueAtRisk.toLocaleString("en-IN")}
               </div>
@@ -118,7 +118,7 @@ export default function IntelligencePage() {
             </div>
 
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
-              <MonoLabel>OPEN PIPELINE</MonoLabel>
+              <MonoLabel>Open pipeline</MonoLabel>
               <div className="mt-2 text-2xl font-bold text-primary">
                 ₹{m.openPipelineValue.toLocaleString("en-IN")}
               </div>
@@ -126,7 +126,7 @@ export default function IntelligencePage() {
             </div>
 
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
-              <MonoLabel>HOT LEADS</MonoLabel>
+              <MonoLabel>Hot leads</MonoLabel>
               <div className="mt-2 text-2xl font-bold text-text-primary">
                 {m.highPriorityLeadsCount}
                 <span className="text-sm font-medium text-text-muted ml-2">{m.hotLeadRatio}</span>
@@ -135,10 +135,10 @@ export default function IntelligencePage() {
             </div>
           </div>
 
-          <MonoLabel className="block mt-6 mb-3 text-secondary">LEAD OUTREACH</MonoLabel>
+          <MonoLabel className="block mt-6 mb-3 text-secondary">Lead outreach</MonoLabel>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
-              <MonoLabel>CONTACTABLE LEADS</MonoLabel>
+              <MonoLabel>Contactable leads</MonoLabel>
               <div className="mt-2 text-2xl font-bold text-text-primary">
                 {m.contactableLeadsCount}
                 <span className="text-sm font-medium text-text-muted ml-2">of {m.activeLeadsCount}</span>
@@ -146,14 +146,14 @@ export default function IntelligencePage() {
               <p className="mt-1 text-xs text-text-muted">Phone, email or social on file</p>
             </div>
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
-              <MonoLabel>READY TO CONTACT</MonoLabel>
+              <MonoLabel>Ready to contact</MonoLabel>
               <div className={`mt-2 text-2xl font-bold ${m.readyToContactCount > 0 ? "text-primary" : "text-secondary"}`}>
                 {m.readyToContactCount}
               </div>
               <p className="mt-1 text-xs text-text-muted">Contact details, never contacted</p>
             </div>
             <div className="rounded-lg bg-surface-low p-4 border border-border-subtle">
-              <MonoLabel>FOLLOW-UPS DUE</MonoLabel>
+              <MonoLabel>Follow-ups due</MonoLabel>
               <div className={`mt-2 text-2xl font-bold ${m.followUpsDueCount > 0 ? "text-tertiary" : "text-secondary"}`}>
                 {m.followUpsDueCount}
               </div>

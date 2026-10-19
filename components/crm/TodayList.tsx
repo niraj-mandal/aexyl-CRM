@@ -12,6 +12,7 @@ import { TodayProgress } from "@/components/crm/TodayProgress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CallSession, LeadQuickView } from "@/components/crm/LeadQuickView";
 import { HotLeads } from "@/components/crm/HotLeads";
+import { GymAvatar } from "@/components/ui/gym-avatar";
 
 /** Apple inset-grouped list: one rounded block, hairlines between rows. */
 const GROUP = "stagger divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60";
@@ -60,6 +61,14 @@ export function TodayList() {
   useEffect(() => {
     load();
   }, []);
+
+  // The phone tab bar's "Call" button links to /?call=1: open the session once leads are in.
+  useEffect(() => {
+    if (!leads || new URLSearchParams(window.location.search).get("call") !== "1") return;
+    window.history.replaceState(null, "", window.location.pathname);
+    const id = requestAnimationFrame(() => setCalling(true));
+    return () => cancelAnimationFrame(id);
+  }, [leads]);
 
   if (failed) return null;
   if (!leads) {
@@ -149,8 +158,10 @@ export function TodayList() {
 
 function TodayRow({ lead, note, urgent, onOutcome, onOpen }: { lead: OutreachLead; note: string; urgent?: boolean; onOutcome?: () => void; onOpen: () => void }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 transition-colors hover:bg-white/[0.04]">
-      <div className="min-w-0">
+    <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 transition-colors hover:bg-[var(--fill-hover)]">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <GymAvatar name={lead.businessName} size={30} />
+        <div className="min-w-0">
         <button type="button" onClick={onOpen} className="block max-w-full truncate text-left text-xs font-semibold text-text-primary hover:text-primary">
           {lead.businessName}
         </button>
@@ -162,6 +173,7 @@ function TodayRow({ lead, note, urgent, onOutcome, onOpen }: { lead: OutreachLea
             </a>
           )}
         </p>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {onOutcome && <LeadOutcomeSelect leadId={lead.id} name={lead.businessName} onDone={onOutcome} />}

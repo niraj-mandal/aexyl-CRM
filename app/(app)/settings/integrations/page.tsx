@@ -1,4 +1,5 @@
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import Link from "next/link";
+import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { listConnectionViews } from "@/services/integrations/registry";
@@ -18,8 +19,8 @@ export default async function IntegrationsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2 pb-4 border-b border-border-subtle/50">
-        <MonoLabel className="text-primary block mb-1">SETTINGS // INTEGRATIONS</MonoLabel>
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-text-muted"><Link href="/settings" className="hover:text-text-primary">Settings</Link></p>
         <Display>Integrations</Display>
         <Body>
           {connectedCount} of {connections.length} connectors connected. Credentials stay server-side and are

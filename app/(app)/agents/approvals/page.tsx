@@ -1,4 +1,5 @@
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import Link from "next/link";
+import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
@@ -79,11 +80,9 @@ export default async function ApprovalsPage() {
     <div className="space-y-8">
       <LiveRefresher intervalMs={60000} />
 
-      <div className="space-y-2 pb-4 border-b border-border-subtle/50">
-        <MonoLabel className="text-primary block mb-1">
-          AGENTS // HUMAN-IN-THE-LOOP
-        </MonoLabel>
-        <Display>Approval Center</Display>
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-text-muted"><Link href="/agents" className="hover:text-text-primary">Agents</Link> · Human in the loop</p>
+        <Display>Approvals</Display>
         <Body>
           Agent actions that mutate data wait here. Nothing executes until a human approves —
           approvals expire, and dry-runs simulate without side effects.

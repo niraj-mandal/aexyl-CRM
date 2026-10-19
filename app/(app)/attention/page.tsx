@@ -1,4 +1,4 @@
-import { Display, PageTitle, Body, MonoLabel } from "@/components/ui/typography";
+import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -30,9 +30,9 @@ export default async function AttentionPage() {
     <div className="space-y-8">
       <LiveRefresher intervalMs={60000} />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle/50">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <section className="space-y-2">
-          <MonoLabel className="text-danger block mb-1">RISK ENGINE // COMPUTED FROM LIVE PIPELINE</MonoLabel>
+          <p className="text-sm font-semibold text-text-muted">Pipeline risks</p>
           <Display>Attention</Display>
           <Body>Critical items, risks, and follow-ups — audited {format(new Date(audit.auditedAt), "HH:mm:ss")}.</Body>
         </section>

@@ -18,6 +18,7 @@ import { GlassPanel } from "@/components/ui/glass-card";
 import { Display } from "@/components/ui/typography";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { GymAvatar } from "@/components/ui/gym-avatar";
 import { googleMapsUrl, placeFromLeadSource } from "@/lib/maps";
 import { waNumber } from "@/lib/phone";
 import { DEAL_STAGES, LEAD_STAGE, rupees } from "@/lib/stages";
@@ -87,7 +88,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: stage.color }} />
               {stage.label}
             </span>
-            <Display className="mt-2 break-words">{name}</Display>
+            <div className="mt-2 flex items-center gap-3">
+              <GymAvatar name={name} size={48} />
+              <Display className="break-words">{name}</Display>
+            </div>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-secondary">
               {place && (
                 <span className="inline-flex items-center gap-1">

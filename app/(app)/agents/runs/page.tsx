@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Display, Body, MonoLabel } from "@/components/ui/typography";
+import { Display, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
@@ -43,11 +43,9 @@ export default async function AgentRunsPage() {
     <div className="space-y-8">
       <LiveRefresher intervalMs={60000} />
 
-      <div className="space-y-2 pb-4 border-b border-border-subtle/50">
-        <MonoLabel className="text-primary block mb-1">
-          <Link href="/agents" className="hover:underline">AGENTS</Link>{" // "}RUNS
-        </MonoLabel>
-        <Display>Agent Runs</Display>
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-text-muted"><Link href="/agents" className="hover:text-text-primary">Agents</Link></p>
+        <Display>Runs</Display>
         <Body>Every execution with its plan, tools, approvals, cost, and outcome.</Body>
       </div>
 
