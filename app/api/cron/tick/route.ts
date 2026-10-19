@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
-import { and, eq, gte, isNotNull, lte, notInArray } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lt, lte, notInArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { agentEvents, leads, users, workspaces } from "@/db/schema";
+import { agentEvents, leads, projects, users, workspaces } from "@/db/schema";
 import { logger } from "@/lib/logger";
 import { captureError } from "@/lib/observability";
-import { AgentEventBus } from "@/agents/events/bus";
+import { AgentEventBus, type AexylEventType } from "@/agents/events/bus";
 import {
   claimRetryingRuns,
   detectFailureSpikes,
@@ -15,16 +15,20 @@ import { ensureWorkspaceAgents } from "@/agents/registry";
 import { DiscoveryOrchestrator } from "@/services/discovery/orchestrator";
 
 export const dynamic = "force-dynamic";
+// Agent runs call the AI planner; a batch of them needs more than the default time limit.
+export const maxDuration = 300;
 
 /**
- * Cron tick — the scheduler entry point for time-based automation. Invoked
- * every 15 minutes by the Railway cron service (see `cron/`) with
+ * Cron tick — the scheduler entry point for time-based automation. Scheduled
+ * daily by Vercel Cron (vercel.json) and optionally every 15 minutes by the
+ * Railway cron service (see `cron/`), both with
  * `Authorization: Bearer ${CRON_SECRET}`; exempted from Clerk in `proxy.ts`
  * because the caller is a machine, not a session.
  *
  * Per workspace (each isolated in try/catch — one workspace's failure never
  * blocks the others):
- *   1. publish `lead.followup_due` events for due follow-ups
+ *   1. publish `lead.followup_due`, `lead.stale` and `project.at_risk` events
+ *      (`lead.created` is published when a lead is created, in CrmService)
  *   2. AgentEventBus.processPending  → events become agent runs (cooldown,
  *      idempotency, and policy checks all live inside the bus/runtime)
  *   3. claimRetryingRuns             → pick up runs the reaper queued
@@ -42,6 +46,8 @@ const FOLLOWUP_EVENT_WINDOW_HOURS = 6;
 const SYSTEM_CLERK_ID = "system-cron";
 const FOLLOWUP_SCAN_LIMIT = 50;
 const EVENT_BATCH_SIZE = 10;
+/** A hot lead with no contact for this long fires `lead.stale` (at most once per this window). */
+const STALE_AFTER_DAYS = 7;
 
 /** Length-safe equality: compare SHA-256 digests, never the raw strings. */
 function bearerMatches(provided: string, secret: string): boolean {
@@ -80,11 +86,39 @@ async function getSystemUserId(): Promise<string> {
 }
 
 /**
- * Publish `lead.followup_due` for every lead whose follow-up date has passed
- * (excluding closed outcomes). A lead with an event already PENDING is
- * skipped — the bus consumes each event exactly once downstream, so
- * re-publishing would only fight the rules' cooldowns.
+ * Publish one event per entity, skipping entities that already got this event
+ * within `windowHours` (pending or processed). The bus consumes each event once
+ * downstream; re-publishing sooner would only fight the rules' cooldowns.
  */
+async function publishOnce(
+  workspaceId: string,
+  eventType: AexylEventType,
+  entityType: string,
+  windowHours: number,
+  items: { id: string; payload: Record<string, unknown> }[],
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const recent = await db
+    .select({ entityId: agentEvents.entityId })
+    .from(agentEvents)
+    .where(
+      and(
+        eq(agentEvents.workspaceId, workspaceId),
+        eq(agentEvents.eventType, eventType),
+        gte(agentEvents.createdAt, new Date(Date.now() - windowHours * 3600 * 1000)),
+      ),
+    );
+  const seen = new Set(recent.map((r) => r.entityId));
+  let published = 0;
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    await AgentEventBus.publish({ workspaceId, eventType, entityType, entityId: item.id, payload: { ...item.payload, source: "cron" } });
+    published += 1;
+  }
+  return published;
+}
+
+/** Leads whose follow-up date has passed (excluding closed outcomes). */
 async function publishDueFollowUps(workspaceId: string): Promise<number> {
   const due = await db
     .select({ id: leads.id, temperature: leads.temperature })
@@ -98,36 +132,47 @@ async function publishDueFollowUps(workspaceId: string): Promise<number> {
       ),
     )
     .limit(FOLLOWUP_SCAN_LIMIT);
-  if (due.length === 0) return 0;
+  return publishOnce(workspaceId, "lead.followup_due", "lead", FOLLOWUP_EVENT_WINDOW_HOURS,
+    due.map((l) => ({ id: l.id, payload: { leadId: l.id, temperature: l.temperature } })));
+}
 
-  const pendingOrRecent = await db
-    .select({ entityId: agentEvents.entityId })
-    .from(agentEvents)
+/**
+ * Hot leads you HAVE talked to that went quiet for 7+ days. Never-contacted leads
+ * are excluded on purpose: they're new, not stale, and already sit in the Today list.
+ */
+async function publishStaleHotLeads(workspaceId: string): Promise<number> {
+  const stale = await db
+    .select({ id: leads.id, temperature: leads.temperature })
+    .from(leads)
     .where(
       and(
-        eq(agentEvents.workspaceId, workspaceId),
-        eq(agentEvents.eventType, "lead.followup_due"),
-        gte(
-          agentEvents.createdAt,
-          new Date(Date.now() - FOLLOWUP_EVENT_WINDOW_HOURS * 3600 * 1000),
-        ),
+        eq(leads.workspaceId, workspaceId),
+        eq(leads.temperature, "HOT"),
+        isNotNull(leads.lastContactedAt),
+        lt(leads.lastContactedAt, new Date(Date.now() - STALE_AFTER_DAYS * 86_400_000)),
+        notInArray(leads.status, ["CONVERTED", "LOST", "UNQUALIFIED"]),
       ),
-    );
-  const queued = new Set(pendingOrRecent.map((p) => p.entityId));
+    )
+    .limit(FOLLOWUP_SCAN_LIMIT);
+  return publishOnce(workspaceId, "lead.stale", "lead", STALE_AFTER_DAYS * 24,
+    stale.map((l) => ({ id: l.id, payload: { leadId: l.id, temperature: l.temperature } })));
+}
 
-  let published = 0;
-  for (const lead of due) {
-    if (queued.has(lead.id)) continue;
-    await AgentEventBus.publish({
-      workspaceId,
-      eventType: "lead.followup_due",
-      entityType: "lead",
-      entityId: lead.id,
-      payload: { leadId: lead.id, temperature: lead.temperature, source: "cron" },
-    });
-    published += 1;
-  }
-  return published;
+/** Active projects marked at risk / off track, or past their due date. */
+async function publishAtRiskProjects(workspaceId: string): Promise<number> {
+  const atRisk = await db
+    .select({ id: projects.id, health: projects.health })
+    .from(projects)
+    .where(
+      and(
+        eq(projects.workspaceId, workspaceId),
+        notInArray(projects.status, ["DELIVERED", "CANCELLED"]),
+        or(inArray(projects.health, ["AT_RISK", "OFF_TRACK"]), lt(projects.dueDate, new Date())),
+      ),
+    )
+    .limit(FOLLOWUP_SCAN_LIMIT);
+  return publishOnce(workspaceId, "project.at_risk", "project", 24,
+    atRisk.map((p) => ({ id: p.id, payload: { projectId: p.id, health: p.health } })));
 }
 
 export async function GET(req: Request) {
@@ -150,7 +195,7 @@ export async function GET(req: Request) {
   const errors: string[] = [];
   let workspacesProcessed = 0;
   let eventsProcessed = 0;
-  let followupsPublished = 0;
+  let eventsPublished = 0;
   let discoveryRuns = 0;
 
   try {
@@ -166,7 +211,9 @@ export async function GET(req: Request) {
 
         // Follow-ups are published BEFORE processPending so a due follow-up
         // becomes an agent run within this same tick, not the next one.
-        followupsPublished += await publishDueFollowUps(ws.id);
+        eventsPublished += await publishDueFollowUps(ws.id);
+        eventsPublished += await publishStaleHotLeads(ws.id);
+        eventsPublished += await publishAtRiskProjects(ws.id);
 
         const results = await AgentEventBus.processPending(ws.id, systemUserId, EVENT_BATCH_SIZE);
         eventsProcessed += results.length;
@@ -202,7 +249,7 @@ export async function GET(req: Request) {
     ok: errors.length === 0,
     workspacesProcessed,
     eventsProcessed,
-    followupsPublished,
+    eventsPublished,
     discoveryRuns,
     errors,
     durationMs: Date.now() - startedAt,

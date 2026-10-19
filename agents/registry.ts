@@ -356,35 +356,33 @@ export function getAgentDefinition(key: string): AgentDefinition | undefined {
  * /agents — creates missing agents and the kill-switch marker only.
  */
 export async function ensureWorkspaceAgents(workspaceId: string) {
-  for (const def of AGENT_DEFINITIONS) {
-    const existing = await db.query.agents.findFirst({
-      where: and(eq(agents.workspaceId, workspaceId), eq(agents.agentKey, def.key)),
-    });
-    if (!existing) {
-      await db.insert(agents).values({
-        workspaceId,
-        agentKey: def.key,
-        name: def.name,
-        description: def.description,
-        version: def.version,
-        enabled: true,
-        autonomyLevel: def.defaultAutonomy,
-        allowedTools: def.defaultAllowedTools,
-        toolRateLimits: {},
-        dailyRunLimit: def.defaultDailyRunLimit,
-        maxTokensPerRun: def.defaultMaxTokensPerRun,
-        dailyBudgetMicroUsd: def.defaultDailyBudgetMicroUsd,
-        requiresApprovalForWrites: true,
-      });
-    }
-  }
+  // Two reads up front, not one query per agent/rule: this runs on every /agents load
+  // and each sequential round trip to the database costs ~0.3 s.
+  const [rows, ruleRows] = await Promise.all([
+    db.select({ id: agents.id, key: agents.agentKey }).from(agents).where(eq(agents.workspaceId, workspaceId)),
+    db.select({ name: automationRules.name }).from(automationRules).where(eq(automationRules.workspaceId, workspaceId)),
+  ]);
+
+  const have = new Set(rows.map((r) => r.key));
+  const missing: (typeof agents.$inferInsert)[] = AGENT_DEFINITIONS.filter((def) => !have.has(def.key)).map((def) => ({
+    workspaceId,
+    agentKey: def.key,
+    name: def.name,
+    description: def.description,
+    version: def.version,
+    enabled: true,
+    autonomyLevel: def.defaultAutonomy,
+    allowedTools: def.defaultAllowedTools,
+    toolRateLimits: {},
+    dailyRunLimit: def.defaultDailyRunLimit,
+    maxTokensPerRun: def.defaultMaxTokensPerRun,
+    dailyBudgetMicroUsd: def.defaultDailyBudgetMicroUsd,
+    requiresApprovalForWrites: true,
+  }));
   // Kill-switch marker row (enabled=true means agents allowed; toggling
   // enabled=false on THIS row is the workspace kill switch).
-  const killSwitch = await db.query.agents.findFirst({
-    where: and(eq(agents.workspaceId, workspaceId), eq(agents.agentKey, "__kill_switch")),
-  });
-  if (!killSwitch) {
-    await db.insert(agents).values({
+  if (!have.has("__kill_switch")) {
+    missing.push({
       workspaceId,
       agentKey: "__kill_switch",
       name: "Kill Switch",
@@ -400,31 +398,27 @@ export async function ensureWorkspaceAgents(workspaceId: string) {
       requiresApprovalForWrites: true,
     });
   }
+  const all =
+    missing.length > 0
+      ? [...rows, ...(await db.insert(agents).values(missing).returning({ id: agents.id, key: agents.agentKey }))]
+      : rows;
+  const idOf = (key: string) => all.find((r) => r.key === key)?.id;
 
   // Default automation rules (idempotent per workspace+rule name).
-  const salesAgent = await db.query.agents.findFirst({
-    where: and(eq(agents.workspaceId, workspaceId), eq(agents.agentKey, "sales")),
-  });
-  const followupAgent = await db.query.agents.findFirst({
-    where: and(eq(agents.workspaceId, workspaceId), eq(agents.agentKey, "followup")),
-  });
-  const operationsAgent = await db.query.agents.findFirst({
-    where: and(eq(agents.workspaceId, workspaceId), eq(agents.agentKey, "operations")),
-  });
+  const haveRules = new Set(ruleRows.map((r) => r.name));
+  const salesId = idOf("sales");
+  const followupId = idOf("followup");
+  const operationsId = idOf("operations");
   const defaultRules = [
-    salesAgent && { agentId: salesAgent.id, name: "New lead analysis", eventType: "lead.created", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 3600 },
-    followupAgent && { agentId: followupAgent.id, name: "Hot lead goes stale", eventType: "lead.stale", conditions: { temperature: "HOT" }, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
-    followupAgent && { agentId: followupAgent.id, name: "Due follow-ups", eventType: "lead.followup_due", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
-    operationsAgent && { agentId: operationsAgent.id, name: "Project at risk", eventType: "project.at_risk", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
-  ].filter(Boolean) as { agentId: string; name: string; eventType: string; conditions: Record<string, unknown>; actionPolicy: string; cooldownSeconds: number }[];
-
-  for (const rule of defaultRules) {
-    const existing = await db.query.automationRules.findFirst({
-      where: and(eq(automationRules.workspaceId, workspaceId), eq(automationRules.name, rule.name)),
-    });
-    if (!existing) {
-      await db.insert(automationRules).values({ workspaceId, ...rule });
-    }
+    salesId && { agentId: salesId, name: "New lead analysis", eventType: "lead.created", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 3600 },
+    followupId && { agentId: followupId, name: "Hot lead goes stale", eventType: "lead.stale", conditions: { temperature: "HOT" }, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
+    followupId && { agentId: followupId, name: "Due follow-ups", eventType: "lead.followup_due", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
+    operationsId && { agentId: operationsId, name: "Project at risk", eventType: "project.at_risk", conditions: {}, actionPolicy: "prepare_only", cooldownSeconds: 21600 },
+  ].filter((r): r is { agentId: string; name: string; eventType: string; conditions: Record<string, unknown>; actionPolicy: string; cooldownSeconds: number } =>
+    Boolean(r) && !haveRules.has((r as { name: string }).name),
+  );
+  if (defaultRules.length > 0) {
+    await db.insert(automationRules).values(defaultRules.map((rule) => ({ workspaceId, ...rule })));
   }
 }
 

@@ -4,12 +4,13 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { db } from "@/db";
-import { agents, agentRuns, automationRules } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { agentEvents, agents, agentRuns, automationRules } from "@/db/schema";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getAgentsOverview, getPendingApprovals } from "@/app/actions/agents.actions";
 import { KillSwitchButton } from "@/components/agents/KillSwitchButton";
 import { RunAgentButton } from "@/components/agents/RunAgentButton";
 import { LiveRefresher } from "@/components/crm/LiveRefresher";
+import { AgentFlow } from "@/components/agents/AgentFlow";
 import { Bot, CircleDot, ShieldBan, Zap } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 
@@ -33,7 +34,7 @@ const STATUS_DOT: Record<string, string> = {
 export default async function AgentsPage() {
   const { workspaceId } = await requireWorkspace();
 
-  const [{ agents: agentRows, killSwitchEngaged }, recentRuns, pendingApprovals, rules] =
+  const [{ agents: agentRows, killSwitchEngaged }, recentRuns, pendingApprovals, rules, runs24h, events7d] =
     await Promise.all([
       getAgentsOverview(workspaceId),
       db
@@ -59,12 +60,27 @@ export default async function AgentsPage() {
           eventType: automationRules.eventType,
           enabled: automationRules.enabled,
           agentName: agents.name,
+          agentKey: agents.agentKey,
         })
         .from(automationRules)
         .innerJoin(agents, eq(automationRules.agentId, agents.id))
         .where(eq(automationRules.workspaceId, workspaceId))
         .orderBy(automationRules.name),
+      // Runs per agent in the last 24h, to light up the diagram's live wires.
+      db
+        .select({ key: agents.agentKey, n: sql<number>`count(*)::int` })
+        .from(agentRuns)
+        .innerJoin(agents, eq(agentRuns.agentId, agents.id))
+        .where(and(eq(agentRuns.workspaceId, workspaceId), sql`${agentRuns.createdAt} > now() - interval '24 hours'`))
+        .groupBy(agents.agentKey),
+      // How often each trigger actually fired this week (wires only glow when it did).
+      db
+        .select({ type: agentEvents.eventType, n: sql<number>`count(*)::int` })
+        .from(agentEvents)
+        .where(and(eq(agentEvents.workspaceId, workspaceId), sql`${agentEvents.createdAt} > now() - interval '7 days'`))
+        .groupBy(agentEvents.eventType),
     ]);
+  const runsByKey = new Map(runs24h.map((r) => [r.key, r.n]));
 
   const enabledCount = agentRows.filter((a) => a.enabled).length;
   const activeCount = agentRows.filter((a) => a.enabled).length;
@@ -91,6 +107,21 @@ export default async function AgentsPage() {
           <KillSwitchButton engaged={killSwitchEngaged} />
         </div>
       </div>
+
+      <AgentFlow
+        agents={agentRows.map((a) => ({
+          key: a.agentKey,
+          name: a.name,
+          enabled: a.enabled,
+          tools: a.allowedTools,
+          runs24h: runsByKey.get(a.agentKey) ?? 0,
+          description: a.description ?? "",
+        }))}
+        rules={rules.map((r) => ({ eventType: r.eventType, agentKey: r.agentKey, enabled: r.enabled }))}
+        killSwitch={killSwitchEngaged}
+        pendingApprovals={pendingApprovals.length}
+        events7d={Object.fromEntries(events7d.map((e) => [e.type, e.n]))}
+      />
 
       {/* Active agents grid */}
       <section className="space-y-4">

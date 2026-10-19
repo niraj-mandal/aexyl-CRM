@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { companies, contacts, leads, deals, projects, tasks, discoveryCandidates } from "@/db/schema";
+import { agentEvents, companies, contacts, leads, deals, projects, tasks, discoveryCandidates } from "@/db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { leadCity } from "@/lib/maps";
 
@@ -337,6 +337,19 @@ export class CrmService {
     const [lead] = await db.insert(leads)
       .values({ ...data, workspaceId })
       .returning();
+    // "New lead" automation trigger; the scheduled tick turns it into an agent run.
+    // Written directly (not via AgentEventBus) to avoid a bus → runner → tools → CrmService import cycle.
+    await db
+      .insert(agentEvents)
+      .values({
+        workspaceId,
+        eventType: "lead.created",
+        entityType: "lead",
+        entityId: lead.id,
+        payload: { leadId: lead.id, temperature: lead.temperature, source: lead.source },
+        status: "PENDING",
+      })
+      .catch(() => {}); // an event must never break creating the lead
     return lead;
   }
 
