@@ -160,6 +160,42 @@ export async function markContactedAction(leadId: string, channel: string, messa
   return { ok: true as const, contactedAt: now.toISOString() };
 }
 
+/** Reverses "reached out" (the Leads tick box): back to New, follow-up cleared. History is kept. */
+export async function unmarkContactedAction(leadId: string) {
+  const { workspaceId, userId } = await requireWorkspace();
+  const [lead] = await db
+    .select({ id: leads.id, status: leads.status, contactId: leads.contactId })
+    .from(leads)
+    .where(and(eq(leads.id, String(leadId)), eq(leads.workspaceId, workspaceId)))
+    .limit(1);
+  if (!lead) return { ok: false as const, error: "Lead not found." };
+
+  await db
+    .update(leads)
+    .set({
+      lastContactedAt: null,
+      nextFollowUpAt: null,
+      // Only undo the automatic NEW → CONTACTED step; later stages were set on purpose.
+      status: lead.status === "CONTACTED" ? "NEW" : lead.status,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(leads.id, lead.id), eq(leads.workspaceId, workspaceId)));
+
+  await ActivityService.createActivity(workspaceId, {
+    workspaceId,
+    leadId: lead.id,
+    contactId: lead.contactId,
+    actorId: userId,
+    type: "NOTE",
+    title: "Marked as not reached out",
+    metadata: { source: "reach_toggle" },
+  });
+
+  revalidatePath("/sales/leads");
+  revalidatePath("/");
+  return { ok: true as const, message: "Unticked. Back to New." };
+}
+
 /** Saves a phone number found manually (e.g. via Google Maps) onto the lead's contact. */
 export async function setLeadPhoneAction(leadId: string, rawPhone: string) {
   const { workspaceId, userId } = await requireWorkspace();

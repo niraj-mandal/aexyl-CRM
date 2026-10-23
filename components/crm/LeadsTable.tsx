@@ -8,6 +8,7 @@ import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { LeadOutcomeSelect, LeadPhoneEditor } from "@/components/crm/LeadQuickActions";
 import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
 import { LeadQuickView } from "@/components/crm/LeadQuickView";
+import { ReachedOutToggle } from "@/components/crm/ReachedOutToggle";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GymAvatar } from "@/components/ui/gym-avatar";
 import { googleMapsUrl } from "@/lib/maps";
@@ -40,6 +41,7 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border-subtle text-xs text-text-muted">
             <tr>
+              <th className="w-10 py-3 pl-4 pr-0 font-medium"><span className="sr-only">Reached out</span></th>
               <th className="px-4 py-3 font-medium">Gym</th>
               <th className="px-4 py-3 font-medium">Phone</th>
               <th className="px-4 py-3 font-medium">Stage</th>
@@ -54,6 +56,9 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
               const wa = waNumber(lead.phone);
               return (
                 <tr key={lead.id} className="group transition-colors hover:bg-surface-high/40">
+                  <td className="py-3 pl-4 pr-0">
+                    <ReachedOutToggle leadId={lead.id} name={lead.businessName} done={Boolean(lead.lastContactedAt)} />
+                  </td>
                   <td className="max-w-[260px] px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <span className="relative shrink-0">
