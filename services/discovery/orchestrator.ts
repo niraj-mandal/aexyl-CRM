@@ -89,7 +89,7 @@ export class DiscoveryOrchestrator {
     workspaceId: string,
     userId: string,
     config?: Partial<DiscoveryConfig>,
-    opts: { ignoreTimeGate?: boolean } = {},
+    opts: { ignoreTimeGate?: boolean; retryLater?: boolean } = {},
   ): Promise<DiscoveryRunResult> {
     const saved = await DiscoveryOrchestrator.getSavedConfig(workspaceId);
     const cfg = { ...DEFAULT_CONFIG, ...saved, ...config };
@@ -121,7 +121,7 @@ export class DiscoveryOrchestrator {
       };
     }
 
-    return DiscoveryOrchestrator.run(workspaceId, userId, cfg, runId);
+    return DiscoveryOrchestrator.run(workspaceId, userId, cfg, runId, opts.retryLater);
   }
 
   static async runManual(
@@ -140,6 +140,7 @@ export class DiscoveryOrchestrator {
     userId: string,
     config: DiscoveryConfig,
     runId: string,
+    retryLater = false,
   ): Promise<DiscoveryRunResult> {
     let result: DiscoveryRunResult;
     try {
@@ -152,7 +153,8 @@ export class DiscoveryOrchestrator {
         notes: [], errors: [err instanceof Error ? err.message : "unknown error"],
       };
     }
-    await DiscoveryOrchestrator.notifyRunResult(workspaceId, config, result);
+    // A failed run that will be retried later today stays quiet; the retry reports the outcome.
+    if (!(retryLater && result.status === "FAILED")) await DiscoveryOrchestrator.notifyRunResult(workspaceId, config, result);
     return result;
   }
 

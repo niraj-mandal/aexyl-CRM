@@ -63,7 +63,8 @@ export async function GET(req: Request) {
     for (const ws of allWorkspaces) {
       try {
         // This endpoint is scheduled for 6:00 AM IST itself (vercel.json), so skip the hour check.
-        const result = await DiscoveryOrchestrator.runDaily(ws.id, systemUserId, undefined, { ignoreTimeGate: true });
+        // If it fails, the later /api/cron/tick run retries it and sends the notification.
+        const result = await DiscoveryOrchestrator.runDaily(ws.id, systemUserId, undefined, { ignoreTimeGate: true, retryLater: true });
         results.push({
           workspaceId: ws.id,
           status: result.status,
