@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, MapPin, MessageCircle, Phone, PhoneOff, SkipForward, Sparkles, Timer, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, MapPin, MessageCircle, Phone, PhoneOff, ScrollText, SkipForward, Sparkles, Timer, X } from "lucide-react";
+import { buildCallScript } from "@/lib/call-script";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { markContactedAction } from "@/app/actions/outreach.actions";
 import { OUTCOME_OPTIONS, recordOutcome } from "@/components/crm/LeadQuickActions";
@@ -56,7 +57,7 @@ export function LeadStageStepper({ status }: { status: string }) {
 }
 
 /** Lead details plus the actions that move it along. `onAct` fires once an action is queued. */
-function LeadPanel({ lead, onAct, onChanged, onUndo }: { lead: OutreachLead; onAct: () => void; onChanged: () => void; onUndo?: () => void }) {
+function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lead: OutreachLead; onAct: () => void; onChanged: () => void; onUndo?: () => void; scriptOpen?: boolean }) {
   const step = STEP_OF[lead.status] ?? 0;
   const lost = lead.status === "LOST" || lead.status === "UNQUALIFIED";
   const tel = lead.phone?.replace(/[^\d+]/g, "");
@@ -140,6 +141,23 @@ function LeadPanel({ lead, onAct, onChanged, onUndo }: { lead: OutreachLead; onA
           <Sparkles className="h-3.5 w-3.5" /> Pitch
         </Link>
       </div>
+
+      <details open={scriptOpen} className="group rounded-xl border border-border-subtle bg-surface-lowest/60">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-text-secondary hover:text-text-primary">
+          <ScrollText className="h-3.5 w-3.5" /> Call script for {lead.businessName}
+          <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="max-h-80 space-y-3 overflow-y-auto border-t border-border-subtle px-3 py-3 text-xs leading-relaxed">
+          {buildCallScript(lead).map((s) => (
+            <section key={s.title}>
+              <h3 className="mb-1 font-semibold text-text-primary">{s.title}</h3>
+              <ul className="space-y-1 text-text-secondary">
+                {s.lines.map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </details>
 
       {!lost && lead.status !== "CONVERTED" && (
         <div className="space-y-2 border-t border-border-subtle pt-4">
@@ -234,6 +252,7 @@ export function CallSession({ queue, onClose, onChanged }: { queue: OutreachLead
           <LeadPanel
             key={lead.id}
             lead={lead}
+            scriptOpen
             onChanged={onChanged}
             onAct={() => {
               setLogged((n) => n + 1);

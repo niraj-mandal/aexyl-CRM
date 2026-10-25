@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { companies, contacts, deals, discoveryCandidates, leads, projects } from "@/db/schema";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
-import { placeFromLeadSource } from "@/lib/maps";
+import { leadCity, placeFromLeadSource } from "@/lib/maps";
 import { normalizePhone } from "@/services/discovery/normalizer";
 import { CrmService, ProjectService } from "@/services/crm.service";
 import {
@@ -29,6 +29,9 @@ export interface OutreachLead {
   score: number;
   /** City to narrow a Google Maps lookup when the lead has no address. */
   place: string | null;
+  city: string | null;
+  /** Import notes (rating, reviews, web presence) that personalise the call script. */
+  notes: string | null;
 }
 
 /** Leads for the pitch writer: contactable ones first, then newest. */
@@ -50,6 +53,8 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
         nextFollowUpAt: leads.nextFollowUpAt,
         score: leads.score,
         source: leads.source,
+        notes: leads.notes,
+        candidateCity: discoveryCandidates.city,
         candidatePhone: discoveryCandidates.phone,
         candidateAddress: discoveryCandidates.address,
         candidateWebsiteStatus: discoveryCandidates.websiteStatus,
@@ -84,6 +89,8 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
       nextFollowUpAt: r.nextFollowUpAt ? r.nextFollowUpAt.toISOString() : null,
       score: r.score,
       place: r.location || c?.address || placeFromLeadSource(r.source),
+      city: leadCity(r),
+      notes: r.notes,
     };
   });
   list.sort((a, b) => Number(Boolean(b.phone || b.email)) - Number(Boolean(a.phone || a.email)));

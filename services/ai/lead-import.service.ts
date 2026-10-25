@@ -197,8 +197,11 @@ export class LeadImportService {
       // Local leads carry their discovery tier through: a Hot local lead (no
       // website, no phone) lands as a HOT lead, not merely WARM. Sheet rows
       // carry priority="Warm" from the mapper (operator-vetted, never HOT).
+      // ...but a lead with no phone and no email can't be worked yet, so it is never HOT.
       temperature:
-        candidate.priority === "Hot" || candidate.fitScore >= 70
+        !primaryPhone && !primaryEmail
+          ? "COLD"
+          : candidate.priority === "Hot" || candidate.fitScore >= 70
           ? "HOT"
           : candidate.priority === "Warm"
             ? "WARM"
