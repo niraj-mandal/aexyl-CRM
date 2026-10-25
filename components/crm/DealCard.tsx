@@ -28,16 +28,17 @@ export function DealCard({
   return (
     <div
       className={cn(
-        "glass-panel p-4 cursor-grab active:cursor-grabbing hover:border-border-strong transition-colors bg-surface",
+        "group glass-panel p-4 cursor-grab active:cursor-grabbing hover:border-border-strong transition-colors bg-surface",
         isOverlay && "rotate-2 scale-105 shadow-2xl cursor-grabbing ring-1 ring-border-strong"
       )}
     >
-      <div className="flex justify-between items-start mb-3 gap-1">
-        <h4 className="font-medium text-text-primary text-sm line-clamp-2 leading-tight">
+      {/* Wraps so the "Delete …? Yes / No" confirm drops below the name instead of crushing it. */}
+      <div className="flex flex-wrap justify-between items-start mb-3 gap-1">
+        <h4 className="min-w-[50%] flex-1 font-medium text-text-primary text-sm line-clamp-2 leading-tight">
           {deal.name}
         </h4>
         {onDelete && (
-          <div className="group/card shrink-0">
+          <div className="ml-auto shrink-0">
             <DeleteRowButton
               action={deleteDealAction}
               id={deal.id}

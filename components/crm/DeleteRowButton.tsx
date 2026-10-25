@@ -92,7 +92,7 @@ export function DeleteRowButton({
         disabled={pending}
         aria-label={`Delete ${label}`}
         title={`Delete ${label}`}
-        className="rounded p-1.5 text-text-muted opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger focus:opacity-100 focus:outline-none transition-all disabled:opacity-50"
+        className="rounded p-1.5 text-text-muted opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-danger/10 hover:text-danger focus:opacity-100 focus:outline-none transition-all disabled:opacity-50"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
