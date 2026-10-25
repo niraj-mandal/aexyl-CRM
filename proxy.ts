@@ -4,6 +4,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/invite/(.*)',
+  // Public demo websites shared with gym owners; only show facts already public on their listing.
+  '/demo/(.*)',
   // OAuth return endpoint for the custom auto-Google sign-in flow.
   '/sso-callback(.*)',
   '/api/health',

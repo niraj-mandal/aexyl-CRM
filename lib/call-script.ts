@@ -36,7 +36,12 @@ export function suggestedWhatsApp(status: string): WhatsAppKind {
 }
 
 /** WhatsApp text for one situation, from the lead's own facts only. */
-export function buildWhatsApp(kind: WhatsAppKind, lead: { businessName: string; city: string | null; notes: string | null }, name = senderName()): string {
+export function buildWhatsApp(
+  kind: WhatsAppKind,
+  lead: { businessName: string; city: string | null; notes: string | null },
+  name = senderName(),
+  demoLink = "[demo link]",
+): string {
   const gym = lead.businessName;
   const city = lead.city && lead.city !== "Unknown" ? lead.city : "aapke area";
   const r = parseReviews(lead.notes);
@@ -49,7 +54,7 @@ export function buildWhatsApp(kind: WhatsAppKind, lead: { businessName: string; 
     case "callback":
       return `Sat Sri Akal ji! ${name} AEXYL se. ${gym} ki website ke baare mein baat hui thi.\n\nJab free ho, bataiye kab call karoon? 5 minute ka kaam hai.`;
     case "demo":
-      return `Sat Sri Akal ji! ${name} AEXYL se. Jaisa call pe kaha tha, ${gym} ki demo website:\n\n[demo link]\n\nDekh ke bataiye kaisi lagi. Kal 5 minute call kar loon aapka feedback lene ke liye?`;
+      return `Sat Sri Akal ji! ${name} AEXYL se. Jaisa call pe kaha tha, ${gym} ki demo website:\n\n${demoLink}\n\nDekh ke bataiye kaisi lagi. Kal 5 minute call kar loon aapka feedback lene ke liye?`;
   }
 }
 

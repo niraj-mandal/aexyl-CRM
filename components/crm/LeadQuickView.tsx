@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, MapPin, MessageCircle, Phone, PhoneOff, ScrollText, SkipForward, Sparkles, Timer, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, ChevronDown, Copy, MapPin, MessageCircle, Phone, PhoneOff, ScrollText, SkipForward, Sparkles, Timer, X } from "lucide-react";
 import { buildCallScript, buildWhatsApp, suggestedWhatsApp, WHATSAPP_KINDS } from "@/lib/call-script";
+import { DEMO_STYLES, demoPath, type DemoStyle } from "@/lib/demo";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { markContactedAction } from "@/app/actions/outreach.actions";
 import { OUTCOME_OPTIONS, recordOutcome } from "@/components/crm/LeadQuickActions";
@@ -63,6 +64,11 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
   const tel = lead.phone?.replace(/[^\d+]/g, "");
   const wa = waNumber(lead.phone);
   const suggested = suggestedWhatsApp(lead.status);
+  const [demoStyle, setDemoStyle] = useState<DemoStyle>("volt");
+  const [copiedDemo, setCopiedDemo] = useState(false);
+  const [demoColor, setDemoColor] = useState<string | null>(null);
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const demoUrl = `${origin}${demoPath(lead.businessName, lead.id, demoStyle, demoColor ?? undefined)}`;
   const opts = { onDone: onChanged, onUndo };
 
   const outcome = (value: string) => {
@@ -143,6 +149,54 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
         </Link>
       </div>
 
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-text-muted">Demo website</p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(Object.keys(DEMO_STYLES) as DemoStyle[]).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => {
+                setDemoStyle(s);
+                setDemoColor(null);
+              }}
+              aria-pressed={demoStyle === s && !demoColor}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                demoStyle === s && !demoColor ? "border-border-strong bg-surface-high text-text-primary" : "border-border-subtle text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: DEMO_STYLES[s].accent }} /> {DEMO_STYLES[s].label}
+            </button>
+          ))}
+          {/* The gym's own brand colour, e.g. from their logo or signboard. */}
+          <label
+            className={`relative inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              demoColor ? "border-border-strong bg-surface-high text-text-primary" : "border-border-subtle text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: demoColor ?? "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }} />
+            Custom
+            <input
+              type="color"
+              value={demoColor ?? DEMO_STYLES[demoStyle].accent}
+              onChange={(e) => setDemoColor(e.target.value)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+              aria-label="Custom brand colour"
+            />
+          </label>
+          <a href={demoUrl} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            Open <ArrowUpRight className="h-3 w-3" />
+          </a>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard.writeText(demoUrl).then(() => setCopiedDemo(true), () => {})}
+            className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary"
+          >
+            {copiedDemo ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} {copiedDemo ? "Copied" : "Copy link"}
+          </button>
+        </div>
+      </div>
+
       {wa && (
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-text-muted">WhatsApp message</p>
@@ -150,7 +204,7 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
             {WHATSAPP_KINDS.map(({ kind, label }) => (
               <a
                 key={kind}
-                href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp(kind, lead))}`}
+                href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp(kind, lead, undefined, demoUrl))}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
