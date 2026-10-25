@@ -96,9 +96,10 @@ export class LeadImportService {
         if (existing) {
           return { ok: false, skipped: true, error: `Already in CRM as "${existing.name}".` };
         }
-      } else if (candidate.placeId) {
+      } else {
+        // Without a place id, only an exact name + address match is the same gym (chains share names).
         const existing = await CrmService.findCompanyByName(workspaceId, candidate.companyName);
-        if (existing) {
+        if (existing && (candidate.placeId || (existing.location ?? "") === (candidate.location ?? ""))) {
           return { ok: false, skipped: true, error: `Already in CRM as "${existing.name}".` };
         }
       }

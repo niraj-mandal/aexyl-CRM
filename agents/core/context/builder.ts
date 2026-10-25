@@ -3,6 +3,9 @@
  * Never the whole workspace; never secrets. Memory is retrieved per-entity
  * and capped; external content is never included raw.
  */
+import { and, eq, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { agentApprovals } from "@/db/schema";
 import { CrmService } from "@/services/crm.service";
 import { AiAgentService } from "@/services/ai/ai-agent.service";
 import { retrieveRelevantMemory } from "../runtime/runtime";
@@ -23,7 +26,16 @@ export class AgentContextBuilder {
       case "sales":
       case "followup": {
         const leads = await CrmService.getLeads(workspaceId, 100);
-        const active = leads.filter((l) => l.status !== "CONVERTED" && l.status !== "LOST");
+        let active = leads.filter((l) => l.status !== "CONVERTED" && l.status !== "LOST");
+        if (agentKey === "followup") {
+          // Don't re-draft leads that already have a pending approval or a scheduled follow-up.
+          const pending = await db
+            .select({ leadId: sql<string | null>`${agentApprovals.proposedArguments}->>'leadId'` })
+            .from(agentApprovals)
+            .where(and(eq(agentApprovals.workspaceId, workspaceId), eq(agentApprovals.status, "PENDING")));
+          const handled = new Set(pending.map((p) => p.leadId));
+          active = active.filter((l) => !handled.has(l.id) && !(l.nextFollowUpAt && new Date(l.nextFollowUpAt).getTime() > now));
+        }
         const withAge = active.map((l) => ({
           id: l.id,
           company: l.company?.name ?? null,

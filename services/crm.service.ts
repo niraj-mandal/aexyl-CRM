@@ -286,18 +286,20 @@ export class CrmService {
   /** Leads by id (one page of a filtered list), newest first. */
   static async getLeadsByIds(workspaceId: string, ids: string[]) {
     if (ids.length === 0) return [];
-    return db.query.leads.findMany({
+    const rows = await db.query.leads.findMany({
       where: and(eq(leads.workspaceId, workspaceId), inArray(leads.id, ids)),
-      orderBy: [desc(leads.createdAt)],
       with: {
         company: { columns: { name: true, location: true, website: true } },
         contact: { columns: { firstName: true, lastName: true, email: true, phone: true } },
         owner: { columns: { firstName: true, lastName: true } }
       }
     });
+    // Keep the caller's order.
+    const pos = new Map(ids.map((id, i) => [id, i]));
+    return rows.sort((a, b) => pos.get(a.id)! - pos.get(b.id)!);
   }
 
-  /** Every lead's id and city, newest first — small enough to filter and count in memory. */
+  /** Every lead's id and city, open leads first, then by potential (temperature, discovery fit, score) — small enough to filter and count in memory. */
   static async getLeadCityIndex(workspaceId: string) {
     const rows = await db
       .select({
@@ -313,7 +315,14 @@ export class CrmService {
         and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)),
       )
       .where(eq(leads.workspaceId, workspaceId))
-      .orderBy(desc(leads.createdAt));
+      .orderBy(
+        sql`${leads.status} in ('CONVERTED', 'LOST')`,
+        sql`case ${leads.temperature} when 'HOT' then 0 when 'WARM' then 1 else 2 end`,
+        // shortcut: discovery fit lives only in notes ("Fit: N/100"); add a fit_score column if this grows.
+        sql`substring(${leads.notes} from 'Fit: (\\d+)/100')::int desc nulls last`,
+        desc(leads.score),
+        desc(leads.createdAt),
+      );
     // A lead can match more than one discovery record; keep the first.
     const seen = new Set<string>();
     return rows
