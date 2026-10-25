@@ -24,6 +24,7 @@ import {
   markContactedAction,
   type OutreachLead,
 } from "@/app/actions/outreach.actions";
+import { buildCallScript } from "@/lib/call-script";
 
 type Pitch = Extract<Awaited<ReturnType<typeof generatePitchAction>>, { ok: true }>["pitch"];
 type Channel = "WHATSAPP" | "CALL" | "EMAIL";
@@ -73,7 +74,6 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
   const [error, setError] = useState<string | null>(null);
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [whatsapp, setWhatsapp] = useState("");
-  const [callScript, setCallScript] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
@@ -103,6 +103,10 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
   }, [leads, query, contactableOnly]);
 
   const selected = leads.find((l) => l.id === selectedId) ?? null;
+  // Calls use the same fixed script as the lead popup, not an AI draft.
+  const callScript = selected
+    ? buildCallScript(selected, senderName.trim() || undefined).map((s) => `${s.title}\n${s.lines.join("\n")}`).join("\n\n")
+    : "";
   const contactableCount = leads.filter((l) => l.phone || l.email).length;
 
   const selectLead = (id: string) => {
@@ -126,7 +130,6 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
       }
       setPitch(res.pitch);
       setWhatsapp(res.pitch.whatsapp);
-      setCallScript(res.pitch.callScript);
       setEmailSubject(res.pitch.emailSubject);
       setEmailBody(res.pitch.emailBody);
     } catch {
@@ -176,7 +179,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
       <PageHeader
         eyebrow="Sales · AI pitch writer"
         title="Outreach"
-        description="Pick a lead and get a WhatsApp message, call script and email written from its real details. You review and send; nothing goes out automatically."
+        description="Pick a lead and get a WhatsApp message and email written from its real details, plus your call script. You review and send; nothing goes out automatically."
         actions={
           <span className="num inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-low/70 px-3 py-1 text-xs text-text-secondary">
             <span className="h-1.5 w-1.5 rounded-full bg-success" /> {contactableCount} contactable
@@ -390,7 +393,7 @@ export default function OutreachPage({ searchParams }: { searchParams: Promise<{
                 <textarea
                   rows={9}
                   value={callScript}
-                  onChange={(e) => setCallScript(e.target.value)}
+                  readOnly
                   aria-label="Call script"
                   className="w-full rounded-lg bg-surface-lowest border border-border-subtle px-3 py-2 text-xs leading-relaxed text-text-primary focus:border-primary focus:outline-none"
                 />

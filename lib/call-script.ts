@@ -11,7 +11,49 @@ export function parseReviews(notes: string | null | undefined): { rating: number
   return rating && reviews ? { rating: Number(rating), reviews: Number(reviews) } : null;
 }
 
-export function buildCallScript(lead: { businessName: string; city: string | null; notes: string | null }): ScriptSection[] {
+/** The name saved in Outreach's preferences, so scripts and messages are signed by you. */
+export function senderName(): string {
+  try {
+    return (JSON.parse(localStorage.getItem("aexyl.pitchWriter.prefs") ?? "{}").senderName as string)?.trim() || "[your name]";
+  } catch {
+    return "[your name]";
+  }
+}
+
+export type WhatsAppKind = "intro" | "demo" | "callback" | "noAnswer";
+export const WHATSAPP_KINDS: { kind: WhatsAppKind; label: string }[] = [
+  { kind: "intro", label: "Intro" },
+  { kind: "noAnswer", label: "No answer" },
+  { kind: "callback", label: "Callback" },
+  { kind: "demo", label: "Send demo" },
+];
+
+/** Which message fits where the lead is now. */
+export function suggestedWhatsApp(status: string): WhatsAppKind {
+  if (status === "QUALIFIED") return "demo";
+  if (status === "CONTACTED" || status === "NURTURE") return "callback";
+  return "intro";
+}
+
+/** WhatsApp text for one situation, from the lead's own facts only. */
+export function buildWhatsApp(kind: WhatsAppKind, lead: { businessName: string; city: string | null; notes: string | null }, name = senderName()): string {
+  const gym = lead.businessName;
+  const city = lead.city && lead.city !== "Unknown" ? lead.city : "aapke area";
+  const r = parseReviews(lead.notes);
+  const praise = r && r.reviews >= 10 && r.rating >= 4 ? ` Aapke ${r.reviews} Google reviews aur ${r.rating} rating dekhi, bahut badhiya!` : "";
+  switch (kind) {
+    case "intro":
+      return `Sat Sri Akal ji! Main ${name}, AEXYL se.${praise}\n\n${gym} ki koi website nahi hai, toh ${city} mein Google pe gym dhoondhne wale naye log aap tak nahi pahunch paate.\n\nMain ${gym} ki ek free demo website bana ke dikha sakta hoon. Bhej doon?`;
+    case "noAnswer":
+      return `Sat Sri Akal ji! Main ${name}, AEXYL se. Aapko ${gym} ke baare mein call kiya tha.${praise}\n\nAapki gym ki free demo website bana ke dikhana chahta hoon. Kab baat ho sakti hai?`;
+    case "callback":
+      return `Sat Sri Akal ji! ${name} AEXYL se. ${gym} ki website ke baare mein baat hui thi.\n\nJab free ho, bataiye kab call karoon? 5 minute ka kaam hai.`;
+    case "demo":
+      return `Sat Sri Akal ji! ${name} AEXYL se. Jaisa call pe kaha tha, ${gym} ki demo website:\n\n[demo link]\n\nDekh ke bataiye kaisi lagi. Kal 5 minute call kar loon aapka feedback lene ke liye?`;
+  }
+}
+
+export function buildCallScript(lead: { businessName: string; city: string | null; notes: string | null }, name = senderName()): ScriptSection[] {
   const gym = lead.businessName;
   const city = lead.city && lead.city !== "Unknown" ? lead.city : "aapke area";
   const r = parseReviews(lead.notes);
@@ -31,7 +73,7 @@ export function buildCallScript(lead: { businessName: string; city: string | nul
     {
       title: "Opener",
       lines: [
-        `"Sat Sri Akal ji! Main [your name] bol raha hoon, AEXYL se. Kya meri baat ${gym} ke owner se ho rahi hai?"`,
+        `"Sat Sri Akal ji! Main ${name} bol raha hoon, AEXYL se. Kya meri baat ${gym} ke owner se ho rahi hai?"`,
         `"Ji, sirf 30 second loonga. ${compliment}"`,
         `Staff picks up: "Owner sahab kab milenge? Unki Google listing ke baare mein baat karni thi." Get their name and number.`,
       ],

@@ -1,6 +1,7 @@
 /**
- * Per-lead outreach pitch writer: drafts a WhatsApp message, a call script,
- * and an email from the lead's real CRM data (name, area, website status).
+ * Per-lead outreach pitch writer: drafts a WhatsApp message and an email from
+ * the lead's real CRM data (name, area, website status). Calls use the fixed
+ * script in lib/call-script.ts instead.
  * Drafts only — nothing is sent from here; the operator sends manually.
  */
 
@@ -33,7 +34,6 @@ export interface LeadPitchContext {
 
 export interface LeadPitch {
   whatsapp: string;
-  callScript: string;
   emailSubject: string;
   emailBody: string;
   engine: "llm" | "template";
@@ -132,10 +132,9 @@ Rules:
 - Tone: ${opts.tone === "friendly" ? "warm, casual and respectful, like a local person reaching out" : "polite and professional, but still brief and human"}.
 - ${LANGUAGE_RULE[opts.language]}
 - whatsapp: under 500 characters, 2-4 short lines, introduce the sender, one concrete reason for reaching out, end with a low-pressure yes/no question. At most one emoji.
-- callScript: a phone script with labeled parts: Opener, Reason for calling, Two discovery questions, If they say "not interested", Close (ask for a 10-minute meeting or permission to send a sample on WhatsApp).
 - emailSubject: under 60 characters, no clickbait.
 - emailBody: under 120 words, signed with the sender name.
-Respond with a single JSON object: {"whatsapp": string, "callScript": string, "emailSubject": string, "emailBody": string}.`;
+Respond with a single JSON object: {"whatsapp": string, "emailSubject": string, "emailBody": string}.`;
 
     const user = `SENDER: ${opts.senderName}
 WHAT WE OFFER: ${opts.offer}
@@ -143,7 +142,7 @@ WHAT WE OFFER: ${opts.offer}
 LEAD FACTS:
 ${PitchWriterService.facts(ctx).map((f) => `- ${f}`).join("\n")}
 
-Write the four drafts now.`;
+Write the three drafts now.`;
 
     // Free models occasionally return malformed drafts; one retry usually fixes it.
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -156,7 +155,7 @@ Write the four drafts now.`;
   }
 
   private static parseDrafts(parsed: Record<string, unknown> | null): LeadPitch | null {
-    // Models sometimes return the call script as {"Opener": "...", ...} instead of one string.
+    // Models sometimes return a draft as {"Greeting": "...", ...} instead of one string.
     const text = (v: unknown): string | null => {
       if (typeof v === "string") return v.trim() || null;
       if (v && typeof v === "object" && !Array.isArray(v)) {
@@ -168,11 +167,10 @@ Write the four drafts now.`;
       return null;
     };
     const whatsapp = text(parsed?.whatsapp)?.slice(0, 1200);
-    const callScript = text(parsed?.callScript)?.slice(0, 3000);
     const emailSubject = text(parsed?.emailSubject)?.slice(0, 120);
     const emailBody = text(parsed?.emailBody)?.slice(0, 3000);
-    if (!whatsapp || !callScript || !emailSubject || !emailBody) return null;
-    return { whatsapp, callScript, emailSubject, emailBody, engine: "llm" };
+    if (!whatsapp || !emailSubject || !emailBody) return null;
+    return { whatsapp, emailSubject, emailBody, engine: "llm" };
   }
 
   /** No-AI fallback built strictly from known facts. */
@@ -190,21 +188,8 @@ Write the four drafts now.`;
 
     const whatsapp = `${greeting}, I'm ${opts.senderName}. ${websiteLine}\n\n${opts.offer}\n\nWould you be open to a quick chat this week?`;
 
-    const callScript = `Opener: "${greeting}, this is ${opts.senderName}. Am I speaking with someone from ${ctx.businessName}?"
-
-Reason for calling: "${websiteLine} ${opts.offer}"
-
-Two discovery questions:
-1. "How do most of your new customers find you today?"
-2. "Do people ever ask you for a website or your details online?"
-
-If they say "not interested": "No problem at all. Can I send you a short example on WhatsApp so you can look at it whenever you have time?"
-
-Close: "Would you have 10 minutes this week so I can show you what it could look like?"`;
-
     return {
       whatsapp,
-      callScript,
       emailSubject: `A website idea for ${ctx.businessName}`.slice(0, 60),
       emailBody: `${greeting},\n\n${websiteLine}\n\n${opts.offer}\n\nWould you be open to a 10-minute call this week?\n\nBest,\n${opts.senderName}`,
       engine: "template",

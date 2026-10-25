@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronDown, MapPin, MessageCircle, Phone, PhoneOff, ScrollText, SkipForward, Sparkles, Timer, X } from "lucide-react";
-import { buildCallScript } from "@/lib/call-script";
+import { buildCallScript, buildWhatsApp, suggestedWhatsApp, WHATSAPP_KINDS } from "@/lib/call-script";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { markContactedAction } from "@/app/actions/outreach.actions";
 import { OUTCOME_OPTIONS, recordOutcome } from "@/components/crm/LeadQuickActions";
@@ -62,6 +62,7 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
   const lost = lead.status === "LOST" || lead.status === "UNQUALIFIED";
   const tel = lead.phone?.replace(/[^\d+]/g, "");
   const wa = waNumber(lead.phone);
+  const suggested = suggestedWhatsApp(lead.status);
   const opts = { onDone: onChanged, onUndo };
 
   const outcome = (value: string) => {
@@ -141,6 +142,29 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
           <Sparkles className="h-3.5 w-3.5" /> Pitch
         </Link>
       </div>
+
+      {wa && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-text-muted">WhatsApp message</p>
+          <div className="flex flex-wrap gap-1.5">
+            {WHATSAPP_KINDS.map(({ kind, label }) => (
+              <a
+                key={kind}
+                href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp(kind, lead))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  kind === suggested
+                    ? "border-success/40 bg-success/15 text-success"
+                    : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
+                }`}
+              >
+                <MessageCircle className="h-3 w-3" /> {label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       <details open={scriptOpen} className="group rounded-xl border border-border-subtle bg-surface-lowest/60">
         <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-text-secondary hover:text-text-primary">
