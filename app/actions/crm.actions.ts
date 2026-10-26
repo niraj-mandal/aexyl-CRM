@@ -264,9 +264,8 @@ const SWEEP_FOLLOW_UP_DAYS = 2;
 
 /**
  * Agentic follow-up sweep: scans every active lead, schedules a follow-up for
- * stale/unattended ones (quiet past the workspace's stale-lead window or never
- * contacted), writes the next follow-up date, and logs an OUTREACH activity per
- * lead. Honors the workspace's automation settings (sweepEnabled, intervals).
+ * contacted leads that went quiet past the workspace's stale-lead window, writes
+ * the next follow-up date, and logs a FOLLOW_UP activity per lead. Honors the workspace's automation settings (sweepEnabled, intervals).
  * Returns a report.
  */
 export async function queueStaleFollowUpsAction() {
@@ -291,7 +290,8 @@ export async function queueStaleFollowUpsAction() {
     // Skip leads that already have a future follow-up scheduled — re-running
     // the sweep must not duplicate outreach.
     if (l.nextFollowUpAt && new Date(l.nextFollowUpAt).getTime() > now) return false;
-    return !l.lastContactedAt || new Date(l.lastContactedAt).getTime() < sevenDaysAgo.getTime();
+    // Only gyms you've actually talked to can go quiet; never-contacted ones are Today's "new leads to contact".
+    return Boolean(l.lastContactedAt) && new Date(l.lastContactedAt!).getTime() < sevenDaysAgo.getTime();
   });
 
   let scheduled = 0;
@@ -302,9 +302,10 @@ export async function queueStaleFollowUpsAction() {
       workspaceId,
       actorId: userId,
       leadId: lead.id,
-      type: "OUTREACH",
+      // FOLLOW_UP, not OUTREACH: scheduling isn't contact, so it must not count as a gym reached.
+      type: "FOLLOW_UP",
       title: "Agentic follow-up scheduled",
-      description: `Copilot scheduled a follow-up for ${nextAt.toLocaleDateString()} (lead was ${lead.lastContactedAt ? "7+ days quiet" : "never contacted"}).`,
+      description: `Copilot scheduled a follow-up for ${nextAt.toLocaleDateString()} (lead was ${staleDays}+ days quiet).`,
       metadata: { source: "agentic_sweep", previousFollowUpAt: lead.nextFollowUpAt?.toISOString() ?? null },
     });
     scheduled += 1;
