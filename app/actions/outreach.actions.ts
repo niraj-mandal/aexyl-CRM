@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { companies, contacts, deals, discoveryCandidates, leads, projects } from "@/db/schema";
@@ -8,7 +8,7 @@ import { requireWorkspace } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
 import { leadCity, placeFromLeadSource } from "@/lib/maps";
 import { normalizePhone } from "@/services/discovery/normalizer";
-import { CrmService, ProjectService } from "@/services/crm.service";
+import { CrmService, LEAD_POTENTIAL_ORDER, ProjectService } from "@/services/crm.service";
 import {
   PitchWriterService,
   type PitchLanguage,
@@ -67,8 +67,9 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
         and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)),
       )
       .where(eq(leads.workspaceId, workspaceId))
-      .orderBy(desc(leads.createdAt))
-      .limit(300);
+      // Same "best potential first" order as the Leads list, so My Day and Call session pick the best gyms.
+      .orderBy(...LEAD_POTENTIAL_ORDER)
+      .limit(800);
 
   // A lead can match more than one discovery record; keep the first.
   const seen = new Set<string>();

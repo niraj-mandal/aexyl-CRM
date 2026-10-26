@@ -46,7 +46,7 @@ export default async function ScoreboardPage({ searchParams }: { searchParams: P
         ))}
       </nav>
 
-      {t.calls + t.whatsapp + t.interested + t.won === 0 ? (
+      {t.calls + t.whatsapp + t.interested + t.notNow + t.notInterested + t.won === 0 ? (
         <div className="glass-panel">
           <EmptyState
             icon={Trophy}

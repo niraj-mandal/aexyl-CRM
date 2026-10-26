@@ -27,10 +27,6 @@ export function parseDemoSlug(slug: string): { name: string; idPrefix: string } 
   return m ? { name: m[1], idPrefix: m[2] } : null;
 }
 
-export function sameSlug(slug: string, name: string, leadId: string): boolean {
-  return demoSlug(name, leadId) === slug;
-}
-
 /** Black or white text, whichever reads better on the accent colour. */
 export function inkOn(hex: string): string {
   const n = Number.parseInt(hex.slice(1), 16);

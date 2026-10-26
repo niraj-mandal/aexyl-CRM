@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Anton } from "next/font/google";
 import { and, eq, sql } from "drizzle-orm";
 import { ArrowRight, ArrowUpRight, Clock, Dumbbell, MapPin, MessageCircle, Phone, ShieldCheck, Star, Users } from "lucide-react";
 import { db } from "@/db";
 import { companies, contacts, discoveryCandidates, leads } from "@/db/schema";
-import { DEMO_STYLES, type DemoStyle, inkOn, parseDemoSlug, sameSlug } from "@/lib/demo";
+import { DEMO_STYLES, type DemoStyle, demoSlug, inkOn, parseDemoSlug } from "@/lib/demo";
 import { parseReviews } from "@/lib/call-script";
 import { googleMapsUrl, leadCity } from "@/lib/maps";
 import { waNumber } from "@/lib/phone";
@@ -36,9 +36,11 @@ async function loadGym(slug: string) {
     .leftJoin(discoveryCandidates, and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, leads.workspaceId)))
     .where(sql`${leads.id}::text like ${parsed.idPrefix + "%"}`)
     .limit(1);
-  if (!row || !sameSlug(slug, row.name, row.id)) return null;
+  if (!row) return null;
   const city = leadCity(row);
   return {
+    // Renamed since the link was sent: the page redirects to the current name instead of 404ing.
+    slug: demoSlug(row.name, row.id),
     name: row.name,
     city: city === "Unknown" ? null : city,
     address: row.location,
@@ -50,7 +52,7 @@ async function loadGym(slug: string) {
 }
 
 function theme(s?: string, c?: string) {
-  const style: DemoStyle = s && s in DEMO_STYLES ? (s as DemoStyle) : "volt";
+  const style: DemoStyle = s && Object.hasOwn(DEMO_STYLES, s) ? (s as DemoStyle) : "volt";
   const accent = c && /^[0-9a-f]{6}$/i.test(c) ? `#${c}` : DEMO_STYLES[style].accent;
   return { style, accent, ink: inkOn(accent) };
 }
@@ -85,6 +87,10 @@ export default async function DemoSite({ params, searchParams }: Props) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const gym = await loadGym(slug);
   if (!gym) notFound();
+  if (gym.slug !== slug) {
+    const q = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string"));
+    redirect(`/demo/${gym.slug}${q.size ? `?${q}` : ""}`);
+  }
   const { style, accent, ink } = theme(sp.s, sp.c);
 
   const waLink = (text: string) => (gym.wa ? `https://wa.me/${gym.wa}?text=${encodeURIComponent(text)}` : gym.mapsUrl);

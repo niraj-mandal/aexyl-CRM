@@ -18,7 +18,7 @@ import { GymAvatar } from "@/components/ui/gym-avatar";
 const GROUP = "stagger divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60";
 
 const CLOSED = new Set(["CONVERTED", "LOST", "UNQUALIFIED"]);
-const NEW_PER_DAY = 5;
+const NEW_PER_DAY = 15;
 
 /** Splits leads into today's follow-ups and the best never-contacted leads to pitch. */
 export function planToday(leads: OutreachLead[], now = new Date()) {
@@ -35,7 +35,8 @@ export function planToday(leads: OutreachLead[], now = new Date()) {
   const contactedToday = leads.filter((l) => l.lastContactedAt && new Date(l.lastContactedAt) >= startOfToday).length;
 
   const neverContacted = open.filter((l) => !l.lastContactedAt && !followUps.includes(l));
-  const reachable = neverContacted.filter((l) => l.phone || l.email).sort((a, b) => b.score - a.score);
+  // Leads arrive best-potential first (see getOutreachLeadsAction); keep that order.
+  const reachable = neverContacted.filter((l) => l.phone || l.email);
 
   return {
     followUps,

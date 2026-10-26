@@ -48,6 +48,16 @@ export class ProjectService {
 // CRM CORE
 // ---------------------------------------------------------------------------
 
+/** Open leads first, then by potential: temperature, discovery fit, score, newest. */
+export const LEAD_POTENTIAL_ORDER = [
+  sql`${leads.status} in ('CONVERTED', 'LOST')`,
+  sql`case ${leads.temperature} when 'HOT' then 0 when 'WARM' then 1 else 2 end`,
+  // shortcut: discovery fit lives only in notes ("Fit: N/100"); add a fit_score column if this grows.
+  sql`substring(${leads.notes} from 'Fit: (\\d+)/100')::int desc nulls last`,
+  desc(leads.score),
+  desc(leads.createdAt),
+];
+
 export class CrmService {
   
   // ---------------------------------------------------------------------------
@@ -315,14 +325,7 @@ export class CrmService {
         and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)),
       )
       .where(eq(leads.workspaceId, workspaceId))
-      .orderBy(
-        sql`${leads.status} in ('CONVERTED', 'LOST')`,
-        sql`case ${leads.temperature} when 'HOT' then 0 when 'WARM' then 1 else 2 end`,
-        // shortcut: discovery fit lives only in notes ("Fit: N/100"); add a fit_score column if this grows.
-        sql`substring(${leads.notes} from 'Fit: (\\d+)/100')::int desc nulls last`,
-        desc(leads.score),
-        desc(leads.createdAt),
-      );
+      .orderBy(...LEAD_POTENTIAL_ORDER);
     // A lead can match more than one discovery record; keep the first.
     const seen = new Set<string>();
     return rows

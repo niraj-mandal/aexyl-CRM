@@ -65,10 +65,12 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
   const wa = waNumber(lead.phone);
   const suggested = suggestedWhatsApp(lead.status);
   const [demoStyle, setDemoStyle] = useState<DemoStyle>("volt");
-  const [copiedDemo, setCopiedDemo] = useState(false);
   const [demoColor, setDemoColor] = useState<string | null>(null);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const demoUrl = `${origin}${demoPath(lead.businessName, lead.id, demoStyle, demoColor ?? undefined)}`;
+  // "Copied" belongs to the exact link that was copied, not to whatever style is picked next.
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const copiedDemo = copiedUrl === demoUrl;
   const opts = { onDone: onChanged, onUndo };
 
   const outcome = (value: string) => {
@@ -105,7 +107,16 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
               {lead.websiteStatus === "NO_WEBSITE" ? "No website" : lead.websiteStatus.replace("_", " ").toLowerCase()}
             </span>
           )}
-          <span className="num rounded-full bg-surface-high px-2 py-0.5 text-text-secondary">Score {lead.score}</span>
+          {/* Temperature is the potential signal; the numeric score only measures contact details. */}
+          {lead.temperature && (
+            <span
+              className={`rounded-full px-2 py-0.5 font-medium ${
+                lead.temperature === "HOT" ? "bg-danger/15 text-danger" : lead.temperature === "WARM" ? "bg-warning/15 text-warning" : "bg-surface-high text-text-secondary"
+              }`}
+            >
+              {lead.temperature.charAt(0) + lead.temperature.slice(1).toLowerCase()}
+            </span>
+          )}
         </div>
       </div>
 
@@ -149,6 +160,47 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
         </Link>
       </div>
 
+      {/* Right under Call: logging the result is the one thing done on every call. */}
+      {!lost && lead.status !== "CONVERTED" && (
+        <div className="space-y-2 rounded-xl border border-border-subtle p-3">
+          <p className="text-xs font-medium text-text-muted">How did it go?</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button type="button" onClick={noAnswer} className={btn}>
+              <PhoneOff className="h-3.5 w-3.5" /> No answer
+            </button>
+            {secondary.map((o) => (
+              <button key={o.value} type="button" onClick={() => outcome(o.value)} className={btn}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => outcome(primary.value)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+          >
+            {primary.label} <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <details open={scriptOpen} className="group rounded-xl border border-border-subtle bg-surface-lowest/60">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-text-secondary hover:text-text-primary">
+          <ScrollText className="h-3.5 w-3.5" /> Call script for {lead.businessName}
+          <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="max-h-64 space-y-3 overflow-y-auto border-t border-border-subtle px-3 py-3 text-xs leading-relaxed">
+          {buildCallScript(lead).map((s) => (
+            <section key={s.title}>
+              <h3 className="mb-1 font-semibold text-text-primary">{s.title}</h3>
+              <ul className="space-y-1 text-text-secondary">
+                {s.lines.map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </details>
+
       <div className="space-y-1.5">
         <p className="text-xs font-medium text-text-muted">Demo website</p>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -189,7 +241,7 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
           </a>
           <button
             type="button"
-            onClick={() => navigator.clipboard.writeText(demoUrl).then(() => setCopiedDemo(true), () => {})}
+            onClick={() => navigator.clipboard.writeText(demoUrl).then(() => setCopiedUrl(demoUrl), () => {})}
             className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary"
           >
             {copiedDemo ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} {copiedDemo ? "Copied" : "Copy link"}
@@ -217,46 +269,6 @@ function LeadPanel({ lead, onAct, onChanged, onUndo, scriptOpen = false }: { lea
               </a>
             ))}
           </div>
-        </div>
-      )}
-
-      <details open={scriptOpen} className="group rounded-xl border border-border-subtle bg-surface-lowest/60">
-        <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-text-secondary hover:text-text-primary">
-          <ScrollText className="h-3.5 w-3.5" /> Call script for {lead.businessName}
-          <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-        </summary>
-        <div className="max-h-80 space-y-3 overflow-y-auto border-t border-border-subtle px-3 py-3 text-xs leading-relaxed">
-          {buildCallScript(lead).map((s) => (
-            <section key={s.title}>
-              <h3 className="mb-1 font-semibold text-text-primary">{s.title}</h3>
-              <ul className="space-y-1 text-text-secondary">
-                {s.lines.map((line) => <li key={line}>{line}</li>)}
-              </ul>
-            </section>
-          ))}
-        </div>
-      </details>
-
-      {!lost && lead.status !== "CONVERTED" && (
-        <div className="space-y-2 border-t border-border-subtle pt-4">
-          <p className="text-xs font-medium text-text-muted">How did it go?</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button type="button" onClick={noAnswer} className={btn}>
-              <PhoneOff className="h-3.5 w-3.5" /> No answer
-            </button>
-            {secondary.map((o) => (
-              <button key={o.value} type="button" onClick={() => outcome(o.value)} className={btn}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => outcome(primary.value)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
-          >
-            {primary.label} <ArrowRight className="h-4 w-4" />
-          </button>
         </div>
       )}
     </div>

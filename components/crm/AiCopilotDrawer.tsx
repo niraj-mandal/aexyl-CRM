@@ -1062,10 +1062,12 @@ export function AiCopilotDrawer() {
         aria-expanded={isOpen}
         aria-keyshortcuts="Control+J Meta+J"
         title={`Open AI Copilot (${mod}+J)`}
-        className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 flex items-center space-x-2 rounded-full bg-brand px-4 py-3 text-xs font-bold text-white hover:scale-105 transition-all duration-300 group"
+        aria-label="AI Copilot"
+        className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 flex items-center space-x-2 rounded-full bg-brand p-3 md:px-4 text-xs font-bold text-white hover:scale-105 transition-all duration-300 group"
       >
         <Sparkles className="h-4 w-4 animate-pulse group-hover:rotate-12 transition-transform" />
-        <span>AI COPILOT</span>
+        {/* Icon only on phones so it doesn't sit on top of list rows. */}
+        <span className="hidden md:inline">AI COPILOT</span>
       </button>
 
       {/* Drawer Overlay */}

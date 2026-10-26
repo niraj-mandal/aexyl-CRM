@@ -18,15 +18,58 @@ const empty = (): Tally => ({ calls: 0, connected: 0, noAnswer: 0, whatsapp: 0, 
 
 const OUTCOME_KEY: Record<string, keyof Tally> = { INTERESTED: "interested", NOT_NOW: "notNow", NOT_INTERESTED: "notInterested", WON: "won" };
 
-export function tally(t: Tally, row: { type: string; description: string | null; metadata: unknown }) {
-  const meta = (row.metadata ?? {}) as { channel?: string; outcome?: string };
-  if (row.type === "OUTREACH") {
-    if (meta.channel === "CALL") {
+export type ScoreEvent = { leadId: string; day: string; type: string; description: string | null; metadata: unknown };
+
+/**
+ * Totals for a set of events. A conversation is counted once per lead per day: a logged call
+ * that wasn't "No answer", or an outcome recorded without a WhatsApp that day (in Call session
+ * you call, then click Interested/Not now without ticking "Reached out" separately).
+ */
+export function tally(events: ScoreEvent[]): Tally {
+  const t = empty();
+  const day = new Map<string, { connected: boolean; outcome: boolean; whatsapp: boolean }>();
+  for (const e of events) {
+    const meta = (e.metadata ?? {}) as { channel?: string; outcome?: string };
+    const key = `${e.leadId}|${e.day}`;
+    const s = day.get(key) ?? { connected: false, outcome: false, whatsapp: false };
+    day.set(key, s);
+    if (e.type === "OUTREACH" && meta.channel === "CALL") {
+      if (e.description?.trim().toLowerCase() === "no answer") {
+        t.calls++;
+        t.noAnswer++;
+      } else s.connected = true;
+    } else if (e.type === "OUTREACH" && meta.channel === "WHATSAPP") {
+      t.whatsapp++;
+      s.whatsapp = true;
+    } else if (meta.outcome && OUTCOME_KEY[meta.outcome]) {
+      t[OUTCOME_KEY[meta.outcome]]++;
+      s.outcome = true;
+    }
+  }
+  for (const s of day.values()) {
+    if (s.connected || (s.outcome && !s.whatsapp)) {
       t.calls++;
-      if (row.description?.trim().toLowerCase() === "no answer") t.noAnswer++;
-      else t.connected++;
-    } else if (meta.channel === "WHATSAPP") t.whatsapp++;
-  } else if (meta.outcome && OUTCOME_KEY[meta.outcome]) t[OUTCOME_KEY[meta.outcome]]++;
+      t.connected++;
+    }
+  }
+  return t;
+}
+
+/**
+ * Unticking "Reached out" logs a reach_toggle NOTE; it cancels that lead's latest call/WhatsApp
+ * log before it. Events must be in time order; the NOTEs themselves are dropped.
+ */
+export function applyUnticks<E extends { leadId: string; type: string; metadata: unknown }>(events: E[]): E[] {
+  const removed = new Set<number>();
+  const lastOutreach = new Map<string, number[]>();
+  events.forEach((e, i) => {
+    if (e.type === "OUTREACH") lastOutreach.set(e.leadId, [...(lastOutreach.get(e.leadId) ?? []), i]);
+    else if (e.type === "NOTE") {
+      const prev = lastOutreach.get(e.leadId)?.pop();
+      if (prev !== undefined) removed.add(prev);
+    }
+  });
+  return events.filter((e, i) => e.type !== "NOTE" && !removed.has(i));
 }
 
 export class ScoreboardService {
@@ -53,35 +96,40 @@ export class ScoreboardService {
       .where(and(
         eq(activities.workspaceId, workspaceId),
         gte(activities.occurredAt, since),
-        or(eq(activities.type, "OUTREACH"), and(eq(activities.type, "STAGE_CHANGE"), sql`${activities.metadata}->>'source' = 'lead_outcome'`)),
-      ));
-
-    const totals = empty();
-    const byDay = new Map<string, Tally>();
-    for (let i = days - 1; i >= 0; i--) byDay.set(istDay(new Date(now.getTime() - i * DAY_MS)), empty());
-    const byCity = new Map<string, Tally>();
-    const today = byDay.get(istDay(now))!;
+        or(
+          eq(activities.type, "OUTREACH"),
+          and(eq(activities.type, "STAGE_CHANGE"), sql`${activities.metadata}->>'source' = 'lead_outcome'`),
+          and(eq(activities.type, "NOTE"), sql`${activities.metadata}->>'source' = 'reach_toggle'`),
+        ),
+      ))
+      .orderBy(activities.occurredAt);
 
     // A lead can match several discovery records; count each activity once.
     const seen = new Set<string>();
+    const raw: (ScoreEvent & { city: string })[] = [];
     for (const r of rows) {
       const key = `${r.leadId}|${r.occurredAt.getTime()}|${r.type}`;
-      if (seen.has(key)) continue;
+      if (seen.has(key) || !r.leadId) continue;
       seen.add(key);
-      tally(totals, r);
-      const day = byDay.get(istDay(r.occurredAt));
-      if (day) tally(day, r);
-      const city = leadCity(r);
-      if (!byCity.has(city)) byCity.set(city, empty());
-      tally(byCity.get(city)!, r);
+      raw.push({ ...r, leadId: r.leadId, day: istDay(r.occurredAt), city: leadCity(r) });
     }
+    const events = applyUnticks(raw);
+
+    const dayKeys = Array.from({ length: days }, (_, i) => istDay(new Date(now.getTime() - (days - 1 - i) * DAY_MS)));
+    const group = (key: (e: (typeof events)[number]) => string) => {
+      const m = new Map<string, typeof events>();
+      for (const e of events) m.set(key(e), [...(m.get(key(e)) ?? []), e]);
+      return m;
+    };
+    const byDay = group((e) => e.day);
+    const byCity = group((e) => e.city);
 
     return {
-      totals,
-      today,
-      daily: [...byDay].map(([day, t]) => ({ day, ...t })),
+      totals: tally(events),
+      today: tally(byDay.get(istDay(now)) ?? []),
+      daily: dayKeys.map((day) => ({ day, ...tally(byDay.get(day) ?? []) })),
       cities: [...byCity]
-        .map(([city, t]) => ({ city, ...t }))
+        .map(([city, evs]) => ({ city, ...tally(evs) }))
         .sort((a, b) => b.calls + b.whatsapp - (a.calls + a.whatsapp)),
     };
   }

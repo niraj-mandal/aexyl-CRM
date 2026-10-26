@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Flame, MapPin, MessageCircle, Users } from "lucide-react";
+import { ArrowUpRight, Flame, MapPin, MessageCircle, PhoneCall, Users } from "lucide-react";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { LeadOutcomeSelect, LeadPhoneEditor } from "@/components/crm/LeadQuickActions";
 import { DeleteLeadButton } from "@/components/crm/DeleteLeadButton";
-import { LeadQuickView } from "@/components/crm/LeadQuickView";
+import { CallSession, LeadQuickView } from "@/components/crm/LeadQuickView";
 import { ReachedOutToggle } from "@/components/crm/ReachedOutToggle";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GymAvatar } from "@/components/ui/gym-avatar";
@@ -20,6 +20,9 @@ export type LeadRow = OutreachLead & { contactName: string | null; ownerName: st
 export function LeadsTable({ rows }: { rows: LeadRow[] }) {
   const router = useRouter();
   const [open, setOpen] = useState<LeadRow | null>(null);
+  const [calling, setCalling] = useState(false);
+  // Gyms on this page (best first) you haven't reached yet and can actually call.
+  const toCall = rows.filter((l) => l.phone && !l.lastContactedAt && !["CONVERTED", "LOST", "UNQUALIFIED"].includes(l.status));
 
   if (rows.length === 0) {
     return (
@@ -35,19 +38,30 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
   }
 
   return (
+    <div className="space-y-3">
+    {toCall.length > 0 && (
+      <button
+        type="button"
+        onClick={() => setCalling(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+      >
+        <PhoneCall className="h-4 w-4" /> Call this list <span className="num opacity-80">{toCall.length}</span>
+      </button>
+    )}
+    {calling && <CallSession queue={toCall} onClose={() => setCalling(false)} onChanged={() => router.refresh()} />}
     <div className="glass-panel overflow-hidden">
       {open && <LeadQuickView lead={open} onClose={() => setOpen(null)} onChanged={() => router.refresh()} />}
       <div className="relative w-full overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border-subtle text-xs text-text-muted">
             <tr>
-              <th className="w-10 py-3 pl-4 pr-0 font-medium"><span className="sr-only">Reached out</span></th>
-              <th className="px-4 py-3 font-medium">Gym</th>
-              <th className="px-4 py-3 font-medium">Phone</th>
-              <th className="px-4 py-3 font-medium">Stage</th>
-              <th className="px-4 py-3 font-medium">Score</th>
+              <th className="w-10 py-3 pl-3 pr-0 sm:pl-4 font-medium"><span className="sr-only">Reached out</span></th>
+              <th className="px-2 py-3 font-medium sm:px-4">Gym</th>
+              <th className="px-2 py-3 font-medium sm:px-4">Phone</th>
+              <th className="hidden px-4 py-3 font-medium md:table-cell">Stage</th>
+              <th className="hidden px-4 py-3 font-medium md:table-cell">Score</th>
               <th className="hidden px-4 py-3 font-medium md:table-cell">Owner</th>
-              <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
+              <th className="hidden px-4 py-3 font-medium sm:table-cell"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="stagger divide-y divide-border-subtle">
@@ -56,10 +70,10 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
               const wa = waNumber(lead.phone);
               return (
                 <tr key={lead.id} className="group transition-colors hover:bg-surface-high/40">
-                  <td className="py-3 pl-4 pr-0">
+                  <td className="py-3 pl-3 pr-0 sm:pl-4">
                     <ReachedOutToggle leadId={lead.id} name={lead.businessName} done={Boolean(lead.lastContactedAt)} />
                   </td>
-                  <td className="max-w-[260px] px-4 py-3">
+                  <td className="max-w-[150px] px-2 py-3 sm:max-w-[260px] sm:px-4">
                     <div className="flex items-center gap-2.5">
                       <span className="relative shrink-0">
                         <GymAvatar name={lead.businessName} size={34} />
@@ -83,7 +97,7 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3 sm:px-4">
                     <div className="flex items-center gap-1.5">
                       <LeadPhoneEditor leadId={lead.id} phone={lead.phone} />
                       {wa && (
@@ -99,7 +113,7 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden px-4 py-3 md:table-cell">
                     <span
                       className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
                       style={{ background: `${stage.color}22`, color: stage.color }}
@@ -107,16 +121,19 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
                       {stage.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden px-4 py-3 md:table-cell">
                     <span className="num inline-flex items-center gap-1 text-text-secondary">
                       {lead.score}
                       {lead.temperature === "HOT" && <Flame className="h-3 w-3 text-danger" aria-label="Hot" />}
                     </span>
                   </td>
                   <td className="hidden px-4 py-3 text-text-secondary md:table-cell">{lead.ownerName}</td>
-                  <td className="px-4 py-3">
+                  <td className="hidden px-4 py-3 sm:table-cell">
                     <div className="flex items-center justify-end gap-1.5">
-                      <LeadOutcomeSelect leadId={lead.id} name={lead.businessName} />
+                      {/* On phones the popup (tap the name) has the outcome buttons. */}
+                      <span className="hidden sm:inline-flex">
+                        <LeadOutcomeSelect leadId={lead.id} name={lead.businessName} />
+                      </span>
                       <a
                         href={googleMapsUrl(lead.businessName, lead.place)}
                         target="_blank"
@@ -142,6 +159,7 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
           </tbody>
         </table>
       </div>
+    </div>
     </div>
   );
 }
