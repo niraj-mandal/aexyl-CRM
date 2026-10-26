@@ -75,7 +75,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         title="Leads"
         description={
           <>
-            {total} lead{total === 1 ? "" : "s"} · {newLeads} new · <span className="text-danger">{hotLeads} hot</span>
+            {total} lead{total === 1 ? "" : "s"} · {newLeads} new · <span className="text-hot">{hotLeads} hot</span>
           </>
         }
         actions={

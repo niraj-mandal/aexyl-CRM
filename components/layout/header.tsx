@@ -15,7 +15,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
   const actionNeeded = pending > 0 || failedRuns > 0;
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between gap-2 px-4 md:px-8 bg-[var(--chrome-bg)] backdrop-blur-2xl backdrop-saturate-150 border-b border-border-subtle">
+    <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between gap-2 px-4 md:px-8 bg-[var(--chrome-bg)] backdrop-blur-2xl backdrop-saturate-150 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-5 after:bg-gradient-to-b after:from-[var(--chrome-bg)] after:to-transparent">
       <div className="flex items-center space-x-3 md:space-x-6">
         <button
           type="button"

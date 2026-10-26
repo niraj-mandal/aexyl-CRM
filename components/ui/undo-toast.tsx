@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { Check, Loader2, Undo2, X } from "lucide-react";
 
 const UNDO_MS = 5000;
@@ -67,12 +68,26 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
+// An open modal <dialog> makes the rest of the page untappable (and sits above any z-index),
+// so the toast renders inside the topmost open dialog. Dialogs announce open/close with this event.
+const DIALOG_EVENT = "aexyl:dialog";
+export const announceDialog = () => window.dispatchEvent(new Event(DIALOG_EVENT));
+const subscribeDialogs = (l: () => void) => {
+  window.addEventListener(DIALOG_EVENT, l);
+  return () => window.removeEventListener(DIALOG_EVENT, l);
+};
+const topDialog = () => {
+  const open = document.querySelectorAll("dialog[open]");
+  return open[open.length - 1] ?? null;
+};
+
 /** Bottom-center pill for queueWithUndo; mount once in the app layout. */
 export function UndoToaster() {
   const t = useSyncExternalStore(subscribe, () => toast, () => null);
+  const host = useSyncExternalStore(subscribeDialogs, topDialog, () => null);
   if (!t) return null;
 
-  return (
+  const pill = (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 md:bottom-6">
       <div
         role="status"
@@ -100,4 +115,5 @@ export function UndoToaster() {
       </div>
     </div>
   );
+  return host ? createPortal(pill, host) : pill;
 }

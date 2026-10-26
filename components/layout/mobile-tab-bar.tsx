@@ -21,7 +21,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border-subtle bg-[var(--chrome-bg)] pb-[env(safe-area-inset-bottom)] backdrop-blur-2xl backdrop-saturate-150 md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex bg-[var(--chrome-bg)] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-5 before:bg-gradient-to-t before:from-[var(--chrome-bg)] before:to-transparent pb-[env(safe-area-inset-bottom)] backdrop-blur-2xl backdrop-saturate-150 md:hidden"
     >
       {TABS.map((t) => {
         const active = t.match(pathname);

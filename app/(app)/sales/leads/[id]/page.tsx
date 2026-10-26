@@ -215,7 +215,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               </div>
               <div>
                 <dt className="text-xs text-text-muted">Temperature</dt>
-                <dd className={`mt-1 text-sm font-medium ${lead.temperature === "HOT" ? "text-danger" : lead.temperature === "WARM" ? "text-tertiary" : "text-text-primary"}`}>
+                <dd className={`mt-1 text-sm font-medium ${lead.temperature === "HOT" ? "text-hot" : lead.temperature === "WARM" ? "text-tertiary" : "text-text-primary"}`}>
                   {lead.temperature ? lead.temperature.charAt(0) + lead.temperature.slice(1).toLowerCase() : "—"}
                 </dd>
               </div>

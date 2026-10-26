@@ -124,7 +124,7 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
                   <td className="hidden px-4 py-3 md:table-cell">
                     <span className="num inline-flex items-center gap-1 text-text-secondary">
                       {lead.score}
-                      {lead.temperature === "HOT" && <Flame className="h-3 w-3 text-danger" aria-label="Hot" />}
+                      {lead.temperature === "HOT" && <Flame className="h-3 w-3 text-hot" aria-label="Hot" />}
                     </span>
                   </td>
                   <td className="hidden px-4 py-3 text-text-secondary md:table-cell">{lead.ownerName}</td>

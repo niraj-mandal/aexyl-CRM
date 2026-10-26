@@ -28,6 +28,8 @@
   --success: #30D158;
   --warning: #FFD60A;
   --info: #64D2FF;
+  /* Hot leads are warm, not alarming: orange, so red stays for brand actions and errors. */
+  --hot: #FF9F0A;
 
   /* Apple separator: grey with a little transparency */
   --border-subtle: rgba(84, 84, 88, 0.45);
@@ -95,6 +97,7 @@
   --success: #248A3D;
   --warning: #B25000;
   --info: #0071A4;
+  --hot: #C93400;
 }
 
 @theme inline {
@@ -123,6 +126,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-hot: var(--hot);
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
@@ -386,4 +390,29 @@ svg.lucide {
   0% { transform: translate(0, 0) rotate(0); opacity: 1; }
   40% { transform: translate(calc(var(--x) * 0.65), var(--y)) rotate(calc(var(--r) * 0.5)); opacity: 1; }
   100% { transform: translate(var(--x), calc(var(--y) + 460px)) rotate(var(--r)); opacity: 0; }
+}
+
+/* Respond on press, not release: anything tappable sinks a touch the instant it's pressed.
+   Uses the standalone `scale` property, so it composes with Tailwind's translate/hover transforms. */
+:where(button, summary, [role="button"], a.inline-flex, a.flex, label:has(> input[type="color"])):not(:disabled):active {
+  scale: 0.97;
+}
+
+/* "Increase contrast": solid surfaces and clearly visible edges instead of glass and hairlines. */
+@media (prefers-contrast: more) {
+  :root,
+  :root[data-theme="light"] {
+    --border-subtle: color-mix(in srgb, var(--text-primary) 45%, transparent);
+    --border-strong: var(--text-secondary);
+    --glass-edge: color-mix(in srgb, var(--text-primary) 45%, transparent);
+    --chrome-bg: var(--surface-glass);
+    --surface-glass-floating: var(--surface-glass);
+    --text-muted: var(--text-secondary);
+  }
+  .glass,
+  .glass-panel {
+    background: var(--surface-glass);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
