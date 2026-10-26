@@ -17,6 +17,7 @@ import {
   Settings,
   Zap,
   Search,
+  Trophy,
 } from "lucide-react";
 import { useSidebarBadges } from "./sidebar-badges";
 import { SidebarBadge } from "./sidebar-badge";
@@ -53,6 +54,7 @@ const navSections: NavSection[] = [
       { name: "Leads", href: "/sales/leads", icon: Users, also: ["/sales/companies", "/sales/contacts"] },
       { name: "Pipeline", href: "/sales/pipeline", icon: Kanban, also: ["/sales/deals"] },
       { name: "Outreach", href: "/outreach", icon: Send },
+      { name: "Scoreboard", href: "/sales/scoreboard", icon: Trophy },
       { name: "AI BDR", href: "/bdr", icon: Zap, badge: "AI" },
     ]
   },
