@@ -13,51 +13,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CallSession, LeadQuickView } from "@/components/crm/LeadQuickView";
 import { HotLeads } from "@/components/crm/HotLeads";
 import { GymAvatar } from "@/components/ui/gym-avatar";
+import type { TodayPlan } from "@/lib/today";
 
 /** Apple inset-grouped list: one rounded block, hairlines between rows. */
 const GROUP = "stagger divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface-high/60";
 
-const CLOSED = new Set(["CONVERTED", "LOST", "UNQUALIFIED"]);
-const NEW_PER_DAY = 15;
-
-/** Splits leads into today's follow-ups and the best never-contacted leads to pitch. */
-export function planToday(leads: OutreachLead[], now = new Date()) {
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
-  const open = leads.filter((l) => !CLOSED.has(l.status));
-
-  const followUps = open
-    .filter((l) => l.nextFollowUpAt && new Date(l.nextFollowUpAt) <= endOfToday)
-    .sort((a, b) => new Date(a.nextFollowUpAt!).getTime() - new Date(b.nextFollowUpAt!).getTime());
-
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const contactedToday = leads.filter((l) => l.lastContactedAt && new Date(l.lastContactedAt) >= startOfToday).length;
-
-  const neverContacted = open.filter((l) => !l.lastContactedAt && !followUps.includes(l));
-  // Leads arrive best-potential first (see getOutreachLeadsAction); keep that order.
-  const reachable = neverContacted.filter((l) => l.phone || l.email);
-
-  return {
-    followUps,
-    toContact: reachable.slice(0, NEW_PER_DAY),
-    moreReachable: Math.max(0, reachable.length - NEW_PER_DAY),
-    noContactCount: neverContacted.length - reachable.length,
-    contactedToday,
-  };
-}
-
 export function TodayList() {
-  const [leads, setLeads] = useState<OutreachLead[] | null>(null);
+  const [plan, setPlan] = useState<TodayPlan | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<OutreachLead | null>(null);
   const [calling, setCalling] = useState(false);
 
   // GET (not a server action) so it loads in parallel with the dashboard's other panels.
+  // The server picks today's gyms; we send our local midnight so "today" is the user's day.
   const load = () =>
-    fetch("/api/crm/today", { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<OutreachLead[]>) : Promise.reject(r.status)))
-      .then(setLeads)
+    fetch(`/api/crm/today?start=${encodeURIComponent(new Date(new Date().setHours(0, 0, 0, 0)).toISOString())}`, { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<TodayPlan>) : Promise.reject(r.status)))
+      .then(setPlan)
       .catch(() => setFailed(true));
   useEffect(() => {
     load();
@@ -65,14 +37,14 @@ export function TodayList() {
 
   // The phone tab bar's "Call" button links to /?call=1: open the session once leads are in.
   useEffect(() => {
-    if (!leads || new URLSearchParams(window.location.search).get("call") !== "1") return;
+    if (!plan || new URLSearchParams(window.location.search).get("call") !== "1") return;
     window.history.replaceState(null, "", window.location.pathname);
     const id = requestAnimationFrame(() => setCalling(true));
     return () => cancelAnimationFrame(id);
-  }, [leads]);
+  }, [plan]);
 
   if (failed) return null;
-  if (!leads) {
+  if (!plan) {
     return (
       <div role="status" aria-label="Planning your day" className="space-y-6">
         <Skeleton className="h-[164px] rounded-2xl" />
@@ -86,7 +58,7 @@ export function TodayList() {
     );
   }
 
-  const { followUps, toContact, moreReachable, noContactCount, contactedToday } = planToday(leads);
+  const { followUps, toContact, hot, moreReachable, noContactCount, contactedToday } = plan;
   // Contacted leads leave both lists, so today's target = done + what's still queued.
   const target = contactedToday + followUps.length + toContact.length;
   const next = followUps[0] ?? toContact[0] ?? null;
@@ -152,7 +124,7 @@ export function TodayList() {
         )}
       </section>
     </GlassPanel>
-    <HotLeads leads={leads} onOpen={setOpen} />
+    <HotLeads leads={hot} onOpen={setOpen} />
     </>
   );
 }

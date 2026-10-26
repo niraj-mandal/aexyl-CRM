@@ -6,8 +6,6 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { GymAvatar } from "@/components/ui/gym-avatar";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 
-const RANK: Record<string, number> = { QUALIFIED: 3, CONTACTED: 2, NURTURE: 1, NEW: 0 };
-
 const TILE: Record<string, { label: string; cls: string }> = {
   OVERDUE: { label: "Overdue", cls: "bg-[#E5322D] text-white" },
   QUALIFIED: { label: "Interested", cls: "bg-[#1F7A4D] text-white" },
@@ -19,17 +17,8 @@ const TILE: Record<string, { label: string; cls: string }> = {
 const isOverdue = (l: OutreachLead, startOfToday: Date) =>
   Boolean(l.nextFollowUpAt && new Date(l.nextFollowUpAt) < startOfToday);
 
-/** Open leads closest to signing: furthest stage first, then score. */
-export function pickHotLeads(leads: OutreachLead[], limit = 6) {
-  return leads
-    .filter((l) => l.status in RANK)
-    .sort((a, b) => RANK[b.status] - RANK[a.status] || b.score - a.score)
-    .slice(0, limit);
-}
-
-/** Bold tiles, one color per stage, so the warmest gyms stand out at a glance. */
-export function HotLeads({ leads, onOpen }: { leads: OutreachLead[]; onOpen: (l: OutreachLead) => void }) {
-  const hot = pickHotLeads(leads);
+/** Bold tiles, one color per stage, so the warmest gyms stand out at a glance. `leads` come from pickHotLeads (lib/today). */
+export function HotLeads({ leads: hot, onOpen }: { leads: OutreachLead[]; onOpen: (l: OutreachLead) => void }) {
   if (hot.length === 0) return null;
   const startOfToday = new Date(new Date().setHours(0, 0, 0, 0));
 
