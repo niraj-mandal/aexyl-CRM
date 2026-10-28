@@ -3,6 +3,7 @@ import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
 import type { deals } from "@/db/schema";
 import { redactDeal } from "@/lib/redact";
+import { assertOwnsDeal } from "@/lib/auth/access";
 
 type CreateDealBody = Partial<Omit<typeof deals.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt">>;
 
@@ -34,8 +35,8 @@ const VALID_STAGES = new Set([
 
 export async function GET() {
   try {
-    const { workspaceId, isSales } = await requireWorkspace();
-    const pipelineDeals = await CrmService.getPipeline(workspaceId);
+    const { workspaceId, userId, isSales } = await requireWorkspace();
+    const pipelineDeals = await CrmService.getPipeline(workspaceId, isSales ? userId : undefined);
     return NextResponse.json({ success: true, data: isSales ? pipelineDeals.map(redactDeal) : pipelineDeals });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch deals";
@@ -76,9 +77,10 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { workspaceId, isSales } = await requireWorkspace();
+    const { workspaceId, userId, isSales } = await requireWorkspace();
     const body: unknown = await request.json();
     const { dealId, stage } = (body ?? {}) as { dealId?: unknown; stage?: unknown };
+    if (typeof dealId === "string") await assertOwnsDeal({ workspaceId, userId, isSales }, dealId);
 
     if (typeof dealId !== "string" || typeof stage !== "string") {
       return NextResponse.json(

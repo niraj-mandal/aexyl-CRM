@@ -15,14 +15,15 @@ import { googleMapsUrl } from "@/lib/maps";
 import { waNumber } from "@/lib/phone";
 import { LEAD_STAGE } from "@/lib/stages";
 
-export type LeadRow = OutreachLead & { contactName: string | null; ownerName: string | null };
+export type LeadRow = OutreachLead & { contactName: string | null; ownerName: string | null; heldBySales?: boolean };
 
 export function LeadsTable({ rows }: { rows: LeadRow[] }) {
   const router = useRouter();
   const [open, setOpen] = useState<LeadRow | null>(null);
   const [calling, setCalling] = useState(false);
   // Gyms on this page (best first) you haven't reached yet and can actually call.
-  const toCall = rows.filter((l) => l.phone && !l.lastContactedAt && !["CONVERTED", "LOST", "UNQUALIFIED"].includes(l.status));
+  // Gyms assigned to a sales rep are theirs to call, so an admin's list skips them.
+  const toCall = rows.filter((l) => l.phone && !l.lastContactedAt && !l.heldBySales && !["CONVERTED", "LOST", "UNQUALIFIED"].includes(l.status));
 
   if (rows.length === 0) {
     return (

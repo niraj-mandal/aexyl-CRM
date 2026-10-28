@@ -96,7 +96,7 @@ export async function sendCopilotPromptAction(
     }))
     .filter((t) => t.text.trim().length > 0);
 
-  const response = await AiAgentService.processCopilotCommand(workspaceId, prompt, safeHistory, sheet, safeImages, { hideMoney: isSales });
+  const response = await AiAgentService.processCopilotCommand(workspaceId, prompt, safeHistory, sheet, safeImages, { hideMoney: isSales, ownerId: isSales ? userId : undefined });
 
   // Arm any write-proposals: replace client-visible payloads with unforgeable,
   // single-use tokens. The client never carries the proposal content.

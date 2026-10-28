@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { auditLogs, workspaceMemberships, workspaceInvites, workspaces } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { InviteForm, PendingInviteRow, JoinRequestRow, MemberRoleSelect } from "@/components/crm/InviteManager";
+import { InviteForm, PendingInviteRow, JoinRequestRow, MemberRoleSelect, AssignLeadsByState } from "@/components/crm/InviteManager";
+import { getLeadStatesAction } from "@/app/actions/invite.actions";
 import { getEmailProvider, isEmailConfigured } from "@/services/email.service";
 import { LlmService } from "@/services/ai/llm.service";
 import { currentUser } from "@clerk/nextjs/server";
@@ -87,6 +88,13 @@ export default async function SettingsPage({
   ]);
 
   if (!workspace) throw new Error("Workspace not found");
+
+  const leadStates = activeTab === "Team" ? await getLeadStatesAction() : [];
+  const teamMembers = memberships.map((m) => ({
+    userId: m.user.id,
+    name: [m.user.firstName, m.user.lastName].filter(Boolean).join(" ") || m.user.email,
+    isSales: m.role?.name === SALES_ROLE,
+  }));
 
   const emailOk = isEmailConfigured();
   const emailProvider = getEmailProvider();
@@ -226,6 +234,11 @@ export default async function SettingsPage({
                   ))}
                 </div>
               )}
+
+              <div className="mb-6 space-y-2">
+                <SectionTitle className="mb-2">Assign leads by state</SectionTitle>
+                <AssignLeadsByState states={leadStates} members={teamMembers} />
+              </div>
 
               <div className="space-y-3">
                 {memberships.map((m) => (

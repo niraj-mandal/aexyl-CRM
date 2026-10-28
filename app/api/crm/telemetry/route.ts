@@ -22,7 +22,7 @@ export async function GET(request: Request) {
         { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
       );
     }
-    const raw = await CrmService.getRealtimeStats(workspaceId, { firstName, lastName });
+    const raw = await CrmService.getRealtimeStats(workspaceId, { firstName, lastName }, isSales ? userId : undefined);
     const stats = isSales ? redactStats(raw) : raw;
 
     return NextResponse.json({

@@ -2,8 +2,8 @@
 
 import crypto from "crypto";
 import { db } from "@/db";
-import { workspaceInvites, workspaceMemberships, users, workspaces } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { workspaceInvites, workspaceMemberships, users, workspaces, leads, deals } from "@/db/schema";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { requireAdmin, getVerifiedPrimaryEmail, ensureLocalUser, adminRole, salesRole, AdminOnlyError, clearContextCache, isOwnerEmail } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
@@ -342,4 +342,64 @@ export async function setMemberRoleAction(membershipId: string, role: "ADMIN" | 
   await ActivityService.logAudit(workspaceId, userId, "UPDATE", "MEMBER_ROLE", membership.id, { role: target.name });
   revalidatePath("/settings");
   return { ok: true as const };
+}
+
+/** "gym in Saharsa, Bihar, India" → Bihar: the state a discovered lead came from. */
+const LEAD_STATE_SQL = sql<string | null>`substring(${leads.source} from ', ([A-Za-z ]+), India$')`;
+
+/** Lead counts per state and who holds them, for the Team page's assignment tool. Admin-only. */
+export async function getLeadStatesAction() {
+  const { workspaceId } = await requireAdmin();
+  const rows = (await db
+    .select({ state: LEAD_STATE_SQL, ownerId: leads.ownerId, n: sql<number>`count(*)::int` })
+    .from(leads)
+    .where(eq(leads.workspaceId, workspaceId))
+    .groupBy(LEAD_STATE_SQL, leads.ownerId)) as { state: string | null; ownerId: string | null; n: number }[];
+  const byState = new Map<string, { state: string; total: number; owners: Record<string, number> }>();
+  for (const r of rows) {
+    if (!r.state) continue;
+    const e = byState.get(r.state) ?? { state: r.state, total: 0, owners: {} };
+    e.total += r.n;
+    if (r.ownerId) e.owners[r.ownerId] = (e.owners[r.ownerId] ?? 0) + r.n;
+    byState.set(r.state, e);
+  }
+  return [...byState.values()].sort((a, b) => b.total - a.total);
+}
+
+/**
+ * Gives every lead from one state (and the deals on those leads) to one team member.
+ * Admin-only; the member must belong to this workspace. Sales members then see only theirs.
+ */
+export async function assignLeadsByStateAction(state: string, memberUserId: string) {
+  let ctx;
+  try {
+    ctx = await requireAdmin();
+  } catch (e) {
+    if (e instanceof AdminOnlyError) return { ok: false as const, error: e.message };
+    throw e;
+  }
+  const { workspaceId, userId } = ctx;
+  const cleanState = String(state).trim();
+  if (!/^[A-Za-z ]{2,40}$/.test(cleanState)) return { ok: false as const, error: "Pick a state." };
+  const member = await db.query.workspaceMemberships.findFirst({
+    where: and(eq(workspaceMemberships.workspaceId, workspaceId), eq(workspaceMemberships.userId, String(memberUserId))),
+  });
+  if (!member) return { ok: false as const, error: "That person isn't on this team." };
+
+  const moved = await db
+    .update(leads)
+    .set({ ownerId: member.userId, updatedAt: new Date() })
+    .where(and(eq(leads.workspaceId, workspaceId), sql`${LEAD_STATE_SQL} = ${cleanState}`))
+    .returning({ id: leads.id });
+  if (moved.length > 0) {
+    await db
+      .update(deals)
+      .set({ ownerId: member.userId, updatedAt: new Date() })
+      .where(and(eq(deals.workspaceId, workspaceId), inArray(deals.leadId, moved.map((m) => m.id))));
+  }
+  await ActivityService.logAudit(workspaceId, userId, "ASSIGN", "LEAD_BATCH", member.userId, { state: cleanState, leads: moved.length });
+  revalidatePath("/settings");
+  revalidatePath("/sales/leads");
+  revalidatePath("/");
+  return { ok: true as const, assigned: moved.length };
 }

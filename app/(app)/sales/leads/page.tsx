@@ -9,14 +9,16 @@ import { LeadsTable, type LeadRow } from "@/components/crm/LeadsTable";
 const PAGE_SIZE = 50;
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ page?: string; city?: string }> }) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  // Sales members only ever see the leads assigned to them.
+  const ownerId = isSales ? userId : undefined;
   const params = await searchParams;
   const requestedPage = Number.parseInt(params.page ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   const [cityIndex, leadCounts] = await Promise.all([
-    CrmService.getLeadCityIndex(workspaceId),
-    CrmService.getLeadCounts(workspaceId),
+    CrmService.getLeadCityIndex(workspaceId, ownerId),
+    CrmService.getLeadCounts(workspaceId, ownerId),
   ]);
 
   // City chips, biggest first; an unknown ?city= just shows everything.
@@ -66,6 +68,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     // Auto-created contacts are named "Team <gym>"; they add nothing.
     contactName: l.contact && !/^team\b/i.test(l.contact.firstName) ? `${l.contact.firstName} ${l.contact.lastName ?? ""}`.trim() : null,
     ownerName: l.owner?.firstName ?? null,
+    // Assigned to a Sales member: admins' Call this list leaves it for them.
+    heldBySales: Boolean(l.heldBySales),
   }));
 
   return (

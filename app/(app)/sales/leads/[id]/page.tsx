@@ -49,7 +49,7 @@ const actionBtn =
   "inline-flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { workspaceId, isSales } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
   const { id: leadId } = await params;
 
   const [lead, activities] = await Promise.all([
@@ -59,7 +59,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     }),
     ActivityService.getActivitiesForEntity(workspaceId, "leadId", leadId),
   ]);
-  if (!lead) notFound();
+  // Sales members only open the gyms assigned to them.
+  if (!lead || (isSales && lead.ownerId !== userId)) notFound();
 
   const { company, contact } = lead;
   const name = company?.name || [contact?.firstName, contact?.lastName].filter(Boolean).join(" ") || "Untitled lead";

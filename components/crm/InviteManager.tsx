@@ -9,6 +9,7 @@ import {
   approveJoinRequestAction,
   rejectJoinRequestAction,
   setMemberRoleAction,
+  assignLeadsByStateAction,
 } from "@/app/actions/invite.actions";
 import { publicAppOrigin } from "@/lib/app-url";
 
@@ -303,6 +304,68 @@ export function MemberRoleSelect({ membershipId, isSales, disabled }: { membersh
         <option value="SALES">Sales</option>
       </select>
       {error && <p className="max-w-[180px] text-right text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
+
+/** "Assign leads by state": every lead from a state (and its deals) goes to one teammate. */
+export function AssignLeadsByState({
+  states,
+  members,
+}: {
+  states: { state: string; total: number; owners: Record<string, number> }[];
+  members: { userId: string; name: string; isSales: boolean }[];
+}) {
+  const router = useRouter();
+  const [state, setState] = useState(states[0]?.state ?? "");
+  const [member, setMember] = useState(members.find((m) => m.isSales)?.userId ?? members[0]?.userId ?? "");
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const nameOf = (id: string) => members.find((m) => m.userId === id)?.name ?? "someone";
+  const sel = "rounded-md bg-surface-lowest border border-border-subtle px-2 py-2 text-sm text-text-primary focus:border-primary/60 focus:outline-none";
+
+  if (states.length === 0) return <p className="text-xs text-text-muted">No leads with a state yet.</p>;
+
+  return (
+    <div className="space-y-3">
+      <ul className="space-y-1 text-xs text-text-secondary">
+        {states.map((s) => (
+          <li key={s.state}>
+            <span className="font-medium text-text-primary">{s.state}</span> · {s.total} lead{s.total === 1 ? "" : "s"}:{" "}
+            {Object.entries(s.owners).map(([id, n]) => `${nameOf(id)} ${n}`).join(", ") || "unassigned"}
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={state} onChange={(e) => setState(e.target.value)} aria-label="State" className={sel}>
+          {states.map((s) => (
+            <option key={s.state} value={s.state}>{s.state} ({s.total})</option>
+          ))}
+        </select>
+        <span className="text-xs text-text-muted">to</span>
+        <select value={member} onChange={(e) => setMember(e.target.value)} aria-label="Teammate" className={sel}>
+          {members.map((m) => (
+            <option key={m.userId} value={m.userId}>{m.name}{m.isSales ? " (Sales)" : ""}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={pending || !state || !member}
+          onClick={() => {
+            setResult(null);
+            startTransition(async () => {
+              const res = await assignLeadsByStateAction(state, member);
+              setResult(res.ok ? { ok: true, text: `${res.assigned} ${state} lead${res.assigned === 1 ? "" : "s"} now belong to ${nameOf(member)}.` } : { ok: false, text: res.error });
+              router.refresh();
+            });
+          }}
+          className="inline-flex items-center gap-1.5 rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition disabled:bg-surface-high disabled:text-text-muted"
+        >
+          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Assign
+        </button>
+      </div>
+      {result && <p className={`text-xs ${result.ok ? "text-success" : "text-danger"}`}>{result.text}</p>}
+      <p className="text-xs text-text-muted">Sales members see only their own leads. New leads from a state stay with whoever imported them until you assign again.</p>
     </div>
   );
 }

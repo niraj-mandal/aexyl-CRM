@@ -12,9 +12,9 @@ import { redactDeal } from "@/lib/redact";
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage() {
-  const { workspaceId, isSales } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
   const [allDeals, companies] = await Promise.all([
-    CrmService.getPipeline(workspaceId),
+    CrmService.getPipeline(workspaceId, isSales ? userId : undefined), // Sales: only their own deals
     CrmService.getCompanies(workspaceId, 200),
   ]);
 

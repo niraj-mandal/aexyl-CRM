@@ -1,6 +1,8 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { assertOwnsLead } from "@/lib/auth/access";
+
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { companies, contacts, deals, discoveryCandidates, leads, projects } from "@/db/schema";
@@ -8,7 +10,7 @@ import { requireWorkspace } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
 import { leadCity, placeFromLeadSource } from "@/lib/maps";
 import { normalizePhone } from "@/services/discovery/normalizer";
-import { CrmService, LEAD_POTENTIAL_ORDER, ProjectService } from "@/services/crm.service";
+import { CrmService, LEAD_POTENTIAL_ORDER, ProjectService, leadHeldBySales } from "@/services/crm.service";
 import {
   PitchWriterService,
   type PitchLanguage,
@@ -36,7 +38,7 @@ export interface OutreachLead {
 
 /** Leads for the pitch writer: contactable ones first, then newest. */
 export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
 
   // One round trip: the discovery record (phone/address/website status) is joined in.
   const joined = await db
@@ -66,7 +68,8 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
         discoveryCandidates,
         and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)),
       )
-      .where(eq(leads.workspaceId, workspaceId))
+      // Sales members work only their assigned leads; admins skip leads assigned to a sales rep.
+      .where(and(eq(leads.workspaceId, workspaceId), isSales ? eq(leads.ownerId, userId) : sql`not ${leadHeldBySales}`))
       // Same "best potential first" order as the Leads list, so My Day and Call session pick the best gyms.
       .orderBy(...LEAD_POTENTIAL_ORDER)
       .limit(800);
@@ -106,7 +109,8 @@ export async function generatePitchAction(
   leadId: string,
   input: { offer: string; senderName: string; tone: string; language: string },
 ) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
   const ctx = await PitchWriterService.getContext(workspaceId, String(leadId));
   if (!ctx) return { ok: false as const, error: "Lead not found." };
 
@@ -130,7 +134,8 @@ const FOLLOW_UP_AFTER_DAYS = 3;
 
 /** Records that the operator reached out (they send the message themselves). */
 export async function markContactedAction(leadId: string, channel: string, message?: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
   const ch = CHANNELS.has(channel) ? channel : "WHATSAPP";
 
   const [lead] = await db
@@ -170,7 +175,8 @@ export async function markContactedAction(leadId: string, channel: string, messa
 
 /** Reverses "reached out" (the Leads tick box): back to New, follow-up cleared. History is kept. */
 export async function unmarkContactedAction(leadId: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
   const [lead] = await db
     .select({ id: leads.id, status: leads.status, contactId: leads.contactId })
     .from(leads)
@@ -206,7 +212,8 @@ export async function unmarkContactedAction(leadId: string) {
 
 /** Saves a phone number found manually (e.g. via Google Maps) onto the lead's contact. */
 export async function setLeadPhoneAction(leadId: string, rawPhone: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
   const digits = String(rawPhone ?? "").replace(/[^\d+]/g, "");
   if (!/^\+?\d{7,15}$/.test(digits)) return { ok: false as const, error: "Enter a valid phone number (7–15 digits)." };
   const phone = normalizePhone(digits) ?? digits;
@@ -246,7 +253,8 @@ const DAY_MS = 86_400_000;
  * Won → deal won + a website project.
  */
 export async function setLeadOutcomeAction(leadId: string, outcome: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
   if (!OUTCOMES.has(outcome as LeadOutcome)) return { ok: false as const, error: "Unknown outcome." };
 
   const lead = await CrmService.getLeadById(workspaceId, String(leadId));

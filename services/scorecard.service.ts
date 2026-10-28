@@ -43,7 +43,8 @@ export function computeStreak(stats: DayStat[], goal = DAILY_GOAL): number {
 
 export class ScorecardService {
   /** Gyms reached and tasks completed since `start` — the checked-off half of My Day's list. */
-  static async getDoneSince(workspaceId: string, start: Date) {
+  /** `actorId` limits to one person's own work (a Sales member's My Day). */
+  static async getDoneSince(workspaceId: string, start: Date, actorId?: string) {
     const [reached, tasksDone] = await Promise.all([
       db.execute(sql`
         select distinct on (a.lead_id) a.lead_id as id, c.name as title, a.title as note
@@ -53,6 +54,7 @@ export class ScorecardService {
         where a.workspace_id = ${workspaceId}
           and a.occurred_at >= ${start.toISOString()}::timestamptz at time zone 'UTC'
           and (a.type = 'OUTREACH' or a.metadata->>'source' = 'lead_outcome')
+          and (${actorId ?? null}::uuid is null or a.actor_id = ${actorId ?? null}::uuid)
         order by a.lead_id, a.occurred_at desc
       `) as unknown as Promise<{ id: string; title: string; note: string }[]>,
       db.execute(sql`
@@ -65,7 +67,7 @@ export class ScorecardService {
   }
 
   /** Per-day outreach numbers for the last `days` days (IST), every day present even with no activity. */
-  static async getDailyStats(workspaceId: string, days = 60): Promise<DayStat[]> {
+  static async getDailyStats(workspaceId: string, days = 60, actorId?: string): Promise<DayStat[]> {
     const rows = (await db.execute(sql`
       select
         to_char((occurred_at at time zone 'UTC' at time zone ${TZ})::date, 'YYYY-MM-DD') as day,
@@ -78,6 +80,7 @@ export class ScorecardService {
       from activities
       where workspace_id = ${workspaceId}
         and occurred_at >= now() at time zone 'UTC' - make_interval(days => ${days})
+        and (${actorId ?? null}::uuid is null or actor_id = ${actorId ?? null}::uuid)
       group by 1
     `)) as unknown as DayStat[];
 

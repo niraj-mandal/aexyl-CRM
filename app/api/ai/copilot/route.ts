@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     // Bound prompt size so a client can't OOM the agent with a giant payload.
     const boundedPrompt = prompt.slice(0, 2000);
 
-    const copilotResponse = await AiAgentService.processCopilotCommand(workspaceId, boundedPrompt, [], null, [], { hideMoney: isSales });
+    const copilotResponse = await AiAgentService.processCopilotCommand(workspaceId, boundedPrompt, [], null, [], { hideMoney: isSales, ownerId: isSales ? userId : undefined });
     return NextResponse.json({ success: true, data: copilotResponse });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Copilot processing failed";

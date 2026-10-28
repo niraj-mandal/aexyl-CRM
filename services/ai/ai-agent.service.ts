@@ -486,10 +486,10 @@ export class AiAgentService {
     history: CopilotTurn[] = [],
     sheet: SheetSession | null = null,
     images: LlmImage[] = [],
-    opts: { hideMoney?: boolean } = {}
+    opts: { hideMoney?: boolean; ownerId?: string } = {}
   ): Promise<CopilotResponse> {
-    // Sales members: the snapshot is built without money, so neither the model nor any reply can see it.
-    const snapshot = await AiAgentService.buildWorkspaceSnapshot(workspaceId, Boolean(opts.hideMoney));
+    // Sales members: the snapshot is built without money and only from their own leads and deals.
+    const snapshot = await AiAgentService.buildWorkspaceSnapshot(workspaceId, Boolean(opts.hideMoney), opts.ownerId);
 
     // Screenshots need a vision model; keyword intents can't see them, so skip straight to it.
     if (images.length > 0) {
@@ -709,10 +709,10 @@ export class AiAgentService {
   }
 
   /** Live, compact snapshot of everything the copilot can reason about. */
-  private static async buildWorkspaceSnapshot(workspaceId: string, hideMoney = false) {
-    const [deals, leads, companies, projects, openTasks, sequences, icpProfile] = await Promise.all([
-      CrmService.getPipeline(workspaceId),
-      CrmService.getLeads(workspaceId, 100),
+  private static async buildWorkspaceSnapshot(workspaceId: string, hideMoney = false, ownerId?: string) {
+    const [deals, leads, allCompanies, projects, openTasks, sequences, icpProfile] = await Promise.all([
+      CrmService.getPipeline(workspaceId, ownerId),
+      CrmService.getLeads(workspaceId, 100, 0, ownerId),
       CrmService.getCompanies(workspaceId, 100),
       ProjectService.getProjects(workspaceId),
       CrmService.getOpenTasks(workspaceId, 15),
@@ -722,6 +722,9 @@ export class AiAgentService {
     let bdrStats: Awaited<ReturnType<typeof BdrEngineService.getDashboardStats>> | null = null;
     try { bdrStats = await BdrEngineService.getDashboardStats(workspaceId); } catch { /* non-critical */ }
 
+    // A Sales member only hears about the gyms on their own leads.
+    const mineIds = new Set(leads.map((l) => l.companyId));
+    const companies = ownerId ? allCompanies.filter((c) => mineIds.has(c.id)) : allCompanies;
     const num = (v: string | null | undefined) => parseFloat(v || "0") || 0;
     const DAY = 86_400_000;
     const now = Date.now();

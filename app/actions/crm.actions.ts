@@ -1,5 +1,7 @@
 "use server";
 
+import { assertOwnsDeal, assertOwnsLead } from "@/lib/auth/access";
+
 import { db } from "@/db";
 import { activities, companies, contacts, deals, leads, projects, workspaces } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -35,8 +37,8 @@ export async function completeTaskAction(taskId: string) {
 
 export async function getRealtimeDashboardDataAction() {
   try {
-    const { workspaceId, isSales } = await requireWorkspace();
-    const stats = await CrmService.getRealtimeStats(workspaceId);
+    const { workspaceId, userId, isSales } = await requireWorkspace();
+    const stats = await CrmService.getRealtimeStats(workspaceId, undefined, isSales ? userId : undefined);
     return { success: true, data: isSales ? redactStats(stats) : stats };
   } catch (error) {
     return {
@@ -47,8 +49,8 @@ export async function getRealtimeDashboardDataAction() {
 }
 
 export async function getPriorityQueueAction() {
-  const { workspaceId, isSales } = await requireWorkspace();
-  const queue = await CrmService.getPriorityQueue(workspaceId);
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  const queue = await CrmService.getPriorityQueue(workspaceId, isSales ? userId : undefined);
   revalidatePath("/my-day");
   return isSales
     ? { ...queue, dealsNeedingAttention: queue.dealsNeedingAttention.map(redactDeal), wonRecently: queue.wonRecently.map(redactDeal) }
@@ -148,7 +150,8 @@ export async function createLeadAction(data: Omit<typeof leads.$inferInsert, "wo
 }
 
 export async function updateLeadAction(leadId: string, data: Partial<Omit<typeof leads.$inferInsert, "workspaceId">>) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
   const lead = await CrmService.updateLead(workspaceId, leadId, data);
   await ActivityService.logAudit(workspaceId, userId, "UPDATE", "LEAD", lead.id);
   revalidatePath("/leads");
@@ -167,6 +170,7 @@ export async function deleteLeadAction(leadId: string) {
 
 export async function convertLeadToDealAction(leadId: string, dealData: Partial<Omit<typeof deals.$inferInsert, "workspaceId" | "leadId" | "ownerId">>) {
   const { userId, workspaceId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
   // Sales members can't set or see deal values.
   const deal = await CrmService.convertLeadToDeal(workspaceId, leadId, isSales ? { ...dealData, value: undefined } : dealData);
   await ActivityService.logAudit(workspaceId, userId, "CONVERT", "LEAD_TO_DEAL", leadId, { dealId: deal.id });
@@ -192,6 +196,7 @@ export async function createDealAction(data: Omit<typeof deals.$inferInsert, "wo
 
 export async function updateDealAction(dealId: string, data: Partial<Omit<typeof deals.$inferInsert, "workspaceId">>) {
   const { userId, workspaceId, isSales } = await requireWorkspace();
+  await assertOwnsDeal({ workspaceId, userId, isSales }, dealId);
   // Sales members can't change a deal's value (they never see it).
   const deal = await CrmService.updateDeal(workspaceId, dealId, isSales ? { ...data, value: undefined } : data);
   await ActivityService.logAudit(workspaceId, userId, "UPDATE", "DEAL", deal.id);
@@ -202,6 +207,7 @@ export async function updateDealAction(dealId: string, data: Partial<Omit<typeof
 
 export async function updateDealStageAction(dealId: string, newStage: string) {
   const { userId, workspaceId, isSales } = await requireWorkspace();
+  await assertOwnsDeal({ workspaceId, userId, isSales }, dealId);
 
   // Get the old deal (workspace-scoped) to record the change activity
   const oldDeal = await db.query.deals.findFirst({
@@ -344,7 +350,9 @@ export async function createActivityAction(input: {
   title: string;
   description?: string;
 }) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  if (input.entityType === "lead") await assertOwnsLead({ workspaceId, userId, isSales }, input.entityId);
+  if (input.entityType === "deal") await assertOwnsDeal({ workspaceId, userId, isSales }, input.entityId);
 
   const activity = await ActivityService.createActivity(workspaceId, {
     workspaceId,
@@ -544,7 +552,9 @@ export async function scheduleMeetingAction(input: {
   entityType?: "lead" | "deal" | "contact";
   entityId?: string;
 }) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  if (input.entityType === "lead") await assertOwnsLead({ workspaceId, userId, isSales }, input.entityId);
+  if (input.entityType === "deal") await assertOwnsDeal({ workspaceId, userId, isSales }, input.entityId);
 
   const whenDate = new Date(input.when);
   if (!input.title.trim()) throw new Error("Meeting title is required");
@@ -596,7 +606,8 @@ export async function confirmLeadForMeetingAction(input: {
   when: string; // datetime-local string
   description?: string;
 }) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, input.leadId);
 
   const whenDate = new Date(input.when);
   if (!input.title.trim()) throw new Error("Meeting title is required");
@@ -670,7 +681,8 @@ export async function deleteMeetingAction(activityId: string) {
  * nulling nextFollowUpAt). The lead record itself is untouched.
  */
 export async function clearFollowUpAction(leadId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  await assertOwnsLead({ workspaceId, userId, isSales }, leadId);
 
   const lead = await CrmService.updateLead(workspaceId, leadId, { nextFollowUpAt: null });
   if (!lead) throw new Error("Lead not found");

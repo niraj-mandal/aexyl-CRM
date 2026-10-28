@@ -12,10 +12,11 @@ const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "â€
 const dayLabel = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
 export default async function ScoreboardPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
   const requested = Number((await searchParams).days);
   const days = RANGES.includes(requested) ? requested : 7;
-  const { totals: t, today, daily, cities } = await ScoreboardService.get(workspaceId, days);
+  // Sales members see their own numbers; admins see everyone, with a per-person breakdown.
+  const { totals: t, today, daily, cities, people } = await ScoreboardService.get(workspaceId, days, undefined, isSales ? userId : undefined);
   const max = Math.max(1, ...daily.map((d) => d.calls));
 
   const chip = (active: boolean) =>
@@ -91,6 +92,40 @@ export default async function ScoreboardPage({ searchParams }: { searchParams: P
               <span>Today</span>
             </div>
           </section>
+
+          {!isSales && people.length > 0 && (
+            <section className="glass-panel overflow-hidden">
+              <h2 className="px-5 pt-5 text-sm font-semibold text-text-primary">By person</h2>
+              <div className="overflow-x-auto">
+                <table className="mt-3 w-full text-left text-sm">
+                  <thead className="border-b border-border-subtle text-xs text-text-muted">
+                    <tr>
+                      <th className="px-5 py-2.5 font-medium">Person</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Calls</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Picked up</th>
+                      <th className="px-3 py-2.5 text-right font-medium">WhatsApps</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Interested</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Won</th>
+                      <th className="px-5 py-2.5 text-right font-medium">Interest rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="num divide-y divide-border-subtle text-text-secondary">
+                    {people.map((p) => (
+                      <tr key={p.person}>
+                        <td className="px-5 py-2.5 font-medium text-text-primary">{p.person}</td>
+                        <td className="px-3 py-2.5 text-right">{p.calls}</td>
+                        <td className="px-3 py-2.5 text-right">{p.connected}</td>
+                        <td className="px-3 py-2.5 text-right">{p.whatsapp}</td>
+                        <td className="px-3 py-2.5 text-right">{p.interested}</td>
+                        <td className="px-3 py-2.5 text-right">{p.won}</td>
+                        <td className="px-5 py-2.5 text-right text-text-primary">{pct(p.interested, p.connected)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           <section className="glass-panel overflow-hidden">
             <h2 className="px-5 pt-5 text-sm font-semibold text-text-primary">By city</h2>

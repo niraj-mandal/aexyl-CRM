@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { agentEvents, companies, contacts, leads, deals, projects, tasks, discoveryCandidates } from "@/db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { leadCity } from "@/lib/maps";
+import { SALES_ROLE } from "@/lib/auth/roles";
 
 // ---------------------------------------------------------------------------
 // PROJECT DELIVERY
@@ -47,6 +48,12 @@ export class ProjectService {
 // ---------------------------------------------------------------------------
 // CRM CORE
 // ---------------------------------------------------------------------------
+
+/** Leads assigned to a Sales member: admins' Today and Call session skip these (that rep calls them). */
+export const leadHeldBySales = sql<boolean>`exists (
+  select 1 from workspace_memberships m join roles r on r.id = m.role_id
+  where m.user_id = ${leads.ownerId} and m.workspace_id = ${leads.workspaceId} and r.name = ${SALES_ROLE}
+)`;
 
 /** Open leads first, then by potential: temperature, discovery fit, score, newest. */
 export const LEAD_POTENTIAL_ORDER = [
@@ -262,7 +269,8 @@ export class CrmService {
   // ---------------------------------------------------------------------------
 
   /** Real table-wide counts for the leads page stat cards (not the page slice). */
-  static async getLeadCounts(workspaceId: string) {
+  /** `ownerId` limits to one person's leads (Sales members only ever see their own). */
+  static async getLeadCounts(workspaceId: string, ownerId?: string) {
     const rows = await db
       .select({
         status: leads.status,
@@ -270,7 +278,7 @@ export class CrmService {
         count: sql<number>`count(*)::int`,
       })
       .from(leads)
-      .where(eq(leads.workspaceId, workspaceId))
+      .where(and(eq(leads.workspaceId, workspaceId), ownerId ? eq(leads.ownerId, ownerId) : undefined))
       .groupBy(leads.status, leads.temperature);
     return {
       total: rows.reduce((acc, r) => acc + r.count, 0),
@@ -279,9 +287,9 @@ export class CrmService {
     };
   }
 
-  static async getLeads(workspaceId: string, limit = 50, offset = 0) {
+  static async getLeads(workspaceId: string, limit = 50, offset = 0, ownerId?: string) {
     return db.query.leads.findMany({
-      where: eq(leads.workspaceId, workspaceId),
+      where: and(eq(leads.workspaceId, workspaceId), ownerId ? eq(leads.ownerId, ownerId) : undefined),
       orderBy: [desc(leads.createdAt)],
       limit,
       offset,
@@ -298,6 +306,7 @@ export class CrmService {
     if (ids.length === 0) return [];
     const rows = await db.query.leads.findMany({
       where: and(eq(leads.workspaceId, workspaceId), inArray(leads.id, ids)),
+      extras: { heldBySales: leadHeldBySales.as("held_by_sales") },
       with: {
         company: { columns: { name: true, location: true, website: true } },
         contact: { columns: { firstName: true, lastName: true, email: true, phone: true } },
@@ -310,7 +319,7 @@ export class CrmService {
   }
 
   /** Every lead's id and city, open leads first, then by potential (temperature, discovery fit, score) — small enough to filter and count in memory. */
-  static async getLeadCityIndex(workspaceId: string) {
+  static async getLeadCityIndex(workspaceId: string, ownerId?: string) {
     const rows = await db
       .select({
         id: leads.id,
@@ -324,7 +333,7 @@ export class CrmService {
         discoveryCandidates,
         and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)),
       )
-      .where(eq(leads.workspaceId, workspaceId))
+      .where(and(eq(leads.workspaceId, workspaceId), ownerId ? eq(leads.ownerId, ownerId) : undefined))
       .orderBy(...LEAD_POTENTIAL_ORDER);
     // A lead can match more than one discovery record; keep the first.
     const seen = new Set<string>();
@@ -409,9 +418,10 @@ export class CrmService {
   // DEALS (PIPELINE)
   // ---------------------------------------------------------------------------
 
-  static async getPipeline(workspaceId: string) {
+  /** `ownerId` limits to one person's deals (Sales members only see their own). */
+  static async getPipeline(workspaceId: string, ownerId?: string) {
     return db.query.deals.findMany({
-      where: eq(deals.workspaceId, workspaceId),
+      where: and(eq(deals.workspaceId, workspaceId), ownerId ? eq(deals.ownerId, ownerId) : undefined),
       orderBy: [desc(deals.updatedAt)],
       with: {
         company: { columns: { name: true } },
@@ -471,8 +481,11 @@ export class CrmService {
    */
   static async getRealtimeStats(
     workspaceId: string,
-    user?: { firstName: string | null; lastName: string | null }
+    user?: { firstName: string | null; lastName: string | null },
+    ownerId?: string,
   ) {
+    const dealScope = and(eq(deals.workspaceId, workspaceId), ownerId ? eq(deals.ownerId, ownerId) : undefined);
+    const leadScope = and(eq(leads.workspaceId, workspaceId), ownerId ? eq(leads.ownerId, ownerId) : undefined);
     const startedAt = Date.now();
 
     // Four independent aggregates, run in parallel (each is a cross-region round trip).
@@ -488,7 +501,7 @@ export class CrmService {
         fresh: sql<number>`(count(*) filter (where ${deals.stage} not in ('WON', 'LOST') and ${deals.updatedAt} > now() - interval '14 days'))::int`,
       })
       .from(deals)
-      .where(eq(deals.workspaceId, workspaceId)),
+      .where(dealScope),
       db
       .select({
         stage: deals.stage,
@@ -496,7 +509,7 @@ export class CrmService {
         value: sql<string>`coalesce(sum(${deals.value}), 0)`,
       })
       .from(deals)
-      .where(eq(deals.workspaceId, workspaceId))
+      .where(dealScope)
       .groupBy(deals.stage),
       db
       .select({
@@ -505,7 +518,7 @@ export class CrmService {
         hot: sql<number>`(count(*) filter (where ${leads.temperature} = 'HOT' or ${leads.score} >= 70))::int`,
       })
       .from(leads)
-      .where(eq(leads.workspaceId, workspaceId)),
+      .where(leadScope),
       db
       .select({
         total: sql<number>`count(*)::int`,
@@ -545,9 +558,10 @@ export class CrmService {
    * Work queue computed from real lead/deal state: follow-ups due, hot leads,
    * stale leads, deals closing soon or gone quiet, and recent wins.
    */
-  static async getPriorityQueue(workspaceId: string) {
+  /** `ownerId` limits to one person's leads and deals (a Sales member's My Day). */
+  static async getPriorityQueue(workspaceId: string, ownerId?: string) {
     const openLeads = await db.query.leads.findMany({
-      where: and(eq(leads.workspaceId, workspaceId), sql`${leads.status} not in ('CONVERTED', 'LOST')`),
+      where: and(eq(leads.workspaceId, workspaceId), sql`${leads.status} not in ('CONVERTED', 'LOST')`, ownerId ? eq(leads.ownerId, ownerId) : undefined),
       with: {
         company: { columns: { name: true } },
         contact: { columns: { firstName: true, lastName: true, email: true } },
@@ -555,12 +569,12 @@ export class CrmService {
     });
 
     const openDeals = await db.query.deals.findMany({
-      where: and(eq(deals.workspaceId, workspaceId), sql`${deals.stage} not in ('WON', 'LOST')`),
+      where: and(eq(deals.workspaceId, workspaceId), sql`${deals.stage} not in ('WON', 'LOST')`, ownerId ? eq(deals.ownerId, ownerId) : undefined),
       with: { company: { columns: { name: true } } },
     });
 
     const wonDeals = await db.query.deals.findMany({
-      where: and(eq(deals.workspaceId, workspaceId), eq(deals.stage, "WON")),
+      where: and(eq(deals.workspaceId, workspaceId), eq(deals.stage, "WON"), ownerId ? eq(deals.ownerId, ownerId) : undefined),
       orderBy: [desc(deals.updatedAt)],
       limit: 5,
       with: { company: { columns: { name: true } } },

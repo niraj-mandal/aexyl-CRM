@@ -48,18 +48,20 @@ function wrapUp(t: DayStat): string {
 }
 
 export default async function MyDayPage() {
-  const { workspaceId, isSales } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  // A Sales member's My Day covers only their own gyms and their own work.
+  const mine = isSales ? userId : undefined;
 
   const todayStart = istDayStart(lastDays(1)[0]);
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
   const dayAfter = new Date(todayStart.getTime() + 2 * 86_400_000);
 
   const [stats, events, queue, openTasks, doneToday, allDrafts] = await Promise.all([
-    ScorecardService.getDailyStats(workspaceId, 60),
+    ScorecardService.getDailyStats(workspaceId, 60, mine),
     CalendarService.getEvents(workspaceId, todayStart, dayAfter, { hideMoney: isSales }),
-    CrmService.getPriorityQueue(workspaceId),
+    CrmService.getPriorityQueue(workspaceId, mine),
     CrmService.getOpenTasks(workspaceId, 20),
-    ScorecardService.getDoneSince(workspaceId, todayStart),
+    ScorecardService.getDoneSince(workspaceId, todayStart, mine),
     // Agent-prepared follow-up emails waiting on a human decision.
     db
       .select({

@@ -5,7 +5,7 @@
  */
 import { and, eq, gte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { activities, companies, discoveryCandidates, leads } from "@/db/schema";
+import { activities, companies, discoveryCandidates, leads, users } from "@/db/schema";
 import { leadCity } from "@/lib/maps";
 
 const IST_MS = 330 * 60_000;
@@ -73,7 +73,8 @@ export function applyUnticks<E extends { leadId: string; type: string; metadata:
 }
 
 export class ScoreboardService {
-  static async get(workspaceId: string, days: number, now = new Date()) {
+  /** `actorId` limits to one person's own calls and outcomes (what a Sales member sees). */
+  static async get(workspaceId: string, days: number, now = new Date(), actorId?: string) {
     // Start of the IST day `days - 1` days ago, so "7 days" is today plus the 6 before it.
     const todayStart = Date.parse(`${istDay(now)}T00:00:00Z`) - IST_MS;
     const since = new Date(todayStart - (days - 1) * DAY_MS);
@@ -88,14 +89,19 @@ export class ScoreboardService {
         location: companies.location,
         candidateCity: discoveryCandidates.city,
         leadId: activities.leadId,
+        actorId: activities.actorId,
+        actorFirst: users.firstName,
+        actorLast: users.lastName,
       })
       .from(activities)
       .innerJoin(leads, eq(leads.id, activities.leadId))
       .leftJoin(companies, eq(companies.id, leads.companyId))
+      .leftJoin(users, eq(users.id, activities.actorId))
       .leftJoin(discoveryCandidates, and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)))
       .where(and(
         eq(activities.workspaceId, workspaceId),
         gte(activities.occurredAt, since),
+        actorId ? eq(activities.actorId, actorId) : undefined,
         or(
           eq(activities.type, "OUTREACH"),
           and(eq(activities.type, "STAGE_CHANGE"), sql`${activities.metadata}->>'source' = 'lead_outcome'`),
@@ -106,12 +112,12 @@ export class ScoreboardService {
 
     // A lead can match several discovery records; count each activity once.
     const seen = new Set<string>();
-    const raw: (ScoreEvent & { city: string })[] = [];
+    const raw: (ScoreEvent & { city: string; person: string })[] = [];
     for (const r of rows) {
       const key = `${r.leadId}|${r.occurredAt.getTime()}|${r.type}`;
       if (seen.has(key) || !r.leadId) continue;
       seen.add(key);
-      raw.push({ ...r, leadId: r.leadId, day: istDay(r.occurredAt), city: leadCity(r) });
+      raw.push({ ...r, leadId: r.leadId, day: istDay(r.occurredAt), city: leadCity(r), person: [r.actorFirst, r.actorLast].filter(Boolean).join(" ") || "Unknown" });
     }
     const events = applyUnticks(raw);
 
@@ -123,6 +129,7 @@ export class ScoreboardService {
     };
     const byDay = group((e) => e.day);
     const byCity = group((e) => e.city);
+    const byPerson = group((e) => e.person);
 
     return {
       totals: tally(events),
@@ -130,6 +137,9 @@ export class ScoreboardService {
       daily: dayKeys.map((day) => ({ day, ...tally(byDay.get(day) ?? []) })),
       cities: [...byCity]
         .map(([city, evs]) => ({ city, ...tally(evs) }))
+        .sort((a, b) => b.calls + b.whatsapp - (a.calls + a.whatsapp)),
+      people: [...byPerson]
+        .map(([person, evs]) => ({ person, ...tally(evs) }))
         .sort((a, b) => b.calls + b.whatsapp - (a.calls + a.whatsapp)),
     };
   }
