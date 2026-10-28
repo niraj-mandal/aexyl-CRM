@@ -5,6 +5,20 @@
  */
 export type ScriptSection = { title: string; lines: string[] };
 
+/** The lead fields the scripts read. `area`/`place` (address or "City, State, India") pick the greeting. */
+type ScriptLead = { businessName: string; city: string | null; notes: string | null; area?: string | null; place?: string | null };
+
+/**
+ * Greeting that fits where the gym is: Punjabi in Punjab, "Pranam" in Bihar (and the
+ * Hindi-speaking east), "Namaste" anywhere else. Read from the gym's own address.
+ */
+export function greetingFor(lead: Pick<ScriptLead, "area" | "place">): string {
+  const where = `${lead.area ?? ""} ${lead.place ?? ""}`.toLowerCase();
+  if (/\bpunjab\b/.test(where)) return "Sat Sri Akal ji";
+  if (/\b(bihar|jharkhand)\b/.test(where)) return "Pranam ji";
+  return "Namaste ji";
+}
+
 export function parseReviews(notes: string | null | undefined): { rating: number; reviews: number } | null {
   const rating = notes?.match(/(\d(?:\.\d+)?)\s*★/)?.[1];
   const reviews = notes?.match(/(\d+)\s+(?:Google\s+)?reviews/i)?.[1] ?? notes?.match(/Google reviews:\s*(\d+)/i)?.[1];
@@ -38,28 +52,30 @@ export function suggestedWhatsApp(status: string): WhatsAppKind {
 /** WhatsApp text for one situation, from the lead's own facts only. */
 export function buildWhatsApp(
   kind: WhatsAppKind,
-  lead: { businessName: string; city: string | null; notes: string | null },
+  lead: ScriptLead,
   name = senderName(),
   demoLink = "[demo link]",
 ): string {
   const gym = lead.businessName;
+  const hello = greetingFor(lead);
   const city = lead.city && lead.city !== "Unknown" ? lead.city : "aapke area";
   const r = parseReviews(lead.notes);
   const praise = r && r.reviews >= 10 && r.rating >= 4 ? ` Aapke ${r.reviews} Google reviews aur ${r.rating} rating dekhi, bahut badhiya!` : "";
   switch (kind) {
     case "intro":
-      return `Sat Sri Akal ji! Main ${name}, AEXYL se.${praise}\n\n${gym} ki koi website nahi hai, toh ${city} mein Google pe gym dhoondhne wale naye log aap tak nahi pahunch paate.\n\nMain ${gym} ki ek free demo website bana ke dikha sakta hoon. Bhej doon?`;
+      return `${hello}! Main ${name}, AEXYL se.${praise}\n\n${gym} ki koi website nahi hai, toh ${city} mein Google pe gym dhoondhne wale naye log aap tak nahi pahunch paate.\n\nMain ${gym} ki ek free demo website bana ke dikha sakta hoon. Bhej doon?`;
     case "noAnswer":
-      return `Sat Sri Akal ji! Main ${name}, AEXYL se. Aapko ${gym} ke baare mein call kiya tha.${praise}\n\nAapki gym ki free demo website bana ke dikhana chahta hoon. Kab baat ho sakti hai?`;
+      return `${hello}! Main ${name}, AEXYL se. Aapko ${gym} ke baare mein call kiya tha.${praise}\n\nAapki gym ki free demo website bana ke dikhana chahta hoon. Kab baat ho sakti hai?`;
     case "callback":
-      return `Sat Sri Akal ji! ${name} AEXYL se. ${gym} ki website ke baare mein baat hui thi.\n\nJab free ho, bataiye kab call karoon? 5 minute ka kaam hai.`;
+      return `${hello}! ${name} AEXYL se. ${gym} ki website ke baare mein baat hui thi.\n\nJab free ho, bataiye kab call karoon? 5 minute ka kaam hai.`;
     case "demo":
-      return `Sat Sri Akal ji! ${name} AEXYL se. Jaisa call pe kaha tha, ${gym} ki demo website:\n\n${demoLink}\n\nDekh ke bataiye kaisi lagi. Kal 5 minute call kar loon aapka feedback lene ke liye?`;
+      return `${hello}! ${name} AEXYL se. Jaisa call pe kaha tha, ${gym} ki demo website:\n\n${demoLink}\n\nDekh ke bataiye kaisi lagi. Kal 5 minute call kar loon aapka feedback lene ke liye?`;
   }
 }
 
-export function buildCallScript(lead: { businessName: string; city: string | null; notes: string | null }, name = senderName()): ScriptSection[] {
+export function buildCallScript(lead: ScriptLead, name = senderName()): ScriptSection[] {
   const gym = lead.businessName;
+  const hello = greetingFor(lead);
   const city = lead.city && lead.city !== "Unknown" ? lead.city : "aapke area";
   const r = parseReviews(lead.notes);
   const site = /business\.site/i.test(lead.notes ?? "") ? "googleSite" : /facebook|instagram/i.test(lead.notes ?? "") ? "social" : "none";
@@ -78,7 +94,7 @@ export function buildCallScript(lead: { businessName: string; city: string | nul
     {
       title: "Opener",
       lines: [
-        `"Sat Sri Akal ji! Main ${name} bol raha hoon, AEXYL se. Kya meri baat ${gym} ke owner se ho rahi hai?"`,
+        `"${hello}! Main ${name} bol raha hoon, AEXYL se. Kya meri baat ${gym} ke owner se ho rahi hai?"`,
         `"Ji, sirf 30 second loonga. ${compliment}"`,
         `Staff picks up: "Owner sahab kab milenge? Unki Google listing ke baare mein baat karni thi." Get their name and number.`,
       ],
