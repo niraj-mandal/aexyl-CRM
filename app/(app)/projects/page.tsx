@@ -6,7 +6,7 @@ import { GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { ProjectService } from "@/services/crm.service";
 import { CrmService } from "@/services/crm.service";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { LiveRefresher } from "@/components/crm/LiveRefresher";
 import { CreateProjectButton, ProjectControls } from "@/components/crm/ProjectBoard";
 import { FolderKanban, Clock, Building2, User, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -44,7 +44,7 @@ function formatDate(d: Date | string | null) {
 }
 
 export default async function ProjectsPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
   const [projects, companies] = await Promise.all([
     ProjectService.getProjects(workspaceId),
     CrmService.getCompanies(workspaceId),

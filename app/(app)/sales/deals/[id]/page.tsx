@@ -1,6 +1,6 @@
 import { rupees } from "@/lib/stages";
 import { Display } from "@/components/ui/typography";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { deals } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -12,7 +12,7 @@ import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { format } from "date-fns";
 
 export default async function DealDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
   const { id: dealId } = await params;
 
   const deal = await db.query.deals.findFirst({

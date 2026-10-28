@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useIsSales } from "@/components/providers/role-provider";
 import { UserButton } from "@clerk/nextjs";
 import { format } from "date-fns";
 import { Search, Command, ShieldAlert, Menu } from "lucide-react";
@@ -13,6 +14,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
   const today = new Date();
   const { pending, failedRuns } = useActionNeededCount();
   const actionNeeded = pending > 0 || failedRuns > 0;
+  const isSales = useIsSales();
 
   return (
     <header className="sticky top-0 z-20 flex h-16 flex-shrink-0 items-center justify-between gap-2 px-4 md:px-8 bg-[var(--chrome-bg)] backdrop-blur-2xl backdrop-saturate-150 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-5 after:bg-gradient-to-b after:from-[var(--chrome-bg)] after:to-transparent">
@@ -33,8 +35,8 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
 
       <div className="flex items-center space-x-2 md:space-x-4">
         <ThemeToggle />
-        {/* Pinned approvals shortcut — review inbox always one click away */}
-        <Link
+        {/* Pinned approvals shortcut — review inbox always one click away (admins only) */}
+        {!isSales && <Link
           href="/agents/approvals"
           className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-all ${
             actionNeeded
@@ -46,7 +48,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
           <ShieldAlert className={`h-3.5 w-3.5 ${actionNeeded ? "text-tertiary" : ""}`} />
           <span className="hidden lg:inline">Action needed</span>
           <ActionNeededBadge count={pending} />
-        </Link>
+        </Link>}
         <NotificationBell />
         {/* Search Command Palette Trigger */}
         <button

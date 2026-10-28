@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trash2 } from "lucide-react";
+import { useIsSales } from "@/components/providers/role-provider";
 
 /**
  * Generic two-stage row delete — the same pattern as DeleteLeadButton: click
@@ -29,6 +30,8 @@ export function DeleteRowButton({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  // Only admins can delete (the server enforces it too).
+  const isSales = useIsSales();
 
   const handleDelete = () => {
     setError(null);
@@ -48,6 +51,8 @@ export function DeleteRowButton({
       }
     });
   };
+
+  if (isSales) return null;
 
   if (confirming) {
     return (

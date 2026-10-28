@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { agentEvents, agents, agentRuns, automationRules } from "@/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -32,11 +32,11 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 export default async function AgentsPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
 
   const [{ agents: agentRows, killSwitchEngaged }, recentRuns, pendingApprovals, rules, runs24h, events7d] =
     await Promise.all([
-      getAgentsOverview(workspaceId),
+      getAgentsOverview(),
       db
         .select({
           id: agentRuns.id,
@@ -52,7 +52,7 @@ export default async function AgentsPage() {
         .where(eq(agentRuns.workspaceId, workspaceId))
         .orderBy(desc(agentRuns.createdAt))
         .limit(8),
-      getPendingApprovals(workspaceId),
+      getPendingApprovals(),
       db
         .select({
           id: automationRules.id,

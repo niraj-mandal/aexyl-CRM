@@ -6,8 +6,9 @@ import { eq, and, sql } from "drizzle-orm";
 import { CrmService, ProjectService } from "@/services/crm.service";
 import { ActivityService } from "@/services/activity.service";
 import { LeadScoringService } from "@/services/sales/lead-scoring.service";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireWorkspace, requireAdmin } from "@/lib/auth/workspace";
 import { revalidatePath } from "next/cache";
+import { redactDeal, redactStats } from "@/lib/redact";
 
 // ---------------------------------------------------------------------------
 // AGENT TASKS
@@ -34,9 +35,9 @@ export async function completeTaskAction(taskId: string) {
 
 export async function getRealtimeDashboardDataAction() {
   try {
-    const { workspaceId } = await requireWorkspace();
+    const { workspaceId, isSales } = await requireWorkspace();
     const stats = await CrmService.getRealtimeStats(workspaceId);
-    return { success: true, data: stats };
+    return { success: true, data: isSales ? redactStats(stats) : stats };
   } catch (error) {
     return {
       success: false,
@@ -46,10 +47,12 @@ export async function getRealtimeDashboardDataAction() {
 }
 
 export async function getPriorityQueueAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, isSales } = await requireWorkspace();
   const queue = await CrmService.getPriorityQueue(workspaceId);
   revalidatePath("/my-day");
-  return queue;
+  return isSales
+    ? { ...queue, dealsNeedingAttention: queue.dealsNeedingAttention.map(redactDeal), wonRecently: queue.wonRecently.map(redactDeal) }
+    : queue;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +78,7 @@ export async function updateCompanyAction(companyId: string, data: Partial<Omit<
 }
 
 export async function deleteCompanyAction(companyId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
   const company = await CrmService.deleteCompany(workspaceId, companyId);
   await ActivityService.logAudit(workspaceId, userId, "DELETE", "COMPANY", companyId);
   revalidatePath("/clients");
@@ -104,7 +107,7 @@ export async function updateContactAction(contactId: string, data: Partial<Omit<
 }
 
 export async function deleteContactAction(contactId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
   const contact = await CrmService.deleteContact(workspaceId, contactId);
   await ActivityService.logAudit(workspaceId, userId, "DELETE", "CONTACT", contactId);
   revalidatePath("/sales/contacts");
@@ -154,7 +157,7 @@ export async function updateLeadAction(leadId: string, data: Partial<Omit<typeof
 }
 
 export async function deleteLeadAction(leadId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
   const lead = await CrmService.deleteLead(workspaceId, leadId);
   await ActivityService.logAudit(workspaceId, userId, "DELETE", "LEAD", leadId);
   revalidatePath("/leads");
@@ -163,13 +166,14 @@ export async function deleteLeadAction(leadId: string) {
 }
 
 export async function convertLeadToDealAction(leadId: string, dealData: Partial<Omit<typeof deals.$inferInsert, "workspaceId" | "leadId" | "ownerId">>) {
-  const { userId, workspaceId } = await requireWorkspace();
-  const deal = await CrmService.convertLeadToDeal(workspaceId, leadId, dealData);
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  // Sales members can't set or see deal values.
+  const deal = await CrmService.convertLeadToDeal(workspaceId, leadId, isSales ? { ...dealData, value: undefined } : dealData);
   await ActivityService.logAudit(workspaceId, userId, "CONVERT", "LEAD_TO_DEAL", leadId, { dealId: deal.id });
   revalidatePath("/leads");
   revalidatePath("/pipeline");
   revalidatePath("/sales/deals");
-  return deal;
+  return isSales ? redactDeal(deal) : deal;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,26 +181,27 @@ export async function convertLeadToDealAction(leadId: string, dealData: Partial<
 // ---------------------------------------------------------------------------
 
 export async function createDealAction(data: Omit<typeof deals.$inferInsert, "workspaceId" | "ownerId">) {
-  const { userId, workspaceId } = await requireWorkspace();
-  const deal = await CrmService.createDeal(workspaceId, { ...data, ownerId: userId });
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  const deal = await CrmService.createDeal(workspaceId, { ...data, ...(isSales ? { value: null } : {}), ownerId: userId });
   await ActivityService.logAudit(workspaceId, userId, "CREATE", "DEAL", deal.id);
   revalidatePath("/pipeline");
   revalidatePath("/sales/deals");
   revalidatePath("/");
-  return deal;
+  return isSales ? redactDeal(deal) : deal;
 }
 
 export async function updateDealAction(dealId: string, data: Partial<Omit<typeof deals.$inferInsert, "workspaceId">>) {
-  const { userId, workspaceId } = await requireWorkspace();
-  const deal = await CrmService.updateDeal(workspaceId, dealId, data);
+  const { userId, workspaceId, isSales } = await requireWorkspace();
+  // Sales members can't change a deal's value (they never see it).
+  const deal = await CrmService.updateDeal(workspaceId, dealId, isSales ? { ...data, value: undefined } : data);
   await ActivityService.logAudit(workspaceId, userId, "UPDATE", "DEAL", deal.id);
   revalidatePath("/pipeline");
   revalidatePath("/sales/deals");
-  return deal;
+  return isSales ? redactDeal(deal) : deal;
 }
 
 export async function updateDealStageAction(dealId: string, newStage: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId, isSales } = await requireWorkspace();
 
   // Get the old deal (workspace-scoped) to record the change activity
   const oldDeal = await db.query.deals.findFirst({
@@ -225,11 +230,11 @@ export async function updateDealStageAction(dealId: string, newStage: string) {
   revalidatePath("/pipeline");
   revalidatePath("/sales/deals");
   revalidatePath("/");
-  return deal;
+  return isSales ? redactDeal(deal) : deal;
 }
 
 export async function deleteDealAction(dealId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
   const deal = await CrmService.deleteDeal(workspaceId, dealId);
   await ActivityService.logAudit(workspaceId, userId, "DELETE", "DEAL", dealId);
   revalidatePath("/pipeline");
@@ -372,7 +377,7 @@ export async function createActivityAction(input: {
 // ---------------------------------------------------------------------------
 
 export async function getWorkspaceSettingsAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   const workspace = await db.query.workspaces.findFirst({
     where: eq(workspaces.id, workspaceId),
     columns: {
@@ -395,7 +400,7 @@ export async function updateWorkspaceSettingsAction(input: {
   sweepFollowUpDays?: number;
   staleLeadDays?: number;
 }) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
 
   const data: {
     name?: string;
@@ -453,7 +458,7 @@ export async function createProjectAction(input: {
   dueDate?: string;
   notes?: string;
 }) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
 
   const existing = await db
     .select({ code: projects.code })
@@ -496,7 +501,7 @@ export async function updateProjectAction(
     notes?: string;
   }
 ) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
 
   const data: { progress?: number; status?: string; health?: string; notes?: string; deliveredAt?: Date | null } = {};
   if (input.progress != null) data.progress = Math.max(0, Math.min(100, Math.round(input.progress)));
@@ -516,7 +521,7 @@ export async function updateProjectAction(
 }
 
 export async function deleteProjectAction(projectId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
   const project = await ProjectService.deleteProject(workspaceId, projectId);
   await ActivityService.logAudit(workspaceId, userId, "DELETE", "PROJECT", projectId);
   revalidatePath("/projects");
@@ -634,7 +639,7 @@ export async function confirmLeadForMeetingAction(input: {
  * lead/deal/contact records are untouched.
  */
 export async function deleteMeetingAction(activityId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
 
   const [existing] = await db
     .select({ id: activities.id, title: activities.title, leadId: activities.leadId })

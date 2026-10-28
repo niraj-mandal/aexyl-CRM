@@ -1,6 +1,6 @@
 "use server";
 
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireWorkspace, requireAdmin } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { discoveryBatches, discoveryCandidates, leads } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
@@ -84,7 +84,7 @@ export async function saveDiscoverySettingsAction(input: {
   dailyTarget: number;
   rotation?: string[];
 }) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   const rotation = (Array.isArray(input.rotation) ? input.rotation : [])
     .map((c) => String(c ?? "").trim().slice(0, 200))
     .filter(Boolean)

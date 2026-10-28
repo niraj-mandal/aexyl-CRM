@@ -1,6 +1,6 @@
 "use server";
 
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireWorkspace, requireAdmin } from "@/lib/auth/workspace";
 import { AiAgentService, type CopilotTurn } from "@/services/ai/ai-agent.service";
 import { LeadDiscoveryService, type DiscoveredLead } from "@/services/ai/lead-discovery.service";
 import { LocalLeadDiscoveryService } from "@/services/ai/local-lead-discovery.service";
@@ -25,13 +25,13 @@ export type { ImportLeadCandidate } from "@/services/ai/lead-import.service";
 
 /** Fresh audit (explicit "Run audit"). Read-only, so no revalidation: that re-rendered the whole page. */
 export async function runPipelineStrategicAuditAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   return AiAgentService.auditPipelineRiskCached(workspaceId, 0);
 }
 
 /** Recent audit for passive views (Daily brief): reuses a result up to 5 minutes old. */
 export async function getPipelineAuditAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   return AiAgentService.auditPipelineRiskCached(workspaceId);
 }
 
@@ -70,7 +70,7 @@ export async function sendCopilotPromptAction(
   sheetId?: string,
   images?: { mediaType: string; data: string }[]
 ) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
   const safeImages = sanitizeCopilotImages(images);
 
   // Optional attached spreadsheet: the client only presents an id — the rows
@@ -96,7 +96,7 @@ export async function sendCopilotPromptAction(
     }))
     .filter((t) => t.text.trim().length > 0);
 
-  const response = await AiAgentService.processCopilotCommand(workspaceId, prompt, safeHistory, sheet, safeImages);
+  const response = await AiAgentService.processCopilotCommand(workspaceId, prompt, safeHistory, sheet, safeImages, { hideMoney: isSales });
 
   // Arm any write-proposals: replace client-visible payloads with unforgeable,
   // single-use tokens. The client never carries the proposal content.
@@ -109,6 +109,12 @@ export async function sendCopilotPromptAction(
       }
       const proposal = normalizeWriteProposal(action.actionType, action.payload);
       if (!proposal) continue; // un-salvageable — drop the card, keep the answer
+      if (isSales) {
+        // No delete cards and no deal amounts for the sales team.
+        if (proposal.kind.startsWith("DELETE_")) continue;
+        delete proposal.dealValue;
+        delete proposal.dealValueStr;
+      }
       let cardExtras: Record<string, unknown> = {};
       if (action.actionType === "IMPORT_SHEET_LEADS") {
         // Rows, file name, and preview are bound from the VALIDATED session,
@@ -257,8 +263,8 @@ export type { CopilotWriteProposal, CopilotWriteResult } from "@/services/ai/cop
  * resolution, validation, audit) lives in services/ai/copilot-writes.
  */
 export async function executeCopilotWriteAction(writeToken: string): Promise<CopilotWriteResult> {
-  const { workspaceId, userId } = await requireWorkspace();
-  const result = await CopilotWriteService.execute(writeToken, workspaceId, userId);
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  const result = await CopilotWriteService.execute(writeToken, workspaceId, userId, { isSales });
   if (result.success && result.revalidatePaths) {
     for (const p of result.revalidatePaths) revalidatePath(p);
   }

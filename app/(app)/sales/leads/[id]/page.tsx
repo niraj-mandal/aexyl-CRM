@@ -49,7 +49,7 @@ const actionBtn =
   "inline-flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, isSales } = await requireWorkspace();
   const { id: leadId } = await params;
 
   const [lead, activities] = await Promise.all([
@@ -162,12 +162,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   return (
                     <Link
                       key={deal.id}
-                      href={`/sales/deals/${deal.id}`}
+                      href={isSales ? "/sales/pipeline" : `/sales/deals/${deal.id}`}
                       className="group flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-lowest/40 px-3 py-2.5 transition-colors hover:border-border-strong"
                     >
                       <span className="truncate text-sm text-text-primary group-hover:text-primary">{deal.name}</span>
                       <span className="flex shrink-0 items-center gap-3 text-xs">
-                        {deal.value && <span className="num text-text-secondary">{rupees(Number(deal.value))}</span>}
+                        {!isSales && deal.value && <span className="num text-text-secondary">{rupees(Number(deal.value))}</span>}
                         <span className="inline-flex items-center gap-1.5 text-text-secondary">
                           <span className="h-2 w-2 rounded-full" style={{ background: ds?.color ?? "#9B9BA4" }} />
                           {ds?.label ?? deal.stage}

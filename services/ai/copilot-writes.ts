@@ -351,7 +351,7 @@ export class CopilotWriteService {
    * no replay. Entities are resolved by name; the caller can never pass raw
    * IDs or a workspaceId.
    */
-  static async execute(writeToken: string, workspaceId: string, userId: string): Promise<CopilotWriteResult> {
+  static async execute(writeToken: string, workspaceId: string, userId: string, opts: { isSales?: boolean } = {}): Promise<CopilotWriteResult> {
     const pending = pendingWrites.get(writeToken);
     pendingWrites.delete(writeToken);
     if (!pending || pending.expiresAt < Date.now()) {
@@ -366,6 +366,12 @@ export class CopilotWriteService {
       return { success: false, message: "Confirmation rejected as accidental (too fast). Ask the Copilot to propose it again." };
     }
     const proposal = pending.proposal;
+    // Sales members can't delete records or set deal values, whatever the Copilot proposed.
+    if (opts.isSales) {
+      if (proposal.kind.startsWith("DELETE_")) return { success: false, message: "Only admins can delete records." };
+      delete proposal.dealValue;
+      delete proposal.dealValueStr;
+    }
 
     try {
       switch (proposal.kind) {

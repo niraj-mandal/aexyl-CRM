@@ -5,7 +5,7 @@ import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    const { workspaceId, userId } = await requireWorkspace();
+    const { workspaceId, userId, isSales } = await requireWorkspace();
     const rl = await rateLimit(clientKey(request, "ai-copilot", userId), 20, 60);
     if (!rl.ok) {
       return NextResponse.json(
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     // Bound prompt size so a client can't OOM the agent with a giant payload.
     const boundedPrompt = prompt.slice(0, 2000);
 
-    const copilotResponse = await AiAgentService.processCopilotCommand(workspaceId, boundedPrompt);
+    const copilotResponse = await AiAgentService.processCopilotCommand(workspaceId, boundedPrompt, [], null, [], { hideMoney: isSales });
     return NextResponse.json({ success: true, data: copilotResponse });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Copilot processing failed";

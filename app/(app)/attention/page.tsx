@@ -1,7 +1,7 @@
 import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard, GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { AiAgentService } from "@/services/ai/ai-agent.service";
 import { LiveRefresher } from "@/components/crm/LiveRefresher";
 import { SweepButton } from "@/components/crm/SweepButton";
@@ -20,7 +20,7 @@ const severityBadge = {
 };
 
 export default async function AttentionPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
   const audit = await AiAgentService.auditPipelineRisk(workspaceId);
 
   const risks = audit.insights.filter((i) => i.severity === "HIGH" || i.severity === "WARNING");

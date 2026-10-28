@@ -7,16 +7,19 @@ import { CrmService } from "@/services/crm.service";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { CreateDealButton } from "@/components/crm/CreateDealButton";
 import { LiveRefresher } from "@/components/crm/LiveRefresher";
+import { redactDeal } from "@/lib/redact";
 
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage() {
-  const { workspaceId } = await requireWorkspace();
-  const [deals, companies] = await Promise.all([
+  const { workspaceId, isSales } = await requireWorkspace();
+  const [allDeals, companies] = await Promise.all([
     CrmService.getPipeline(workspaceId),
     CrmService.getCompanies(workspaceId, 200),
   ]);
 
+  // Sales members get deals without values: amounts never leave the server for them.
+  const deals = isSales ? allDeals.map(redactDeal) : allDeals;
   const companyOptions = companies.map((c) => ({ id: c.id, name: c.name }));
 
   const totalPipelineValue = deals.reduce((sum, d) => sum + Number(d.value || 0), 0);
@@ -32,14 +35,18 @@ export default async function PipelinePage() {
         description="Drag deals between stages. Changes save instantly."
         actions={
           <>
-            <div className="glass rounded-lg px-3.5 py-2">
-              <p className="text-xs text-text-muted">Total</p>
-              <p className="num text-base font-medium text-text-primary">{rupees(totalPipelineValue)}</p>
-            </div>
-            <div className="glass rounded-lg px-3.5 py-2">
-              <p className="text-xs text-text-muted">Weighted</p>
-              <p className="num text-base font-medium text-text-primary">{rupees(weightedPipelineValue)}</p>
-            </div>
+            {!isSales && (
+              <>
+                <div className="glass rounded-lg px-3.5 py-2">
+                  <p className="text-xs text-text-muted">Total</p>
+                  <p className="num text-base font-medium text-text-primary">{rupees(totalPipelineValue)}</p>
+                </div>
+                <div className="glass rounded-lg px-3.5 py-2">
+                  <p className="text-xs text-text-muted">Weighted</p>
+                  <p className="num text-base font-medium text-text-primary">{rupees(weightedPipelineValue)}</p>
+                </div>
+              </>
+            )}
             <CreateDealButton companies={companyOptions} />
           </>
         }

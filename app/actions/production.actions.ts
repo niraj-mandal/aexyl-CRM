@@ -1,6 +1,6 @@
 "use server";
 
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireWorkspace, requireAdmin } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { agentFeedback, agentRuns, agentApprovals, incidents, leads } from "@/db/schema";
 import { and, eq, gte, sql } from "drizzle-orm";
@@ -19,7 +19,7 @@ import { logger } from "@/lib/logger";
 // --- integrations -----------------------------------------------------------
 
 export async function connectConnectorAction(connectorKey: string, accountLabel?: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   const connector = getConnector(connectorKey);
   if (!connector) return { ok: false as const, error: "Unknown connector" };
   if (!connector.isConfigurable(process.env)) {
@@ -37,14 +37,14 @@ export async function connectConnectorAction(connectorKey: string, accountLabel?
 }
 
 export async function disconnectConnectorAction(connectorKey: string) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   await markDisconnected(workspaceId, connectorKey);
   revalidatePath("/settings/integrations");
   return { ok: true as const };
 }
 
 export async function verifyConnectorAction(connectorKey: string) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   const result = await verifyConnection(workspaceId, connectorKey);
   revalidatePath("/settings/integrations");
   return result;
@@ -53,7 +53,7 @@ export async function verifyConnectorAction(connectorKey: string) {
 // --- feature flags -----------------------------------------------------------
 
 export async function toggleFlagAction(flagKey: string, enabled: boolean) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   await setFlag(workspaceId, flagKey, enabled);
   revalidatePath("/settings/integrations");
   return { ok: true as const };
@@ -113,7 +113,7 @@ export async function submitRunFeedbackAction(runId: string, rating: "HELPFUL" |
 // --- incidents -----------------------------------------------------------------
 
 export async function resolveIncidentAction(incidentId: string, note?: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   const [updated] = await db
     .update(incidents)
     .set({ status: "RESOLVED", resolvedAt: new Date(), updatedAt: new Date(), metadata: { resolvedBy: userId, note: note?.slice(0, 300) ?? null } })
@@ -135,7 +135,7 @@ export async function resolveIncidentAction(incidentId: string, note?: string) {
 
 /** Runs the reaper + failure-spike detection; wired into agents page loads. */
 export async function runReliabilitySweepAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   const summary = await reapStaleRuns(workspaceId);
   const spikes = await detectFailureSpikes(workspaceId);
   if (summary.escalated.length > 0 || spikes.opened) {
@@ -147,7 +147,7 @@ export async function runReliabilitySweepAction() {
 // --- daily operating brief (spec §20) ------------------------------------------
 
 export async function getDailyBriefAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   const { getRevenueIntelligence, getPredictiveRisks } = await import("@/services/revenue-intelligence.service");
   const since24h = new Date(Date.now() - 24 * 3600 * 1000);
 

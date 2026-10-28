@@ -485,9 +485,11 @@ export class AiAgentService {
     prompt: string,
     history: CopilotTurn[] = [],
     sheet: SheetSession | null = null,
-    images: LlmImage[] = []
+    images: LlmImage[] = [],
+    opts: { hideMoney?: boolean } = {}
   ): Promise<CopilotResponse> {
-    const snapshot = await AiAgentService.buildWorkspaceSnapshot(workspaceId);
+    // Sales members: the snapshot is built without money, so neither the model nor any reply can see it.
+    const snapshot = await AiAgentService.buildWorkspaceSnapshot(workspaceId, Boolean(opts.hideMoney));
 
     // Screenshots need a vision model; keyword intents can't see them, so skip straight to it.
     if (images.length > 0) {
@@ -707,7 +709,7 @@ export class AiAgentService {
   }
 
   /** Live, compact snapshot of everything the copilot can reason about. */
-  private static async buildWorkspaceSnapshot(workspaceId: string) {
+  private static async buildWorkspaceSnapshot(workspaceId: string, hideMoney = false) {
     const [deals, leads, companies, projects, openTasks, sequences, icpProfile] = await Promise.all([
       CrmService.getPipeline(workspaceId),
       CrmService.getLeads(workspaceId, 100),
@@ -734,8 +736,9 @@ export class AiAgentService {
 
     return {
       llmAvailable: LlmService.getStatus().available,
-      pipelineValue: openDeals.reduce((a, d) => a + num(d.value), 0),
-      wonValue: deals.filter((d) => d.stage === "WON").reduce((a, d) => a + num(d.value), 0),
+      moneyHidden: hideMoney,
+      pipelineValue: hideMoney ? null : openDeals.reduce((a, d) => a + num(d.value), 0),
+      wonValue: hideMoney ? null : deals.filter((d) => d.stage === "WON").reduce((a, d) => a + num(d.value), 0),
       winRate:
         deals.length > 0
           ? Math.round((deals.filter((d) => d.stage === "WON").length / deals.length) * 100)
@@ -744,7 +747,7 @@ export class AiAgentService {
         name: d.name,
         company: d.company?.name ?? null,
         stage: d.stage,
-        value: num(d.value),
+        value: hideMoney ? null : num(d.value),
         daysSinceUpdate: d.updatedAt ? Math.floor((now - new Date(d.updatedAt).getTime()) / DAY) : null,
         expectedCloseDate: d.expectedCloseDate ? new Date(d.expectedCloseDate).toISOString().slice(0, 10) : null,
       })),
@@ -818,7 +821,11 @@ export class AiAgentService {
     sheetBlock: string | null = null,
     images: LlmImage[] = []
   ): Promise<CopilotResponse | null> {
-    const system = COPILOT_SYSTEM_PROMPT;
+    const system = snapshot.moneyHidden
+      ? `${COPILOT_SYSTEM_PROMPT}
+
+This operator is on the sales team and is not allowed to see money. Deal values, revenue and budgets are not provided. Never state, estimate or infer any amount of money; if asked, say that revenue figures are only visible to admins.`
+      : COPILOT_SYSTEM_PROMPT;
 
     const transcript =
       history.length > 0
@@ -931,10 +938,12 @@ OPERATOR QUESTION: ${prompt}`;
     const query = prompt.toLowerCase();
     const c = snapshot.counts;
     const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
+    // Sales members: counts only, never amounts.
+    const openLine = snapshot.pipelineValue === null ? `${c.openDeals} open deals` : `${money(snapshot.pipelineValue)} open across ${c.openDeals} deals`;
 
     if (query.includes("risk") || query.includes("stale") || query.includes("audit")) {
       return {
-        answer: `Pipeline audit: ${money(snapshot.pipelineValue)} open across ${c.openDeals} deals; ${c.staleDeals} stalled 7+ days, ${c.staleLeads} lead${c.staleLeads === 1 ? "" : "s"} overdue for contact, win rate ${snapshot.winRate}%. I can schedule the overdue follow-ups now.`,
+        answer: `Pipeline audit: ${openLine}; ${c.staleDeals} stalled 7+ days, ${c.staleLeads} lead${c.staleLeads === 1 ? "" : "s"} overdue for contact, win rate ${snapshot.winRate}%. I can schedule the overdue follow-ups now.`,
         suggestedActions: c.staleLeads > 0
           ? [
               { label: `⚡ Schedule ${c.staleLeads} follow-up${c.staleLeads === 1 ? "" : "s"} now`, actionType: "RUN_SWEEP", payload: {} },
@@ -969,7 +978,7 @@ OPERATOR QUESTION: ${prompt}`;
     }
 
     return {
-      answer: `Aexyl Copilot active (deterministic engine — add an LLM key in .env.local for full conversational reasoning). Live telemetry: ${money(snapshot.pipelineValue)} open pipeline across ${c.openDeals} deals, ${c.activeLeads} leads (${c.hotLeads} hot), ${c.companies} companies, ${c.projects} projects. Win rate ${snapshot.winRate}%. Ask me to audit risk, summarize leads, or discover new prospects from the web.`,
+      answer: `Aexyl Copilot active (deterministic engine — add an LLM key in .env.local for full conversational reasoning). Live telemetry: ${openLine}, ${c.activeLeads} leads (${c.hotLeads} hot), ${c.companies} companies, ${c.projects} projects. Win rate ${snapshot.winRate}%. Ask me to audit risk, summarize leads, or discover new prospects from the web.`,
       suggestedActions: [
         { label: "Run Strategic Audit", actionType: "NAVIGATE", payload: { url: "/intelligence" } },
         { label: "Find new prospects on the web", actionType: "DISCOVER_LEADS", payload: { query: "B2B companies needing automation services" } },

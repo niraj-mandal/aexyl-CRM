@@ -55,15 +55,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * grid distinguishes upcoming vs. completed via `when`.
  */
 export class CalendarService {
-  static async getMonth(workspaceId: string, year: number, month: number): Promise<CalendarMonth> {
-    const events = await CalendarService.getEvents(workspaceId, new Date(year, month - 1, 1), new Date(year, month, 1));
+  static async getMonth(workspaceId: string, year: number, month: number, opts: { hideMoney?: boolean } = {}): Promise<CalendarMonth> {
+    const events = await CalendarService.getEvents(workspaceId, new Date(year, month - 1, 1), new Date(year, month, 1), opts);
     const counts = { MEETING: 0, TASK: 0, DEAL_CLOSE: 0, FOLLOW_UP: 0, PROJECT_DUE: 0 };
     for (const e of events) counts[e.kind] += 1;
     return { year, month, events, counts };
   }
 
   /** Every dated commitment in [start, end), oldest first. */
-  static async getEvents(workspaceId: string, start: Date, end: Date): Promise<CalendarEvent[]> {
+  static async getEvents(workspaceId: string, start: Date, end: Date, opts: { hideMoney?: boolean } = {}): Promise<CalendarEvent[]> {
 
     const [
       meetingRows,
@@ -234,7 +234,8 @@ export class CalendarService {
         when: (d.expectedCloseDate as Date).toISOString(),
         allDay: true,
         href: "/sales/pipeline",
-        context: d.companyName || (d.value ? `$${Number(d.value).toLocaleString("en-US")}` : null),
+        // Sales members never see deal amounts, even as a fallback label.
+        context: d.companyName || (d.value && !opts.hideMoney ? `$${Number(d.value).toLocaleString("en-US")}` : null),
       });
     }
 

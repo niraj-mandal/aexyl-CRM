@@ -1,11 +1,12 @@
 import { Display, PageTitle, SectionTitle, Body } from "@/components/ui/typography";
 import { GlassPanel } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireWorkspace, SALES_ROLE, isOwnerEmail } from "@/lib/auth/workspace";
+import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { auditLogs, workspaceMemberships, workspaceInvites, workspaces } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { InviteForm, PendingInviteRow, JoinRequestRow } from "@/components/crm/InviteManager";
+import { InviteForm, PendingInviteRow, JoinRequestRow, MemberRoleSelect } from "@/components/crm/InviteManager";
 import { getEmailProvider, isEmailConfigured } from "@/services/email.service";
 import { LlmService } from "@/services/ai/llm.service";
 import { currentUser } from "@clerk/nextjs/server";
@@ -47,7 +48,9 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId, isSales } = await requireWorkspace();
+  // Team, automations, integrations and the audit log are admin-only.
+  if (isSales) redirect("/");
   const { tab } = await searchParams;
   const activeTab: SettingsTab = TABS.includes((tab ?? "Workspace") as SettingsTab)
     ? ((tab ?? "Workspace") as SettingsTab)
@@ -240,9 +243,7 @@ export default async function SettingsPage({
                       <p className="text-xs text-text-muted truncate">{m.user.email}</p>
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                      <Badge variant="primary" className="font-mono-code text-xs">
-                        {m.role?.name ?? "Member"}
-                      </Badge>
+                      <MemberRoleSelect membershipId={m.id} isSales={m.role?.name === SALES_ROLE} disabled={m.user.id === userId || isOwnerEmail(m.user.email)} />
                       <p className="mt-1 text-xs text-text-muted">joined {formatDate(m.user.createdAt)}</p>
                     </div>
                   </div>

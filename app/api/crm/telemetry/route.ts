@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { redactStats } from "@/lib/redact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: Request) {
   try {
-    const { workspaceId, userId, firstName, lastName } = await requireWorkspace();
+    const { workspaceId, userId, firstName, lastName, isSales } = await requireWorkspace();
     const rl = await rateLimit(clientKey(request, "telemetry", userId), 120, 60);
     if (!rl.ok) {
       return NextResponse.json(
@@ -21,7 +22,8 @@ export async function GET(request: Request) {
         { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
       );
     }
-    const stats = await CrmService.getRealtimeStats(workspaceId, { firstName, lastName });
+    const raw = await CrmService.getRealtimeStats(workspaceId, { firstName, lastName });
+    const stats = isSales ? redactStats(raw) : raw;
 
     return NextResponse.json({
       success: true,

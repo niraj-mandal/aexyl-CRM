@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { SALES_ROLE } from "@/lib/auth/roles";
 import { notifications } from "@/db/schema";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
@@ -73,9 +74,13 @@ export class NotificationService {
       const memberships = await db.query.workspaceMemberships.findMany({
         where: eq(workspaceMemberships.workspaceId, params.workspaceId),
         columns: { userId: true },
+        with: { role: { columns: { name: true } } },
       });
+      // Agent, team and incident notices are admin work (and can mention deals): not for the sales team.
+      const adminOnly = /^(agent\.|incident\.|TEAM$)/.test(params.type);
       for (const m of memberships) {
         if (m.userId === params.exceptUserId) continue;
+        if (adminOnly && m.role?.name === SALES_ROLE) continue;
         await NotificationService.notify({ ...params, userId: m.userId });
       }
     } catch {

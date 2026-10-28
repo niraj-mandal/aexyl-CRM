@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useIsSales } from "@/components/providers/role-provider";
 import {
   LayoutDashboard,
   CalendarRange,
@@ -74,6 +75,9 @@ const navSections: NavSection[] = [
   }
 ];
 
+// Pages a Sales member can't open (the server redirects them anyway).
+const ADMIN_ONLY = new Set(["/projects", "/intelligence", "/agents"]);
+
 function isItemActive(item: NavItem, pathname: string): boolean {
   const matches = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -86,6 +90,10 @@ export const TOGGLE_SIDEBAR_EVENT = "aexyl:toggle-sidebar";
 export function Sidebar() {
   const pathname = usePathname();
   const badges = useSidebarBadges();
+  const isSales = useIsSales();
+  const sections = isSales
+    ? navSections.map((s) => ({ ...s, items: s.items.filter((i) => !ADMIN_ONLY.has(i.href)) })).filter((s) => s.items.length > 0)
+    : navSections;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openedAt, setOpenedAt] = useState(pathname);
 
@@ -155,7 +163,7 @@ export function Sidebar() {
 
       {/* Navigation Groups (scrollable; brand + footer stay pinned) */}
       <div className="flex-1 space-y-6 px-3 py-4 overflow-y-auto scrollbar-thin">
-        {navSections.map((section) => (
+        {sections.map((section) => (
           <div key={section.title} className="space-y-1">
             <div className="px-3 pb-1.5 text-xs font-medium text-text-muted">
               {section.title}
@@ -212,6 +220,7 @@ export function Sidebar() {
       </div>
 
       {/* Footer System Quick Action */}
+      {!isSales && (
       <div className="shrink-0 p-3 border-t border-border-subtle/50">
         <Link
           href="/settings"
@@ -231,6 +240,7 @@ export function Sidebar() {
           </kbd>
         </Link>
       </div>
+      )}
     </aside>
     </>
   );

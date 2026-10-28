@@ -25,6 +25,7 @@ import { DealCard, type DealCardData } from "./DealCard";
 import { CreateDealButton } from "./CreateDealButton";
 import { updateDealStageAction } from "@/app/actions/crm.actions";
 import { DEAL_STAGES, rupees } from "@/lib/stages";
+import { useIsSales } from "@/components/providers/role-provider";
 
 const STAGES = DEAL_STAGES.map((s) => s.key);
 
@@ -36,6 +37,7 @@ export function KanbanBoard({
   companyOptions?: { id: string; name: string }[];
 }) {
   const [deals, setDeals] = useState(initialDeals);
+  const isSales = useIsSales();
   const [activeId, setActiveId] = useState<string | null>(null);
   const snapshotRef = useRef<typeof deals | null>(null);
 
@@ -74,7 +76,7 @@ export function KanbanBoard({
                 {col.title}
                 <span className="num rounded-full bg-surface-high px-1.5 py-0.5 text-[11px] font-normal text-text-muted">{col.deals.length}</span>
               </span>
-              <span className="num text-xs text-text-muted">{rupees(col.value)}</span>
+              {!isSales && <span className="num text-xs text-text-muted">{rupees(col.value)}</span>}
             </div>
 
             {/* Column Body */}
@@ -86,7 +88,7 @@ export function KanbanBoard({
               )}
               <SortableContext items={col.deals.map((d) => d.id)} strategy={verticalListSortingStrategy}>
                 {col.deals.map((deal) => (
-                  <SortableDealCard key={deal.id} deal={deal} onDeleted={removeDeal} />
+                  <SortableDealCard key={deal.id} deal={deal} onDeleted={isSales ? undefined : removeDeal} />
                 ))}
               </SortableContext>
               {companyOptions.length > 0 && (

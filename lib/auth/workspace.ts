@@ -1,7 +1,11 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { users, workspaces, roles, workspaceMemberships } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { SALES_ROLE } from "./roles";
+
+export { SALES_ROLE };
 
 type WorkspaceContext = {
   userId: string;
@@ -9,7 +13,15 @@ type WorkspaceContext = {
   clerkId: string;
   firstName: string | null;
   lastName: string | null;
+  /** The member's role name. */
+  role: string;
+  /**
+   * Sales team members work leads and calls but never see money (deal values, revenue,
+   * budgets) and can't manage the team, settings or delete records. Enforced server-side.
+   */
+  isSales: boolean;
 };
+
 
 /**
  * Access is invite-only. A Clerk sign-in alone grants nothing: the user must
@@ -52,9 +64,11 @@ async function findMemberContext(clerkId: string): Promise<WorkspaceContext | nu
       firstName: users.firstName,
       lastName: users.lastName,
       workspaceId: workspaceMemberships.workspaceId,
+      role: roles.name,
     })
     .from(users)
     .innerJoin(workspaceMemberships, eq(workspaceMemberships.userId, users.id))
+    .innerJoin(roles, eq(roles.id, workspaceMemberships.roleId))
     .where(eq(users.clerkId, clerkId))
     .limit(1);
   if (!row) return null;
@@ -64,6 +78,8 @@ async function findMemberContext(clerkId: string): Promise<WorkspaceContext | nu
     clerkId,
     firstName: row.firstName ?? null,
     lastName: row.lastName ?? null,
+    role: row.role,
+    isSales: row.role === SALES_ROLE,
   };
 }
 
@@ -157,7 +173,7 @@ async function bootstrapOwner(clerkId: string): Promise<WorkspaceContext> {
     [workspace] = await db.insert(workspaces).values({ name: "Aexyl Global", slug: "aexyl-global" }).returning();
   }
 
-  let ownerRole = await db.query.roles.findFirst({ where: eq(roles.workspaceId, workspace.id) });
+  let ownerRole = await adminRole(workspace.id);
   if (!ownerRole) {
     [ownerRole] = await db.insert(roles).values({ workspaceId: workspace.id, name: "Workspace Owner" }).returning();
   }
@@ -174,5 +190,47 @@ async function bootstrapOwner(clerkId: string): Promise<WorkspaceContext> {
     clerkId,
     firstName: dbUser.firstName ?? null,
     lastName: dbUser.lastName ?? null,
+    role: ownerRole.name,
+    isSales: false,
   };
+}
+
+/** Thrown when a sales team member calls something only admins may do. */
+export class AdminOnlyError extends Error {
+  constructor() {
+    super("Only admins can do that.");
+    this.name = "AdminOnlyError";
+  }
+}
+
+/** Like requireWorkspace, but only for admins (team, settings, deletes, money). */
+export async function requireAdmin(): Promise<WorkspaceContext> {
+  const ctx = await requireWorkspace();
+  if (ctx.isSales) throw new AdminOnlyError();
+  return ctx;
+}
+
+/** For admin-only pages: Sales members are sent to Today instead of seeing an error. */
+export async function requireAdminPage(): Promise<WorkspaceContext> {
+  const ctx = await requireWorkspace();
+  if (ctx.isSales) redirect("/");
+  return ctx;
+}
+
+/** The workspace's admin role (any role that isn't Sales), or undefined if none exists yet. */
+export async function adminRole(workspaceId: string) {
+  return db.query.roles.findFirst({ where: and(eq(roles.workspaceId, workspaceId), ne(roles.name, SALES_ROLE)) });
+}
+
+/** The workspace's Sales role, created on first use. */
+export async function salesRole(workspaceId: string) {
+  const existing = await db.query.roles.findFirst({ where: and(eq(roles.workspaceId, workspaceId), eq(roles.name, SALES_ROLE)) });
+  if (existing) return existing;
+  const [created] = await db.insert(roles).values({ workspaceId, name: SALES_ROLE }).returning();
+  return created;
+}
+
+/** Forget cached identities so a role change applies on the next request. */
+export function clearContextCache() {
+  contextCache.clear();
 }

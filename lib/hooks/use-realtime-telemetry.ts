@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 
 export interface StageCount {
   count: number;
-  value: number;
+  /** null for Sales members: money is redacted on the server. */
+  value: number | null;
 }
 
 export interface RealtimeStats {
-  pipelineRevenue: number;
-  totalPipelineValue: number;
+  /** null for Sales members: money is redacted on the server. */
+  pipelineRevenue: number | null;
+  totalPipelineValue: number | null;
   activeLeads: number;
   hotLeads: number;
   activeDeals: number;

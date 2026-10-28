@@ -2,7 +2,7 @@ import { Handshake } from "lucide-react";
 import { rupees } from "@/lib/stages";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Display, Body } from "@/components/ui/typography";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { deals } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -12,7 +12,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 export default async function DealsPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
   
   const allDeals = await db.query.deals.findMany({
     where: eq(deals.workspaceId, workspaceId),

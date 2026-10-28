@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { agentRuns, agentTraces, agentApprovals, agentFeedback } from "@/db/schema";
 import { and, asc, eq } from "drizzle-orm";
@@ -21,7 +21,7 @@ const TRACE_STATUS: Record<string, string> = {
 
 export default async function AgentRunDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdminPage();
 
   const run = await db.query.agentRuns.findFirst({
     where: and(eq(agentRuns.id, id), eq(agentRuns.workspaceId, workspaceId)),

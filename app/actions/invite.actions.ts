@@ -2,10 +2,10 @@
 
 import crypto from "crypto";
 import { db } from "@/db";
-import { workspaceInvites, workspaceMemberships, users, roles, workspaces } from "@/db/schema";
+import { workspaceInvites, workspaceMemberships, users, workspaces } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
-import { requireWorkspace, getVerifiedPrimaryEmail, ensureLocalUser } from "@/lib/auth/workspace";
+import { requireAdmin, getVerifiedPrimaryEmail, ensureLocalUser, adminRole, salesRole, AdminOnlyError, clearContextCache, isOwnerEmail } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
 import { NotificationService } from "@/services/notification.service";
 import { sendInviteEmail, isEmailConfigured } from "@/services/email.service";
@@ -24,8 +24,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * the shareable acceptance URL. No email provider is configured, so the UI
  * presents this link for copy-to-share delivery.
  */
-export async function createInviteAction(input: { email: string }) {
-  const { userId, workspaceId } = await requireWorkspace();
+export async function createInviteAction(input: { email: string; role?: "ADMIN" | "SALES" }) {
+  let ctx;
+  try {
+    ctx = await requireAdmin();
+  } catch (e) {
+    if (e instanceof AdminOnlyError) return { ok: false as const, error: e.message };
+    throw e;
+  }
+  const { userId, workspaceId } = ctx;
   const email = input.email.trim().toLowerCase();
 
   if (!EMAIL_RE.test(email)) {
@@ -58,10 +65,8 @@ export async function createInviteAction(input: { email: string }) {
       )
     );
 
-  // Role: attach the workspace's default role so the member lands somewhere sane.
-  const defaultRole = await db.query.roles.findFirst({
-    where: eq(roles.workspaceId, workspaceId),
-  });
+  // Sales members never see money or admin tools; everyone else is an admin.
+  const defaultRole = input.role === "SALES" ? await salesRole(workspaceId) : await adminRole(workspaceId);
 
   const [invite] = await db
     .insert(workspaceInvites)
@@ -76,7 +81,7 @@ export async function createInviteAction(input: { email: string }) {
     })
     .returning();
 
-  await ActivityService.logAudit(workspaceId, userId, "CREATE", "INVITE", invite.id, { email });
+  await ActivityService.logAudit(workspaceId, userId, "CREATE", "INVITE", invite.id, { email, role: defaultRole?.name });
 
   // Deliver the link by email when a provider is configured. Failure never
   // fails the invite itself — the UI falls back to the copyable link.
@@ -132,7 +137,7 @@ export async function createInviteAction(input: { email: string }) {
 
 /** Pending invites for the current workspace (newest first). */
 export async function getPendingInvitesAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   return db.query.workspaceInvites.findMany({
     where: and(eq(workspaceInvites.workspaceId, workspaceId), eq(workspaceInvites.status, "PENDING")),
     orderBy: [desc(workspaceInvites.createdAt)],
@@ -142,7 +147,7 @@ export async function getPendingInvitesAction() {
 
 /** Marks an invite REVOKED. Only the inviting workspace can do this. */
 export async function revokeInviteAction(inviteId: string) {
-  const { userId, workspaceId } = await requireWorkspace();
+  const { userId, workspaceId } = await requireAdmin();
 
   const [revoked] = await db
     .update(workspaceInvites)
@@ -238,7 +243,7 @@ export async function acceptInviteAction(
 
 /** Invitees who accepted and are waiting for a member to approve them. */
 export async function getJoinRequestsAction() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   return db.query.workspaceInvites.findMany({
     where: and(eq(workspaceInvites.workspaceId, workspaceId), eq(workspaceInvites.status, "AWAITING_APPROVAL")),
     orderBy: [desc(workspaceInvites.acceptedAt)],
@@ -250,7 +255,7 @@ export async function getJoinRequestsAction() {
 }
 
 export async function approveJoinRequestAction(inviteId: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
 
   const [approved] = await db
     .update(workspaceInvites)
@@ -263,8 +268,7 @@ export async function approveJoinRequestAction(inviteId: string) {
     .returning();
   if (!approved?.acceptedById) return { ok: false as const, error: "Request not found or already handled." };
 
-  const roleId =
-    approved.roleId ?? (await db.query.roles.findFirst({ where: eq(roles.workspaceId, workspaceId) }))?.id;
+  const roleId = approved.roleId ?? (await adminRole(workspaceId))?.id;
   if (!roleId) return { ok: false as const, error: "Workspace has no role configured." };
 
   const existing = await db.query.workspaceMemberships.findFirst({
@@ -289,7 +293,7 @@ export async function approveJoinRequestAction(inviteId: string) {
 }
 
 export async function rejectJoinRequestAction(inviteId: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   const [rejected] = await db
     .update(workspaceInvites)
     .set({ status: "REJECTED", updatedAt: new Date() })
@@ -302,6 +306,40 @@ export async function rejectJoinRequestAction(inviteId: string) {
   if (!rejected) return { ok: false as const, error: "Request not found or already handled." };
 
   await ActivityService.logAudit(workspaceId, userId, "REJECT", "INVITE", rejected.id, { email: rejected.email });
+  revalidatePath("/settings");
+  return { ok: true as const };
+}
+
+/**
+ * Switches a member between Admin and Sales. Admin-only; you can't change your own role
+ * (so the workspace can never lose its last admin by accident).
+ */
+export async function setMemberRoleAction(membershipId: string, role: "ADMIN" | "SALES") {
+  let ctx;
+  try {
+    ctx = await requireAdmin();
+  } catch (e) {
+    if (e instanceof AdminOnlyError) return { ok: false as const, error: e.message };
+    throw e;
+  }
+  const { workspaceId, userId } = ctx;
+  const membership = await db.query.workspaceMemberships.findFirst({
+    where: and(eq(workspaceMemberships.id, String(membershipId)), eq(workspaceMemberships.workspaceId, workspaceId)),
+  });
+  if (!membership) return { ok: false as const, error: "Member not found." };
+  if (membership.userId === userId) return { ok: false as const, error: "You can't change your own role." };
+  // The workspace owner always stays an admin, so another admin can't lock them out.
+  const member = await db.query.users.findFirst({ where: eq(users.id, membership.userId), columns: { email: true } });
+  if (role === "SALES" && isOwnerEmail(member?.email)) return { ok: false as const, error: "The workspace owner always stays an admin." };
+
+  const target = role === "SALES" ? await salesRole(workspaceId) : await adminRole(workspaceId);
+  if (!target) return { ok: false as const, error: "No admin role exists in this workspace." };
+  await db
+    .update(workspaceMemberships)
+    .set({ roleId: target.id, updatedAt: new Date() })
+    .where(eq(workspaceMemberships.id, membership.id));
+  clearContextCache();
+  await ActivityService.logAudit(workspaceId, userId, "UPDATE", "MEMBER_ROLE", membership.id, { role: target.name });
   revalidatePath("/settings");
   return { ok: true as const };
 }

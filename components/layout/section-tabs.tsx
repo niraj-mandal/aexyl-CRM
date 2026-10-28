@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useIsSales } from "@/components/providers/role-provider";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -33,10 +34,15 @@ export const SECTION_GROUPS: SectionTab[][] = [
   ],
 ];
 
+// Tabs a Sales member can't open (the server redirects them anyway).
+const ADMIN_ONLY_TABS = new Set(["/sales/deals", "/intelligence", "/attention"]);
+
 export function SectionTabs() {
   const pathname = usePathname();
-  const group = SECTION_GROUPS.find((g) => g.some((t) => t.href === pathname));
-  if (!group) return null;
+  const isSales = useIsSales();
+  const found = SECTION_GROUPS.find((g) => g.some((t) => t.href === pathname));
+  const group = isSales ? found?.filter((t) => !ADMIN_ONLY_TABS.has(t.href)) : found;
+  if (!group || group.length < 2) return null;
 
   return (
     <nav aria-label="Section" className="mb-6 inline-flex w-fit flex-wrap items-center gap-0.5 rounded-[10px] bg-surface-high p-0.5">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Display, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { agents, agentRuns } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -19,7 +19,7 @@ const STATUS: Record<string, string> = {
 };
 
 export default async function AgentRunsPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
 
   const runs = await db
     .select({

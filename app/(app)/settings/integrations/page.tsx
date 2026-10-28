@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { listConnectionViews } from "@/services/integrations/registry";
 import { listFlags } from "@/lib/flags";
 import { FLAG_DEFINITIONS } from "@/lib/flags";
@@ -12,7 +12,7 @@ import { Plug } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
   const [connections, flags] = await Promise.all([listConnectionViews(workspaceId), listFlags(workspaceId)]);
 
   const connectedCount = connections.filter((c) => c?.status === "CONNECTED").length;

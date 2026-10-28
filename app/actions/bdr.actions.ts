@@ -71,7 +71,10 @@ export async function getSequencesAction() {
 }
 
 export async function getSequenceDetailAction(sequenceId: string) {
-  return SequenceEngineService.getSequenceWithSteps(sequenceId);
+  const { workspaceId } = await requireWorkspace();
+  const detail = await SequenceEngineService.getSequenceWithSteps(sequenceId);
+  // Only your own workspace's sequences.
+  return detail && detail.sequence.workspaceId === workspaceId ? detail : null;
 }
 
 export async function enrollLeadAction(sequenceId: string, leadId: string, contactId?: string) {
@@ -87,13 +90,15 @@ export async function enrollLeadAction(sequenceId: string, leadId: string, conta
 }
 
 export async function activateSequenceAction(sequenceId: string) {
-  await SequenceEngineService.activateSequence(sequenceId);
+  const { workspaceId } = await requireWorkspace();
+  await SequenceEngineService.activateSequence(sequenceId, workspaceId);
   revalidatePath("/bdr");
   return { success: true };
 }
 
 export async function pauseSequenceAction(sequenceId: string) {
-  await SequenceEngineService.pauseSequence(sequenceId);
+  const { workspaceId } = await requireWorkspace();
+  await SequenceEngineService.pauseSequence(sequenceId, workspaceId);
   revalidatePath("/bdr");
   return { success: true };
 }

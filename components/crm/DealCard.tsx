@@ -56,8 +56,9 @@ export function DealCard({
       </div>
 
       <div className="flex items-center justify-between mt-auto pt-3 border-t border-border-subtle">
+        {/* Sales members receive deals with value null: show no amount at all. */}
         <div className="font-semibold text-sm text-text-primary">
-          {rupees(Number(deal.value || 0))}
+          {deal.value === null ? "" : rupees(Number(deal.value || 0))}
         </div>
         {deal.owner && (
           <div className="flex items-center text-xs text-text-muted" title={`${deal.owner.firstName} ${deal.owner.lastName}`}>

@@ -33,7 +33,7 @@ export default async function CalendarPage({
 }: {
   searchParams: Promise<{ y?: string; m?: string }>;
 }) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, isSales } = await requireWorkspace();
   const params = await searchParams;
 
   const now = new Date();
@@ -41,7 +41,7 @@ export default async function CalendarPage({
   const month = clampInt(params.m, 1, 12, now.getMonth() + 1);
 
   const [monthData, upcoming] = await Promise.all([
-    CalendarService.getMonth(workspaceId, year, month),
+    CalendarService.getMonth(workspaceId, year, month, { hideMoney: isSales }),
     CalendarService.getUpcomingMeetings(workspaceId, 8),
   ]);
 

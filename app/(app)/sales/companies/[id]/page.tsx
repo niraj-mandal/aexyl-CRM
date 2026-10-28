@@ -9,7 +9,7 @@ import Link from "next/link";
 import { Building2, Globe, MapPin, Users } from "lucide-react";
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, isSales } = await requireWorkspace();
   const { id: companyId } = await params;
 
   const company = await db.query.companies.findFirst({
@@ -108,10 +108,10 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             {company.deals.length > 0 ? (
               <div className="space-y-3">
                 {company.deals.map(deal => (
-                  <Link key={deal.id} href={`/sales/deals/${deal.id}`} className="block p-4 border border-border-subtle rounded-lg hover:border-border-strong transition group bg-surface/50">
+                  <Link key={deal.id} href={isSales ? "/sales/pipeline" : `/sales/deals/${deal.id}`} className="block p-4 border border-border-subtle rounded-lg hover:border-border-strong transition group bg-surface/50">
                     <div className="flex justify-between items-center">
                       <div className="font-medium text-text-primary group-hover:underline">{deal.name}</div>
-                      <div className="font-semibold">${Number(deal.value || 0).toLocaleString()}</div>
+                      {!isSales && <div className="font-semibold">${Number(deal.value || 0).toLocaleString()}</div>}
                     </div>
                     <div className="flex justify-between items-center mt-2 text-xs text-text-secondary">
                       <span>Stage: {deal.stage}</span>

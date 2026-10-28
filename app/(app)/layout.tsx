@@ -7,7 +7,8 @@ import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { SectionTabs } from "@/components/layout/section-tabs";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { hasWorkspaceAccess, syncProfileName } from "@/lib/auth/workspace";
+import { hasWorkspaceAccess, requireWorkspace, syncProfileName } from "@/lib/auth/workspace";
+import { RoleProvider } from "@/components/providers/role-provider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
@@ -21,8 +22,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   await syncProfileName({ firstName: user.firstName, lastName: user.lastName });
+  const { isSales } = await requireWorkspace();
 
   return (
+    <RoleProvider isSales={isSales}>
     <div className="flex h-screen overflow-hidden text-text-primary antialiased font-sans">
       <Sidebar />
       {/* Header scrolls with the page (sticky) so its frosted glass blurs content passing under it. */}
@@ -40,5 +43,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <UndoToaster />
       <MobileTabBar />
     </div>
+    </RoleProvider>
   );
 }

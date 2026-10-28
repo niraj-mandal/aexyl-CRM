@@ -365,17 +365,17 @@ Rules:
     return { sequence, steps, stats: enrollmentStats[0] };
   }
 
-  static async activateSequence(sequenceId: string) {
+  static async activateSequence(sequenceId: string, workspaceId: string) {
     await db
       .update(outreachSequences)
       .set({ status: "ACTIVE", updatedAt: new Date() })
-      .where(eq(outreachSequences.id, sequenceId));
+      .where(and(eq(outreachSequences.id, sequenceId), eq(outreachSequences.workspaceId, workspaceId)));
   }
 
-  static async pauseSequence(sequenceId: string) {
+  static async pauseSequence(sequenceId: string, workspaceId: string) {
     await db
       .update(outreachSequences)
       .set({ status: "PAUSED", updatedAt: new Date() })
-      .where(eq(outreachSequences.id, sequenceId));
+      .where(and(eq(outreachSequences.id, sequenceId), eq(outreachSequences.workspaceId, workspaceId)));
   }
 }

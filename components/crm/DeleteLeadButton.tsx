@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trash2 } from "lucide-react";
 import { deleteLeadAction } from "@/app/actions/crm.actions";
+import { useIsSales } from "@/components/providers/role-provider";
 
 /**
  * Per-row delete for the leads table. Two-stage confirm (click → "Sure?" →
@@ -15,6 +16,8 @@ export function DeleteLeadButton({ leadId, leadName }: { leadId: string; leadNam
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  // Only admins can delete (the server enforces it too).
+  const isSales = useIsSales();
 
   const handleDelete = () => {
     setError(null);
@@ -33,6 +36,8 @@ export function DeleteLeadButton({ leadId, leadName }: { leadId: string; leadNam
       }
     });
   };
+
+  if (isSales) return null;
 
   if (confirming) {
     return (

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdmin } from "@/lib/auth/workspace";
 import { AiAgentService } from "@/services/ai/ai-agent.service";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
-    const { workspaceId, userId } = await requireWorkspace();
+    const { workspaceId, userId } = await requireAdmin();
     const rl = await rateLimit(clientKey(request, "ai-audit", userId), 6, 60);
     if (!rl.ok) {
       return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { CrmService } from "@/services/crm.service";
 import type { deals } from "@/db/schema";
+import { redactDeal } from "@/lib/redact";
 
 type CreateDealBody = Partial<Omit<typeof deals.$inferInsert, "id" | "workspaceId" | "createdAt" | "updatedAt">>;
 
@@ -33,9 +34,9 @@ const VALID_STAGES = new Set([
 
 export async function GET() {
   try {
-    const { workspaceId } = await requireWorkspace();
+    const { workspaceId, isSales } = await requireWorkspace();
     const pipelineDeals = await CrmService.getPipeline(workspaceId);
-    return NextResponse.json({ success: true, data: pipelineDeals });
+    return NextResponse.json({ success: true, data: isSales ? pipelineDeals.map(redactDeal) : pipelineDeals });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch deals";
     return NextResponse.json({ success: false, error: message }, { status: 400 });
@@ -44,8 +45,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireWorkspace();
+    const { userId, workspaceId, isSales } = await requireWorkspace();
     const body = sanitizeDealBody(await request.json());
+    if (isSales) delete body.value; // Sales members can't set deal values.
 
     if (typeof body.name !== "string" || body.name.trim().length === 0) {
       return NextResponse.json({ success: false, error: "name is required" }, { status: 400 });
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
       ownerId: userId,
     });
 
-    return NextResponse.json({ success: true, data: deal }, { status: 201 });
+    return NextResponse.json({ success: true, data: isSales ? redactDeal(deal) : deal }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create deal";
     return NextResponse.json({ success: false, error: message }, { status: 400 });
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { workspaceId } = await requireWorkspace();
+    const { workspaceId, isSales } = await requireWorkspace();
     const body: unknown = await request.json();
     const { dealId, stage } = (body ?? {}) as { dealId?: unknown; stage?: unknown };
 
@@ -96,7 +98,7 @@ export async function PATCH(request: NextRequest) {
     if (!updatedDeal) {
       return NextResponse.json({ success: false, error: "Deal not found" }, { status: 404 });
     }
-    return NextResponse.json({ success: true, data: updatedDeal });
+    return NextResponse.json({ success: true, data: isSales ? redactDeal(updatedDeal) : updatedDeal });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update deal stage";
     return NextResponse.json({ success: false, error: message }, { status: 400 });

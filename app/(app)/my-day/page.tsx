@@ -48,15 +48,15 @@ function wrapUp(t: DayStat): string {
 }
 
 export default async function MyDayPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId, isSales } = await requireWorkspace();
 
   const todayStart = istDayStart(lastDays(1)[0]);
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
   const dayAfter = new Date(todayStart.getTime() + 2 * 86_400_000);
 
-  const [stats, events, queue, openTasks, doneToday, pendingDrafts] = await Promise.all([
+  const [stats, events, queue, openTasks, doneToday, allDrafts] = await Promise.all([
     ScorecardService.getDailyStats(workspaceId, 60),
-    CalendarService.getEvents(workspaceId, todayStart, dayAfter),
+    CalendarService.getEvents(workspaceId, todayStart, dayAfter, { hideMoney: isSales }),
     CrmService.getPriorityQueue(workspaceId),
     CrmService.getOpenTasks(workspaceId, 20),
     ScorecardService.getDoneSince(workspaceId, todayStart),
@@ -137,6 +137,8 @@ export default async function MyDayPage() {
   // Only gyms you've talked to before; never-contacted ones already sit in the Today list.
   const quietLeads = (queue.staleLeads ?? []).filter((l) => l.lastContactedAt).slice(0, 5);
   const deals = queue.dealsNeedingAttention ?? [];
+  // Approving agent drafts is admin work; Sales members don't get that list.
+  const pendingDrafts = isSales ? [] : allDrafts;
   const needsYou = pendingDrafts.length + quietLeads.length + deals.length;
 
   return (
@@ -366,12 +368,12 @@ export default async function MyDayPage() {
                   {deals.slice(0, 5).map((d) => (
                     <li key={d.id}>
                       <Link
-                        href={`/sales/deals/${d.id}`}
+                        href={isSales ? "/sales/pipeline" : `/sales/deals/${d.id}`}
                         className="group flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-[var(--fill-hover)]"
                       >
                         <span className="truncate text-sm text-text-primary group-hover:text-primary">{d.name}</span>
                         <span className="num shrink-0 text-xs text-text-muted">
-                          {rupees(Number(d.value || 0))} · {d.closesThisWeek ? "closes this week" : "quiet 7+ days"}
+                          {!isSales && `${rupees(Number(d.value || 0))} · `}{d.closesThisWeek ? "closes this week" : "quiet 7+ days"}
                         </span>
                       </Link>
                     </li>

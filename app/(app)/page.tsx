@@ -12,6 +12,7 @@ import { TodayList } from "@/components/crm/TodayList";
 import { useCountUp } from "@/components/crm/TodayProgress";
 import { DEAL_STAGES, rupees } from "@/lib/stages";
 import { CountUp } from "@/components/ui/count-up";
+import { useIsSales } from "@/components/providers/role-provider";
 
 const STAGES = DEAL_STAGES.filter((s) => s.key !== "LOST");
 
@@ -84,6 +85,7 @@ function greeting(hour: number) {
 
 export default function CommandCenter() {
   const { stats } = useRealtimeTelemetry();
+  const isSales = useIsSales();
   // Clerk's live user object re-renders as soon as the profile name is edited.
   const { user: clerkUser } = useUser();
   const name = clerkUser?.firstName || stats?.user?.firstName;
@@ -93,7 +95,10 @@ export default function CommandCenter() {
 
   const kpis = [
     { label: "Active leads", icon: Users, value: stats ? <CountUp value={stats.activeLeads} /> : "—", note: stats ? `${stats.hotLeads} hot` : "", noteIcon: Flame, href: "/sales/leads" },
-    { label: "Open pipeline", icon: IndianRupee, value: stats ? <CountUp value={stats.pipelineRevenue} format={rupees} /> : "—", note: stats ? `${stats.activeDeals} open deals` : "", href: "/sales/pipeline" },
+    // Sales members get no revenue from the server (null), so they don't get this tile either.
+    ...(isSales
+      ? []
+      : [{ label: "Open pipeline", icon: IndianRupee, value: stats ? <CountUp value={stats.pipelineRevenue ?? 0} format={rupees} /> : "—", note: stats ? `${stats.activeDeals} open deals` : "", href: "/sales/pipeline" }]),
     { label: "Win rate", icon: Trophy, value: stats?.winRate ?? "—", note: "won vs all deals", href: "/sales/deals" },
     { label: "Companies", icon: Building2, value: stats ? <CountUp value={stats.activeCompanies} /> : "—", note: "in your CRM", href: "/sales/companies" },
   ];
@@ -173,7 +178,7 @@ export default function CommandCenter() {
                     {stage.label}
                   </dt>
                   <dd className="num mt-1 text-xl font-medium text-text-primary">{entry?.count ?? 0}</dd>
-                  <dd className="num text-xs text-text-muted">{rupees(entry?.value ?? 0)}</dd>
+                  {entry?.value != null && <dd className="num text-xs text-text-muted">{rupees(entry.value)}</dd>}
                 </div>
               );
             })}
@@ -181,7 +186,8 @@ export default function CommandCenter() {
         </GlassPanel>
       </section>
 
-      <DailyBrief />
+      {/* Revenue and pipeline-risk audit: admins only (its data is admin-only on the server too). */}
+      {!isSales && <DailyBrief />}
     </div>
   );
 }

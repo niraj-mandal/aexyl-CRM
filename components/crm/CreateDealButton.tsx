@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, Loader2 } from "lucide-react";
 import { createDealAction } from "@/app/actions/crm.actions";
+import { useIsSales } from "@/components/providers/role-provider";
 
 const STAGES = ["QUALIFIED", "CALL_BOOKED", "PROPOSAL", "NEGOTIATION"] as const;
 
@@ -35,6 +36,7 @@ export function CreateDealButton({
     defaultStage && STAGES.includes(defaultStage as (typeof STAGES)[number]) ? defaultStage : "QUALIFIED";
   const [stage, setStage] = useState<string>(initialStage);
   const [value, setValue] = useState("25000");
+  const isSales = useIsSales();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +72,8 @@ export function CreateDealButton({
         companyId,
         stage,
         probability: STAGE_PROBABILITY[stage] ?? 30,
-        value: parseFloat(value) > 0 ? String(parseFloat(value)) : "0",
+        // Sales members never set amounts (the server ignores them anyway).
+        ...(isSales ? {} : { value: parseFloat(value) > 0 ? String(parseFloat(value)) : "0" }),
         currency: "USD",
       });
       setOpen(false);
@@ -128,7 +131,7 @@ export function CreateDealButton({
             </option>
           ))}
         </select>
-        <input
+        {!isSales && <input
           type="number"
           min="0"
           step="1000"
@@ -136,7 +139,7 @@ export function CreateDealButton({
           onChange={(e) => setValue(e.target.value)}
           className="w-24 rounded-md bg-surface-lowest border border-border-subtle px-2.5 py-1.5 text-xs text-text-primary focus:border-primary/60 focus:outline-none"
           title="Value (USD)"
-        />
+        />}
       </div>
 
       {error && <p className="text-xs text-danger">{error}</p>}

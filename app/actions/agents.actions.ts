@@ -1,6 +1,6 @@
 "use server";
 
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireWorkspace, requireAdmin } from "@/lib/auth/workspace";
 import { AiAgentService } from "@/services/ai/ai-agent.service";
 import { AgentRunnerService } from "@/agents/services/runner.service";
 import { AgentEventBus } from "@/agents/events/bus";
@@ -34,7 +34,7 @@ export async function attentionCountAction() {
 // --- run + events ------------------------------------------------------------
 
 export async function runAgentAction(agentKey: string, objective: string, inputContext?: Record<string, unknown>) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   await ensureWorkspaceAgents(workspaceId);
 
   if (await isKillSwitchEngaged(workspaceId)) {
@@ -60,7 +60,7 @@ export async function runAgentAction(agentKey: string, objective: string, inputC
 }
 
 export async function processEventsAction() {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   await ensureWorkspaceAgents(workspaceId);
   const results = await AgentEventBus.processPending(workspaceId, userId, 10);
   revalidatePath("/agents");
@@ -70,7 +70,7 @@ export async function processEventsAction() {
 // --- approvals -----------------------------------------------------------------
 
 export async function approveAgentActionAction(approvalId: string, dryRun = false) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   const result = await approveAndExecute({ workspaceId, approvalId, reviewedBy: userId, dryRun });
   revalidatePath("/agents/approvals");
   revalidatePath("/agents");
@@ -78,7 +78,7 @@ export async function approveAgentActionAction(approvalId: string, dryRun = fals
 }
 
 export async function rejectApprovalAction(approvalId: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   const result = await rejectApproval({ workspaceId, approvalId, reviewedBy: userId });
   revalidatePath("/agents/approvals");
   revalidatePath("/agents");
@@ -86,7 +86,7 @@ export async function rejectApprovalAction(approvalId: string) {
 }
 
 export async function cancelApprovalAction(approvalId: string) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   const result = await cancelApproval({ workspaceId, approvalId, reviewedBy: userId });
   revalidatePath("/agents/approvals");
   return result;
@@ -95,7 +95,7 @@ export async function cancelApprovalAction(approvalId: string) {
 // --- management -----------------------------------------------------------------
 
 export async function setKillSwitchAction(engaged: boolean) {
-  const { workspaceId, userId } = await requireWorkspace();
+  const { workspaceId, userId } = await requireAdmin();
   await ensureWorkspaceAgents(workspaceId);
   await setKillSwitch(workspaceId, userId, engaged);
   revalidatePath("/agents");
@@ -113,7 +113,7 @@ export async function updateAgentConfigAction(
     dailyBudgetMicroUsd?: number;
   }
 ) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   const clampInt = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(v)));
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   if (typeof config.enabled === "boolean") patch.enabled = config.enabled;
@@ -133,7 +133,7 @@ export async function updateAgentConfigAction(
 }
 
 export async function toggleAutomationRuleAction(ruleId: string, enabled: boolean) {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdmin();
   await db
     .update(automationRules)
     .set({ enabled, updatedAt: new Date() })
@@ -144,7 +144,9 @@ export async function toggleAutomationRuleAction(ruleId: string, enabled: boolea
 
 // --- read helpers (server components) ---------------------------------------------
 
-export async function getAgentsOverview(workspaceId: string) {
+export async function getAgentsOverview() {
+  // Server actions can be called from the browser: always use the caller's own workspace.
+  const { workspaceId } = await requireAdmin();
   await ensureWorkspaceAgents(workspaceId);
   const rows = await db
     .select()
@@ -158,7 +160,9 @@ export async function getAgentsOverview(workspaceId: string) {
   };
 }
 
-export async function getRecentRuns(workspaceId: string, limit = 10) {
+export async function getRecentRuns(limit = 10) {
+  // Server actions can be called from the browser: always use the caller's own workspace.
+  const { workspaceId } = await requireAdmin();
   return db
     .select()
     .from(agentRuns)
@@ -167,7 +171,9 @@ export async function getRecentRuns(workspaceId: string, limit = 10) {
     .limit(limit);
 }
 
-export async function getPendingApprovals(workspaceId: string) {
+export async function getPendingApprovals() {
+  // Server actions can be called from the browser: always use the caller's own workspace.
+  const { workspaceId } = await requireAdmin();
   await expireStaleApprovals(workspaceId);
   return db
     .select()

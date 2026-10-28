@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIsSales } from "@/components/providers/role-provider";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { convertLeadToDealAction } from "@/app/actions/crm.actions";
@@ -22,6 +23,7 @@ export function ConvertLeadButton({
   const [open, setOpen] = useState(false);
   const [dealName, setDealName] = useState(`${companyName} — New Opportunity`);
   const [value, setValue] = useState(String(defaultValue ?? 50000));
+  const isSales = useIsSales();
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,11 +46,12 @@ export function ConvertLeadButton({
     try {
       const deal = await convertLeadToDealAction(leadId, {
         name: dealName.trim() || `${companyName} — New Opportunity`,
-        value: parseFloat(value) > 0 ? String(parseFloat(value)) : undefined,
+        value: !isSales && parseFloat(value) > 0 ? String(parseFloat(value)) : undefined,
         stage: "QUALIFIED",
         probability: 30,
       });
-      router.push(`/sales/deals/${deal.id}`);
+      // Deal pages are admin-only (they show amounts); Sales lands on the Pipeline board.
+      router.push(isSales ? "/sales/pipeline" : `/sales/deals/${deal.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Conversion failed");
       setConverting(false);
@@ -84,17 +87,20 @@ export function ConvertLeadButton({
         />
       </div>
 
-      <div>
-        <label className="block text-xs text-text-muted mb-1">Value (USD)</label>
-        <input
-          type="number"
-          min="0"
-          step="1000"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="w-full rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-xs text-text-primary focus:border-primary/60 focus:outline-none"
-        />
-      </div>
+      {/* Sales members don't set amounts (the server ignores them too). */}
+      {!isSales && (
+        <div>
+          <label className="block text-xs text-text-muted mb-1">Value (USD)</label>
+          <input
+            type="number"
+            min="0"
+            step="1000"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="w-full rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-xs text-text-primary focus:border-primary/60 focus:outline-none"
+          />
+        </div>
+      )}
 
       {error && <p className="text-xs text-danger">{error}</p>}
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { agents, agentRuns, agentUsage, agentApprovals, agentFeedback, incidents, agentTraces } from "@/db/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
@@ -29,7 +29,7 @@ function sevenDaysAgo(): Date {
 }
 
 export default async function ObservabilityPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
 
   const since7d = sevenDaysAgo();
 

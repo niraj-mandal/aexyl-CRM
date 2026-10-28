@@ -8,6 +8,7 @@ import {
   revokeInviteAction,
   approveJoinRequestAction,
   rejectJoinRequestAction,
+  setMemberRoleAction,
 } from "@/app/actions/invite.actions";
 import { publicAppOrigin } from "@/lib/app-url";
 
@@ -34,6 +35,8 @@ function formatDate(iso: string) {
 export function InviteForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  // Least privilege by default: a new teammate is Sales unless you choose Admin.
+  const [role, setRole] = useState<"SALES" | "ADMIN">("SALES");
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{
     email: string;
@@ -49,7 +52,7 @@ export function InviteForm() {
     setError(null);
     startTransition(async () => {
       try {
-        const invite = await createInviteAction({ email });
+        const invite = await createInviteAction({ email, role });
         if (!invite.ok) {
           setError(invite.error);
           return;
@@ -80,15 +83,24 @@ export function InviteForm() {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={submit} className="flex gap-2">
+      <form onSubmit={submit} className="flex flex-wrap gap-2">
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="teammate@company.com"
           required
-          className="flex-1 rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary/60 focus:outline-none"
+          className="min-w-[12rem] flex-1 rounded-md bg-surface-lowest border border-border-subtle px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary/60 focus:outline-none"
         />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as "SALES" | "ADMIN")}
+          aria-label="Role"
+          className="rounded-md bg-surface-lowest border border-border-subtle px-2 py-2 text-sm text-text-primary focus:border-primary/60 focus:outline-none"
+        >
+          <option value="SALES">Sales (no revenue)</option>
+          <option value="ADMIN">Admin (everything)</option>
+        </select>
         <button
           type="submit"
           disabled={pending || !email.trim()}
@@ -261,6 +273,36 @@ export function JoinRequestRow({ request }: { request: JoinRequest }) {
           <X className="h-3 w-3" /> Reject
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Admin/Sales switch on a member row. Sales members never see money or admin tools. */
+export function MemberRoleSelect({ membershipId, isSales, disabled }: { membershipId: string; isSales: boolean; disabled?: boolean }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <select
+        value={isSales ? "SALES" : "ADMIN"}
+        disabled={disabled || pending}
+        aria-label="Member role"
+        onChange={(e) => {
+          const next = e.target.value as "SALES" | "ADMIN";
+          setError(null);
+          startTransition(async () => {
+            const res = await setMemberRoleAction(membershipId, next);
+            if (!res.ok) setError(res.error);
+            router.refresh();
+          });
+        }}
+        className="rounded-md bg-surface-lowest border border-border-subtle px-2 py-1 text-xs text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-60"
+      >
+        <option value="ADMIN">Admin</option>
+        <option value="SALES">Sales</option>
+      </select>
+      {error && <p className="max-w-[180px] text-right text-xs text-danger">{error}</p>}
     </div>
   );
 }

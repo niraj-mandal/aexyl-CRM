@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useIsSales } from "@/components/providers/role-provider";
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
 import { Search, Command as CmdIcon, CalendarDays, Users, Kanban, Briefcase, Settings, Megaphone, Send, LineChart } from "lucide-react";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const isSales = useIsSales();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -116,12 +118,12 @@ export function CommandPalette() {
                     </div>
                   </Command.Item>
 
-                  <Command.Item onSelect={() => runCommand(() => router.push("/intelligence"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
+                  {!isSales && <Command.Item onSelect={() => runCommand(() => router.push("/intelligence"))} className={cn("flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors hover:bg-primary/10 aria-selected:bg-primary/20 aria-selected:text-text-primary")}>
                     <div className="flex items-center">
                       <LineChart className="mr-2.5 h-3.5 w-3.5 text-text-muted" />
                       <span>Insights</span>
                     </div>
-                  </Command.Item>
+                  </Command.Item>}
                 </Command.Group>
               </Command.List>
 

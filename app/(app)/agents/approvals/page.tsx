@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Display, PageTitle, Body } from "@/components/ui/typography";
 import { GlassCard } from "@/components/ui/glass-card";
-import { requireWorkspace } from "@/lib/auth/workspace";
+import { requireAdminPage } from "@/lib/auth/workspace";
 import { db } from "@/db";
 import { agents, agentApprovals } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -13,7 +13,7 @@ import { format } from "date-fns";
 export const dynamic = "force-dynamic";
 
 export default async function ApprovalsPage() {
-  const { workspaceId } = await requireWorkspace();
+  const { workspaceId } = await requireAdminPage();
   await expireStaleApprovals(workspaceId);
 
   const rows = await db
