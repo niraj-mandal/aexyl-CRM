@@ -9,6 +9,22 @@ export const DEMO_STYLES = {
 } as const;
 export type DemoStyle = keyof typeof DEMO_STYLES;
 
+/** Page layouts. Each gym gets its own one by default, so two gyms in a town don't see the same site. */
+export const DEMO_TEMPLATES = {
+  bold: "Bold",
+  clean: "Clean",
+  studio: "Studio",
+} as const;
+export type DemoTemplate = keyof typeof DEMO_TEMPLATES;
+
+/** Stable per-lead pick: the same gym always opens the same default template and colour. */
+function pick<T extends string>(leadId: string, keys: readonly T[], salt: number): T {
+  const n = Number.parseInt(leadId.replace(/-/g, "").slice(salt, salt + 6), 16) || 0;
+  return keys[n % keys.length];
+}
+export const defaultTemplate = (leadId: string) => pick(leadId, Object.keys(DEMO_TEMPLATES) as DemoTemplate[], 0);
+export const defaultStyle = (leadId: string) => pick(leadId, Object.keys(DEMO_STYLES) as DemoStyle[], 6);
+
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFKD").replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "gym";
 
@@ -16,8 +32,14 @@ export function demoSlug(name: string, leadId: string): string {
   return `${slugify(name)}-${leadId.replace(/-/g, "").slice(0, 8)}`;
 }
 
-export function demoPath(name: string, leadId: string, style: DemoStyle = "volt", color?: string): string {
-  const q = new URLSearchParams({ s: style, ...(color ? { c: color.replace("#", "") } : {}) });
+export function demoPath(
+  name: string,
+  leadId: string,
+  style: DemoStyle = defaultStyle(leadId),
+  color?: string,
+  template: DemoTemplate = defaultTemplate(leadId),
+): string {
+  const q = new URLSearchParams({ t: template, s: style, ...(color ? { c: color.replace("#", "") } : {}) });
   return `/demo/${demoSlug(name, leadId)}?${q}`;
 }
 

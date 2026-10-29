@@ -5,7 +5,7 @@ import Link from "next/link";
 import { animate, AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ArrowUpRight, Check, ChevronDown, Copy, MapPin, MessageCircle, Phone, PhoneOff, ScrollText, SkipForward, Sparkles, Timer, X } from "lucide-react";
 import { buildCallScript, buildWhatsApp, suggestedWhatsApp, WHATSAPP_KINDS } from "@/lib/call-script";
-import { DEMO_STYLES, demoPath, type DemoStyle } from "@/lib/demo";
+import { DEMO_STYLES, DEMO_TEMPLATES, defaultStyle, defaultTemplate, demoPath, type DemoStyle, type DemoTemplate } from "@/lib/demo";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { markContactedAction } from "@/app/actions/outreach.actions";
 import { OUTCOME_OPTIONS, recordOutcome } from "@/components/crm/LeadQuickActions";
@@ -210,16 +210,20 @@ function LeadPanel({
   const tel = lead.phone?.replace(/[^\d+]/g, "");
   const wa = waNumber(lead.phone);
   const suggested = suggestedWhatsApp(lead.status);
-  const [demoStyle, setDemoStyle] = useState<DemoStyle>("volt");
+  // Defaults differ per gym, so neighbouring gyms don't get the same-looking demo.
+  const [demoTemplate, setDemoTemplate] = useState<DemoTemplate>(() => defaultTemplate(lead.id));
+  const [demoStyle, setDemoStyle] = useState<DemoStyle>(() => defaultStyle(lead.id));
   const [demoColor, setDemoColor] = useState<string | null>(null);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const demoUrl = `${origin}${demoPath(lead.businessName, lead.id, demoStyle, demoColor ?? undefined)}`;
+  const demoUrl = `${origin}${demoPath(lead.businessName, lead.id, demoStyle, demoColor ?? undefined, demoTemplate)}`;
   // "Copied" belongs to the exact link that was copied, not to whatever style is picked next.
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const copiedDemo = copiedUrl === demoUrl;
   const demoPicker = (
     <DemoPicker
       url={demoUrl}
+      template={demoTemplate}
+      onTemplate={setDemoTemplate}
       style={demoStyle}
       color={demoColor}
       copied={copiedDemo}
@@ -473,11 +477,15 @@ function DemoPicker({
   style,
   color,
   copied,
+  template,
+  onTemplate,
   onStyle,
   onColor,
   onCopy,
 }: {
   url: string;
+  template: DemoTemplate;
+  onTemplate: (t: DemoTemplate) => void;
   style: DemoStyle;
   color: string | null;
   copied: boolean;
@@ -490,7 +498,17 @@ function DemoPicker({
       active ? "border-border-strong bg-surface-high text-text-primary" : "border-border-subtle text-text-secondary hover:text-text-primary"
     }`;
   return (
+    <div className="space-y-2">
+    <div role="group" aria-label="Demo layout" className="flex flex-wrap items-center gap-1.5">
+      <span className="w-12 text-[11px] text-text-muted">Layout</span>
+      {(Object.keys(DEMO_TEMPLATES) as DemoTemplate[]).map((t) => (
+        <button key={t} type="button" onClick={() => onTemplate(t)} aria-pressed={template === t} className={chip(template === t)}>
+          {DEMO_TEMPLATES[t]}
+        </button>
+      ))}
+    </div>
     <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-12 text-[11px] text-text-muted">Colour</span>
       {(Object.keys(DEMO_STYLES) as DemoStyle[]).map((s) => (
         <button key={s} type="button" onClick={() => onStyle(s)} aria-pressed={style === s && !color} className={chip(style === s && !color)}>
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: DEMO_STYLES[s].accent }} /> {DEMO_STYLES[s].label}
@@ -514,6 +532,7 @@ function DemoPicker({
       <button type="button" onClick={onCopy} className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary">
         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} {copied ? "Copied" : "Copy link"}
       </button>
+    </div>
     </div>
   );
 }
