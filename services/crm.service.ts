@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { agentEvents, companies, contacts, leads, deals, projects, tasks, discoveryCandidates } from "@/db/schema";
+import { activities, agentEvents, companies, contacts, leads, deals, projects, tasks, discoveryCandidates } from "@/db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { leadCity } from "@/lib/maps";
 import { SALES_ROLE } from "@/lib/auth/roles";
@@ -466,10 +466,18 @@ export class CrmService {
   }
 
   static async deleteDeal(workspaceId: string, dealId: string) {
-    const [deleted] = await db.delete(deals)
-      .where(and(eq(deals.id, dealId), eq(deals.workspaceId, workspaceId)))
-      .returning();
-    return deleted;
+    // Activities, tasks and projects reference the deal with no ON DELETE rule, so unlink them first:
+    // the history stays on the lead/company, only the deal goes.
+    return db.transaction(async (tx) => {
+      const unlink = { dealId: null, updatedAt: new Date() };
+      await tx.update(activities).set({ dealId: null }).where(and(eq(activities.dealId, dealId), eq(activities.workspaceId, workspaceId)));
+      await tx.update(tasks).set(unlink).where(and(eq(tasks.dealId, dealId), eq(tasks.workspaceId, workspaceId)));
+      await tx.update(projects).set(unlink).where(and(eq(projects.dealId, dealId), eq(projects.workspaceId, workspaceId)));
+      const [deleted] = await tx.delete(deals)
+        .where(and(eq(deals.id, dealId), eq(deals.workspaceId, workspaceId)))
+        .returning();
+      return deleted;
+    });
   }
 
   // ---------------------------------------------------------------------------
