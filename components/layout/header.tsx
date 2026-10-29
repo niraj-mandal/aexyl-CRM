@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useIsSales } from "@/components/providers/role-provider";
 import { UserButton } from "@clerk/nextjs";
 import { format } from "date-fns";
-import { Search, Command, ShieldAlert, Menu } from "lucide-react";
+import { Search, ShieldAlert, Menu } from "lucide-react";
 import { TOGGLE_SIDEBAR_EVENT } from "@/components/layout/sidebar";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
@@ -24,7 +24,7 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
           onClick={() => window.dispatchEvent(new Event(TOGGLE_SIDEBAR_EVENT))}
           aria-label="Open menu"
           aria-controls="app-sidebar"
-          className="md:hidden -ml-1 rounded-lg p-2 text-text-secondary hover:bg-surface-high hover:text-text-primary"
+          className="md:hidden -ml-2 flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-high hover:text-text-primary"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -33,12 +33,13 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
         </p>
       </div>
 
-      <div className="flex items-center space-x-2 md:space-x-4">
+      <div className="flex items-center gap-1 md:gap-4">
         <ThemeToggle />
-        {/* Pinned approvals shortcut — review inbox always one click away (admins only) */}
+        {/* Pinned approvals shortcut — review inbox always one click away (admins only).
+            Hidden on phones to keep the bar calm; it's in the menu under Aexyl Agents. */}
         {!isSales && <Link
           href="/agents/approvals"
-          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-all ${
+          className={`hidden md:flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-all ${
             actionNeeded
               ? "border-tertiary/50 bg-tertiary/10 text-text-primary hover:border-tertiary/70"
               : "border-border-subtle bg-surface-low/80 text-text-muted hover:border-primary/40 hover:text-text-secondary"
@@ -57,13 +58,9 @@ export function Header({ userFirstName }: { userFirstName?: string | null }) {
             document.dispatchEvent(event);
           }}
           aria-label="Search or jump to"
-          className="md:hidden flex items-center space-x-3 rounded-lg border border-border-subtle bg-surface-low/80 px-3 py-1.5 text-xs text-text-muted hover:border-primary/40 hover:text-text-secondary transition-all"
+          className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-high hover:text-text-primary transition-colors"
         >
-          <Search className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Search or jump to...</span>
-          <kbd className="hidden sm:flex items-center gap-0.5 rounded border border-border-subtle bg-surface-high px-1.5 py-0.5 font-mono-code text-xs text-text-muted">
-            <Command className="h-2.5 w-2.5" /> K
-          </kbd>
+          <Search className="h-[18px] w-[18px]" />
         </button>
 
         <UserButton

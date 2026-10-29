@@ -20,7 +20,7 @@ export default async function ScoreboardPage({ searchParams }: { searchParams: P
   const max = Math.max(1, ...daily.map((d) => d.calls));
 
   const chip = (active: boolean) =>
-    `inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+    `inline-flex items-center rounded-full border px-3 py-1 text-xs max-sm:min-h-9 font-medium transition-colors ${
       active ? "border-primary/40 bg-primary/15 text-primary" : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
     }`;
 

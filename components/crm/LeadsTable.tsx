@@ -70,7 +70,12 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
               const stage = LEAD_STAGE[lead.status] ?? { label: lead.status, color: "#9B9BA4" };
               const wa = waNumber(lead.phone);
               return (
-                <tr key={lead.id} className="group transition-colors hover:bg-surface-high/40">
+                <tr
+                  key={lead.id}
+                  // Tapping anywhere on the row opens the sheet, except on the row's own controls.
+                  onClick={(e) => !(e.target as HTMLElement).closest("a,button,input,select,form,[role=group]") && setOpen(lead)}
+                  className="group cursor-pointer transition-colors hover:bg-surface-high/40"
+                >
                   <td className="py-3 pl-3 pr-0 sm:pl-4">
                     <ReachedOutToggle leadId={lead.id} name={lead.businessName} done={Boolean(lead.lastContactedAt)} />
                   </td>
@@ -107,7 +112,7 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label={`WhatsApp ${lead.businessName}`}
-                          className="rounded p-1 text-text-muted hover:bg-success/10 hover:text-success"
+                          className="rounded-lg p-2.5 text-text-muted hover:bg-success/10 hover:text-success sm:rounded sm:p-1"
                         >
                           <MessageCircle className="h-3.5 w-3.5" />
                         </a>

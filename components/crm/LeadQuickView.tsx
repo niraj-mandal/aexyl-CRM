@@ -444,7 +444,7 @@ function LeadPanel({
                       href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp(kind, lead, undefined, demoUrl))}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs max-sm:min-h-9 font-medium transition-colors ${
                         kind === suggested
                           ? "border-success/40 bg-success/15 text-success"
                           : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
@@ -486,7 +486,7 @@ function DemoPicker({
   onCopy: () => void;
 }) {
   const chip = (active: boolean) =>
-    `inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+    `inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs max-sm:min-h-9 font-medium transition-colors ${
       active ? "border-border-strong bg-surface-high text-text-primary" : "border-border-subtle text-text-secondary hover:text-text-primary"
     }`;
   return (

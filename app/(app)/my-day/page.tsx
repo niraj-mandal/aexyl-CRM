@@ -317,7 +317,9 @@ export default async function MyDayPage() {
       <GlassPanel className="p-5">
         <SectionHeader icon={Inbox} title="Needs you" meta={plural(needsYou, "item")} />
         {needsYou === 0 ? (
-          <EmptyState icon={Sparkles} title="All clear" body="No drafts waiting for approval, quiet leads or stuck deals." />
+          <p className="mt-3 flex items-center gap-2 text-sm text-text-muted">
+            <Sparkles className="h-4 w-4 text-success" /> All clear. No drafts to approve, quiet leads or stuck deals.
+          </p>
         ) : (
           <div className="mt-4 grid gap-5 md:grid-cols-2">
             {pendingDrafts.length > 0 && (

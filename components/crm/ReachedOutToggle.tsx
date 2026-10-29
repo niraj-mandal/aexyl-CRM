@@ -45,7 +45,7 @@ export function ReachedOutToggle({ leadId, name, done }: { leadId: string; name:
         aria-label={checked ? `Reached out to ${name}. Click to untick` : `Mark ${name} as reached out`}
         title={checked ? "Reached out (click to untick)" : "Mark as reached out"}
         onClick={() => (checked ? untick() : setChoosing((v) => !v))}
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+        className={`relative flex h-5 w-5 shrink-0 items-center before:absolute before:-inset-2.5 before:content-[''] sm:before:hidden justify-center rounded-md border-2 transition-colors ${
           checked ? "border-success bg-success text-white" : "border-border-strong hover:border-primary"
         }`}
       >
@@ -62,18 +62,18 @@ export function ReachedOutToggle({ leadId, name, done }: { leadId: string; name:
             type="button"
             autoFocus
             onClick={() => tick("CALL")}
-            className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
+            className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-success/10 px-3 py-2 text-xs sm:px-2 sm:py-1 font-medium text-success hover:bg-success/20"
           >
             <Phone className="h-3 w-3" /> Call
           </button>
           <button
             type="button"
             onClick={() => tick("WHATSAPP")}
-            className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
+            className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-success/10 px-3 py-2 text-xs sm:px-2 sm:py-1 font-medium text-success hover:bg-success/20"
           >
             <MessageCircle className="h-3 w-3" /> WhatsApp
           </button>
-          <button type="button" onClick={() => setChoosing(false)} aria-label="Cancel" className="rounded-md p-1 text-text-muted hover:bg-[var(--fill-hover)]">
+          <button type="button" onClick={() => setChoosing(false)} aria-label="Cancel" className="rounded-md p-2 sm:p-1 text-text-muted hover:bg-[var(--fill-hover)]">
             <X className="h-3 w-3" />
           </button>
         </span>

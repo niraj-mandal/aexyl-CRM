@@ -27,7 +27,7 @@ export function NotificationBell() {
           setOpen((o) => !o);
           if (!open) refresh();
         }}
-        className="relative rounded-lg border border-border-subtle bg-surface-low/80 p-2 text-text-muted transition-colors hover:border-primary/40 hover:text-text-secondary"
+        className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-[var(--fill-hover)] hover:text-text-primary md:h-auto md:w-auto md:border md:border-border-subtle md:bg-surface-low/80 md:p-2 md:text-text-muted"
         aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
       >
         <Bell className="h-3.5 w-3.5" />
@@ -40,19 +40,20 @@ export function NotificationBell() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-border-subtle bg-surface-low/95 shadow-2xl backdrop-blur-xl">
+          {/* The header's backdrop-blur makes it the containing block for fixed children, so size the overlay to the viewport explicitly. */}
+          <div className="fixed left-0 top-0 z-30 h-dvh w-screen max-md:bg-black/40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-border-subtle bg-surface-low/95 shadow-2xl backdrop-blur-xl max-md:fixed max-md:inset-x-3 max-md:top-16 max-md:mt-0 max-md:w-auto max-md:bg-surface-low">
             <div className="flex items-center justify-between border-b border-border-subtle/60 px-4 py-2.5">
               <span className="font-mono-code text-xs tracking-wider text-text-muted">
                 {unread > 0 ? `${unread} NEED YOUR ATTENTION` : "ALL CLEAR"}
               </span>
               {unread > 0 && (
-                <button onClick={markAll} className="text-xs text-primary hover:underline">
+                <button onClick={markAll} className="py-1 text-xs text-primary hover:underline">
                   Mark all read
                 </button>
               )}
             </div>
-            <div className="max-h-80 overflow-y-auto scrollbar-thin">
+            <div className="max-h-80 overflow-y-auto overscroll-contain scrollbar-thin max-md:max-h-[60dvh]">
               {items.length === 0 ? (
                 <p className="px-4 py-6 text-center text-xs text-text-muted">No notifications yet.</p>
               ) : (

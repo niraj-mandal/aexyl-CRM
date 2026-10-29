@@ -130,25 +130,42 @@ export function TodayList() {
 }
 
 function TodayRow({ lead, note, urgent, onOutcome, onOpen }: { lead: OutreachLead; note: string; urgent?: boolean; onOutcome?: () => void; onOpen: () => void }) {
+  const tel = lead.phone?.replace(/[^\d+]/g, "");
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 transition-colors hover:bg-[var(--fill-hover)]">
+    // The name button stretches over the whole row (after:inset-0), so on a phone the entire row opens the
+    // gym's sheet; the Call button and desktop actions sit above it (relative z-10) and stay tappable.
+    <div className="relative flex items-center justify-between gap-2 px-3.5 py-3 transition-colors hover:bg-[var(--fill-hover)] sm:flex-wrap sm:py-2.5">
       <div className="flex min-w-0 items-center gap-2.5">
-        <GymAvatar name={lead.businessName} size={30} />
+        <GymAvatar name={lead.businessName} size={34} />
         <div className="min-w-0">
-        <button type="button" onClick={onOpen} className="block max-w-full truncate text-left text-xs font-semibold text-text-primary hover:text-primary">
-          {lead.businessName}
-        </button>
-        <p className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
-          <span className={urgent ? "text-danger font-semibold" : ""}>{note}</span>
-          {lead.phone && (
-            <a href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`} className="num inline-flex items-center gap-1 text-success hover:underline">
-              <Phone className="h-3 w-3" /> {lead.phone}
-            </a>
-          )}
-        </p>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="block max-w-full truncate text-left text-sm font-semibold text-text-primary after:absolute after:inset-0 hover:text-primary sm:text-xs"
+          >
+            {lead.businessName}
+          </button>
+          <p className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+            <span className={urgent ? "text-danger font-semibold" : ""}>{note}</span>
+            {lead.phone && (
+              <a href={`tel:${tel}`} className="num relative z-10 hidden items-center gap-1 text-success hover:underline sm:inline-flex">
+                <Phone className="h-3 w-3" /> {lead.phone}
+              </a>
+            )}
+          </p>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Phone: one big Call button; everything else lives in the sheet the row opens. */}
+      {tel && (
+        <a
+          href={`tel:${tel}`}
+          aria-label={`Call ${lead.businessName}`}
+          className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success/15 text-success sm:hidden"
+        >
+          <Phone className="h-5 w-5" />
+        </a>
+      )}
+      <div className="relative z-10 hidden flex-wrap items-center gap-1.5 sm:flex">
         {onOutcome && <LeadOutcomeSelect leadId={lead.id} name={lead.businessName} onDone={onOutcome} />}
         <a
           href={googleMapsUrl(lead.businessName, lead.place)}

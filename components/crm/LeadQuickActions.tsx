@@ -17,7 +17,7 @@ export function LeadPhoneEditor({ leadId, phone }: { leadId: string; phone: stri
 
   if (phone && !editing) {
     return (
-      <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-success hover:underline">
+      <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1 whitespace-nowrap py-2 text-xs text-success hover:underline sm:py-0">
         <Phone className="h-3 w-3" /> {phone}
       </a>
     );
@@ -28,7 +28,7 @@ export function LeadPhoneEditor({ leadId, phone }: { leadId: string; phone: stri
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1 rounded border border-dashed border-border-subtle px-1.5 py-0.5 text-xs text-text-muted hover:text-primary hover:border-primary/40"
+        className="inline-flex items-center gap-1 rounded border border-dashed border-border-subtle px-2 py-1.5 text-xs text-text-muted hover:text-primary sm:px-1.5 sm:py-0.5 hover:border-primary/40"
       >
         <Plus className="h-3 w-3" /> Add phone
       </button>

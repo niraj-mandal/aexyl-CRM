@@ -37,7 +37,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   );
   const pageHref = (p: number) => `/sales/leads?${new URLSearchParams({ ...(city ? { city } : {}), page: String(p) })}`;
   const chip = (active: boolean) =>
-    `inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+    `inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs max-sm:min-h-9 font-medium transition-colors ${
       active
         ? "border-primary/40 bg-primary/15 text-primary"
         : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
