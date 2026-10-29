@@ -111,7 +111,7 @@ export default async function ScoreboardPage({ searchParams }: { searchParams: P
                   </thead>
                   <tbody className="num divide-y divide-border-subtle text-text-secondary">
                     {people.map((p) => (
-                      <tr key={p.person}>
+                      <tr key={p.userId}>
                         <td className="px-5 py-2.5 font-medium text-text-primary">{p.person}</td>
                         <td className="px-3 py-2.5 text-right">{p.calls}</td>
                         <td className="px-3 py-2.5 text-right">{p.connected}</td>

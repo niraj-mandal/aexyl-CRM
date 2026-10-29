@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { auditLogs, workspaceMemberships, workspaceInvites, workspaces } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { InviteForm, PendingInviteRow, JoinRequestRow, MemberRoleSelect, AssignLeadsByState } from "@/components/crm/InviteManager";
-import { getLeadStatesAction } from "@/app/actions/invite.actions";
+import { InviteForm, PendingInviteRow, JoinRequestRow, MemberRoleSelect, RemoveMemberButton, AssignLeads } from "@/components/crm/InviteManager";
+import { getLeadPlacesAction } from "@/app/actions/invite.actions";
 import { getEmailProvider, isEmailConfigured } from "@/services/email.service";
 import { LlmService } from "@/services/ai/llm.service";
 import { currentUser } from "@clerk/nextjs/server";
@@ -89,7 +89,7 @@ export default async function SettingsPage({
 
   if (!workspace) throw new Error("Workspace not found");
 
-  const leadStates = activeTab === "Team" ? await getLeadStatesAction() : [];
+  const leadPlaces = activeTab === "Team" ? await getLeadPlacesAction() : [];
   const teamMembers = memberships.map((m) => ({
     userId: m.user.id,
     name: [m.user.firstName, m.user.lastName].filter(Boolean).join(" ") || m.user.email,
@@ -236,8 +236,8 @@ export default async function SettingsPage({
               )}
 
               <div className="mb-6 space-y-2">
-                <SectionTitle className="mb-2">Assign leads by state</SectionTitle>
-                <AssignLeadsByState states={leadStates} members={teamMembers} />
+                <SectionTitle className="mb-2">Assign leads</SectionTitle>
+                <AssignLeads places={leadPlaces} members={teamMembers} />
               </div>
 
               <div className="space-y-3">
@@ -246,7 +246,7 @@ export default async function SettingsPage({
                     key={m.id}
                     className="flex items-center justify-between rounded-lg border border-border-subtle bg-surface-low px-4 py-3"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-[40%] flex-1">
                       <p className="text-sm font-medium text-text-primary truncate">
                         {[m.user.firstName, m.user.lastName].filter(Boolean).join(" ") || "Unnamed member"}
                         {m.user.id === userId && (
@@ -258,6 +258,11 @@ export default async function SettingsPage({
                     <div className="text-right shrink-0 ml-4">
                       <MemberRoleSelect membershipId={m.id} isSales={m.role?.name === SALES_ROLE} disabled={m.user.id === userId || isOwnerEmail(m.user.email)} />
                       <p className="mt-1 text-xs text-text-muted">joined {formatDate(m.user.createdAt)}</p>
+                      {m.user.id !== userId && !isOwnerEmail(m.user.email) && (
+                        <div className="mt-1.5">
+                          <RemoveMemberButton membershipId={m.id} name={[m.user.firstName, m.user.lastName].filter(Boolean).join(" ") || m.user.email} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

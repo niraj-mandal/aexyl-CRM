@@ -9,7 +9,8 @@ import {
   approveJoinRequestAction,
   rejectJoinRequestAction,
   setMemberRoleAction,
-  assignLeadsByStateAction,
+  assignLeadsAction,
+  removeMemberAction,
 } from "@/app/actions/invite.actions";
 import { publicAppOrigin } from "@/lib/app-url";
 
@@ -308,64 +309,159 @@ export function MemberRoleSelect({ membershipId, isSales, disabled }: { membersh
   );
 }
 
-/** "Assign leads by state": every lead from a state (and its deals) goes to one teammate. */
-export function AssignLeadsByState({
-  states,
+/** Two-step remove: "Remove" → "Remove Nishan? Their leads move to you." → Yes / No. */
+export function RemoveMemberButton({ membershipId, name }: { membershipId: string; name: string }) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  if (!confirming) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <button type="button" onClick={() => setConfirming(true)} className="text-xs text-text-muted hover:text-danger">
+          Remove
+        </button>
+        {error && <p className="max-w-[200px] text-right text-xs text-danger">{error}</p>}
+      </div>
+    );
+  }
+  return (
+    <div className="flex max-w-[200px] flex-col items-end gap-1.5 text-right" role="group" aria-label={`Remove ${name}`}>
+      <p className="text-xs text-text-secondary">Remove {name}? They lose access and their leads, deals and tasks move to you.</p>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const res = await removeMemberAction(membershipId);
+              if (!res.ok) {
+                setError(res.error);
+                setConfirming(false);
+              }
+              router.refresh();
+            })
+          }
+          className="inline-flex items-center gap-1 rounded bg-danger px-2.5 py-1 text-xs font-bold text-white hover:bg-danger/90 disabled:opacity-50"
+        >
+          {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Remove
+        </button>
+        <button type="button" disabled={pending} onClick={() => setConfirming(false)} className="rounded border border-border-subtle px-2.5 py-1 text-xs text-text-muted hover:text-text-primary">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type Owners = Record<string, number>;
+export type LeadPlace = { state: string; total: number; owners: Owners; cities: { city: string; total: number; owners: Owners }[] };
+
+/** Give all leads, one state, or one city/town to anyone on the team (admins included). */
+export function AssignLeads({
+  places,
   members,
 }: {
-  states: { state: string; total: number; owners: Record<string, number> }[];
+  places: LeadPlace[];
   members: { userId: string; name: string; isSales: boolean }[];
 }) {
   const router = useRouter();
-  const [state, setState] = useState(states[0]?.state ?? "");
+  const [state, setState] = useState(""); // "" = all leads
+  const [city, setCity] = useState(""); // "" = the whole state
   const [member, setMember] = useState(members.find((m) => m.isSales)?.userId ?? members[0]?.userId ?? "");
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const nameOf = (id: string) => members.find((m) => m.userId === id)?.name ?? "someone";
-  const sel = "rounded-md bg-surface-lowest border border-border-subtle px-2 py-2 text-sm text-text-primary focus:border-primary/60 focus:outline-none";
+  const holders = (owners: Owners) => Object.entries(owners).sort((a, b) => b[1] - a[1]).map(([id, n]) => `${nameOf(id)} ${n}`).join(", ") || "unassigned";
+  const sel = "min-h-10 rounded-md bg-surface-lowest border border-border-subtle px-2 py-2 text-sm text-text-primary focus:border-primary/60 focus:outline-none disabled:opacity-50";
 
-  if (states.length === 0) return <p className="text-xs text-text-muted">No leads with a state yet.</p>;
+  if (places.length === 0) return <p className="text-xs text-text-muted">No leads yet.</p>;
+
+  const all = places.reduce((n, p) => n + p.total, 0);
+  const picked = places.find((p) => p.state === state);
+  const count = !picked ? all : city ? (picked.cities.find((c) => c.city === city)?.total ?? 0) : picked.total;
+  const label = !picked ? "all leads" : city ? `${city} leads` : `${state} leads`;
 
   return (
     <div className="space-y-3">
       <ul className="space-y-1 text-xs text-text-secondary">
-        {states.map((s) => (
-          <li key={s.state}>
-            <span className="font-medium text-text-primary">{s.state}</span> · {s.total} lead{s.total === 1 ? "" : "s"}:{" "}
-            {Object.entries(s.owners).map(([id, n]) => `${nameOf(id)} ${n}`).join(", ") || "unassigned"}
+        {places.map((p) => (
+          <li key={p.state}>
+            <details className="group">
+              <summary className="cursor-pointer list-none py-0.5 marker:hidden [&::-webkit-details-marker]:hidden">
+                <span className="mr-1 inline-block text-text-muted transition-transform group-open:rotate-90">›</span>
+                <span className="font-medium text-text-primary">{p.state}</span> · {p.total} lead{p.total === 1 ? "" : "s"}: {holders(p.owners)}
+              </summary>
+              <ul className="mb-1 ml-4 mt-1 space-y-0.5 border-l border-border-subtle pl-3">
+                {p.cities.map((c) => (
+                  <li key={c.city}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setState(p.state);
+                        setCity(c.city);
+                        setResult(null);
+                      }}
+                      className="text-left hover:text-primary"
+                      title={`Pick ${c.city}`}
+                    >
+                      {c.city} · {c.total}: {holders(c.owners)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
           </li>
         ))}
       </ul>
       <div className="flex flex-wrap items-center gap-2">
-        <select value={state} onChange={(e) => setState(e.target.value)} aria-label="State" className={sel}>
-          {states.map((s) => (
-            <option key={s.state} value={s.state}>{s.state} ({s.total})</option>
+        <select
+          value={state}
+          onChange={(e) => {
+            setState(e.target.value);
+            setCity("");
+            setResult(null);
+          }}
+          aria-label="State"
+          className={sel}
+        >
+          <option value="">All leads ({all})</option>
+          {places.map((p) => (
+            <option key={p.state} value={p.state}>{p.state} ({p.total})</option>
+          ))}
+        </select>
+        <select value={city} onChange={(e) => setCity(e.target.value)} disabled={!picked} aria-label="City or town" className={sel}>
+          <option value="">{picked ? `Whole state (${picked.total})` : "Any city"}</option>
+          {picked?.cities.map((c) => (
+            <option key={c.city} value={c.city}>{c.city} ({c.total})</option>
           ))}
         </select>
         <span className="text-xs text-text-muted">to</span>
         <select value={member} onChange={(e) => setMember(e.target.value)} aria-label="Teammate" className={sel}>
           {members.map((m) => (
-            <option key={m.userId} value={m.userId}>{m.name}{m.isSales ? " (Sales)" : ""}</option>
+            <option key={m.userId} value={m.userId}>{m.name}{m.isSales ? " (Sales)" : " (Admin)"}</option>
           ))}
         </select>
         <button
           type="button"
-          disabled={pending || !state || !member}
+          disabled={pending || !member || count === 0}
           onClick={() => {
             setResult(null);
             startTransition(async () => {
-              const res = await assignLeadsByStateAction(state, member);
-              setResult(res.ok ? { ok: true, text: `${res.assigned} ${state} lead${res.assigned === 1 ? "" : "s"} now belong to ${nameOf(member)}.` } : { ok: false, text: res.error });
+              const res = await assignLeadsAction({ state, city }, member);
+              setResult(res.ok ? { ok: true, text: `${res.assigned} ${label} now belong to ${nameOf(member)}.` } : { ok: false, text: res.error });
               router.refresh();
             });
           }}
-          className="inline-flex items-center gap-1.5 rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition disabled:bg-surface-high disabled:text-text-muted"
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition disabled:bg-surface-high disabled:text-text-muted"
         >
-          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Assign
+          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Give {count} to {nameOf(member).split(" ")[0]}
         </button>
       </div>
       {result && <p className={`text-xs ${result.ok ? "text-success" : "text-danger"}`}>{result.text}</p>}
-      <p className="text-xs text-text-muted">Sales members see only their own leads. New leads from a state stay with whoever imported them until you assign again.</p>
+      <p className="text-xs text-text-muted">
+        Open a state to see its cities; click a city to pick it. Sales members see only their own leads. New leads stay with whoever imported them until you assign again.
+      </p>
     </div>
   );
 }

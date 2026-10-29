@@ -9,6 +9,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { useRealtimeTelemetry } from "@/lib/hooks/use-realtime-telemetry";
 import { DailyBrief } from "@/components/crm/DailyBrief";
 import { TodayList } from "@/components/crm/TodayList";
+import { TeamToday } from "@/components/crm/TeamToday";
 import { useCountUp } from "@/components/crm/TodayProgress";
 import { DEAL_STAGES, rupees } from "@/lib/stages";
 import { CountUp } from "@/components/ui/count-up";
@@ -118,6 +119,9 @@ export default function CommandCenter() {
       </header>
 
       <TodayList />
+
+      {/* Admins see every member's calls and lead status; the API is admin-only too. */}
+      {!isSales && <TeamToday />}
 
       <section aria-label="Key numbers" className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
         {kpis.map((k) => (

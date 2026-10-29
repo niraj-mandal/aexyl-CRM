@@ -3,9 +3,9 @@
  * Built from what the CRM already logs: OUTREACH activities (each call / WhatsApp,
  * "No answer" in the description) and lead_outcome STAGE_CHANGE activities.
  */
-import { and, eq, gte, or, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { activities, companies, discoveryCandidates, leads, users } from "@/db/schema";
+import { activities, companies, discoveryCandidates, leads, roles, users, workspaceMemberships } from "@/db/schema";
 import { leadCity } from "@/lib/maps";
 
 const IST_MS = 330 * 60_000;
@@ -112,7 +112,7 @@ export class ScoreboardService {
 
     // A lead can match several discovery records; count each activity once.
     const seen = new Set<string>();
-    const raw: (ScoreEvent & { city: string; person: string })[] = [];
+    const raw: (ScoreEvent & { city: string; person: string; actorId: string | null })[] = [];
     for (const r of rows) {
       const key = `${r.leadId}|${r.occurredAt.getTime()}|${r.type}`;
       if (seen.has(key) || !r.leadId) continue;
@@ -129,7 +129,7 @@ export class ScoreboardService {
     };
     const byDay = group((e) => e.day);
     const byCity = group((e) => e.city);
-    const byPerson = group((e) => e.person);
+    const byPerson = group((e) => e.actorId ?? "unknown");
 
     return {
       totals: tally(events),
@@ -139,8 +139,62 @@ export class ScoreboardService {
         .map(([city, evs]) => ({ city, ...tally(evs) }))
         .sort((a, b) => b.calls + b.whatsapp - (a.calls + a.whatsapp)),
       people: [...byPerson]
-        .map(([person, evs]) => ({ person, ...tally(evs) }))
+        .map(([userId, evs]) => ({ userId, person: evs[0].person, ...tally(evs) }))
         .sort((a, b) => b.calls + b.whatsapp - (a.calls + a.whatsapp)),
     };
+  }
+
+  /**
+   * Admin dashboard: every member's calls today plus where their leads stand
+   * (owned, never contacted, follow-ups due, last contact), and the team total.
+   */
+  static async team(workspaceId: string, now = new Date()) {
+    const tomorrow = new Date(Date.parse(`${istDay(now)}T00:00:00Z`) - IST_MS + DAY_MS);
+    const open = sql`${leads.status} not in ('LOST', 'UNQUALIFIED', 'CONVERTED')`;
+    const [score, members, owned] = await Promise.all([
+      ScoreboardService.get(workspaceId, 1, now),
+      db
+        .select({ userId: users.id, firstName: users.firstName, lastName: users.lastName, role: roles.name })
+        .from(workspaceMemberships)
+        .innerJoin(users, eq(users.id, workspaceMemberships.userId))
+        .leftJoin(roles, eq(roles.id, workspaceMemberships.roleId))
+        .where(eq(workspaceMemberships.workspaceId, workspaceId)),
+      db
+        .select({
+          ownerId: leads.ownerId,
+          leads: sql<number>`count(*) filter (where ${open})::int`,
+          toContact: sql<number>`count(*) filter (where ${leads.status} = 'NEW' and ${leads.lastContactedAt} is null)::int`,
+          followUpsDue: sql<number>`count(*) filter (where ${open} and ${leads.lastContactedAt} is not null and ${leads.nextFollowUpAt} < ${tomorrow.toISOString()})::int`,
+          lastContactAt: sql<string | null>`max(${leads.lastContactedAt})`,
+        })
+        .from(leads)
+        .where(and(eq(leads.workspaceId, workspaceId), isNotNull(leads.ownerId)))
+        .groupBy(leads.ownerId),
+    ]);
+    const statusOf = new Map(owned.map((o) => [o.ownerId, o]));
+    const callsOf = new Map(score.people.map((p) => [p.userId, p]));
+    const people = members
+      .map((m) => {
+        const t = callsOf.get(m.userId);
+        const o = statusOf.get(m.userId);
+        return {
+          userId: m.userId,
+          name: [m.firstName, m.lastName].filter(Boolean).join(" ") || "Unnamed",
+          role: m.role ?? "Member",
+          calls: t?.calls ?? 0,
+          connected: t?.connected ?? 0,
+          whatsapp: t?.whatsapp ?? 0,
+          interested: t?.interested ?? 0,
+          won: t?.won ?? 0,
+          leads: o?.leads ?? 0,
+          toContact: o?.toContact ?? 0,
+          followUpsDue: o?.followUpsDue ?? 0,
+          lastContactAt: o?.lastContactAt ? new Date(o.lastContactAt).toISOString() : null,
+        };
+      })
+      // Members with no leads and no calls today (e.g. an unused invite) are noise.
+      .filter((p) => p.leads > 0 || p.calls > 0 || p.whatsapp > 0)
+      .sort((a, b) => b.calls + b.whatsapp - (a.calls + a.whatsapp) || b.leads - a.leads);
+    return { total: score.today, people };
   }
 }

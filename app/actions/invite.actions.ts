@@ -2,8 +2,9 @@
 
 import crypto from "crypto";
 import { db } from "@/db";
-import { workspaceInvites, workspaceMemberships, users, workspaces, leads, deals } from "@/db/schema";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { workspaceInvites, workspaceMemberships, users, workspaces, leads, deals, companies, discoveryCandidates, projects, tasks } from "@/db/schema";
+import { leadCity } from "@/lib/maps";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { requireAdmin, getVerifiedPrimaryEmail, ensureLocalUser, adminRole, salesRole, AdminOnlyError, clearContextCache, isOwnerEmail } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
@@ -344,33 +345,11 @@ export async function setMemberRoleAction(membershipId: string, role: "ADMIN" | 
   return { ok: true as const };
 }
 
-/** "gym in Saharsa, Bihar, India" → Bihar: the state a discovered lead came from. */
-const LEAD_STATE_SQL = sql<string | null>`substring(${leads.source} from ', ([A-Za-z ]+), India$')`;
-
-/** Lead counts per state and who holds them, for the Team page's assignment tool. Admin-only. */
-export async function getLeadStatesAction() {
-  const { workspaceId } = await requireAdmin();
-  const rows = (await db
-    .select({ state: LEAD_STATE_SQL, ownerId: leads.ownerId, n: sql<number>`count(*)::int` })
-    .from(leads)
-    .where(eq(leads.workspaceId, workspaceId))
-    .groupBy(LEAD_STATE_SQL, leads.ownerId)) as { state: string | null; ownerId: string | null; n: number }[];
-  const byState = new Map<string, { state: string; total: number; owners: Record<string, number> }>();
-  for (const r of rows) {
-    if (!r.state) continue;
-    const e = byState.get(r.state) ?? { state: r.state, total: 0, owners: {} };
-    e.total += r.n;
-    if (r.ownerId) e.owners[r.ownerId] = (e.owners[r.ownerId] ?? 0) + r.n;
-    byState.set(r.state, e);
-  }
-  return [...byState.values()].sort((a, b) => b.total - a.total);
-}
-
 /**
- * Gives every lead from one state (and the deals on those leads) to one team member.
- * Admin-only; the member must belong to this workspace. Sales members then see only theirs.
+ * Removes someone from the team: their access ends and everything they own (leads, deals, companies,
+ * projects, tasks) moves to the admin doing it, so nothing is orphaned. Admin-only; not yourself, not the owner.
  */
-export async function assignLeadsByStateAction(state: string, memberUserId: string) {
+export async function removeMemberAction(membershipId: string) {
   let ctx;
   try {
     ctx = await requireAdmin();
@@ -379,27 +358,128 @@ export async function assignLeadsByStateAction(state: string, memberUserId: stri
     throw e;
   }
   const { workspaceId, userId } = ctx;
-  const cleanState = String(state).trim();
-  if (!/^[A-Za-z ]{2,40}$/.test(cleanState)) return { ok: false as const, error: "Pick a state." };
+  const membership = await db.query.workspaceMemberships.findFirst({
+    where: and(eq(workspaceMemberships.id, String(membershipId)), eq(workspaceMemberships.workspaceId, workspaceId)),
+  });
+  if (!membership) return { ok: false as const, error: "Member not found." };
+  if (membership.userId === userId) return { ok: false as const, error: "You can't remove yourself." };
+  const member = await db.query.users.findFirst({ where: eq(users.id, membership.userId), columns: { email: true } });
+  if (isOwnerEmail(member?.email)) return { ok: false as const, error: "The workspace owner can't be removed." };
+
+  const from = membership.userId;
+  const moved = await db.transaction(async (tx) => {
+    const now = new Date();
+    const owned = <T extends typeof leads | typeof deals | typeof companies | typeof projects>(t: T) =>
+      and(eq(t.workspaceId, workspaceId), eq(t.ownerId, from));
+    const l = await tx.update(leads).set({ ownerId: userId, updatedAt: now }).where(owned(leads)).returning({ id: leads.id });
+    await tx.update(deals).set({ ownerId: userId, updatedAt: now }).where(owned(deals));
+    await tx.update(companies).set({ ownerId: userId, updatedAt: now }).where(owned(companies));
+    await tx.update(projects).set({ ownerId: userId, updatedAt: now }).where(owned(projects));
+    await tx.update(tasks).set({ assignedToId: userId, updatedAt: now }).where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.assignedToId, from)));
+    await tx.delete(workspaceMemberships).where(eq(workspaceMemberships.id, membership.id));
+    return l.length;
+  });
+  // Ends their access on this server now; other servers drop their cached context within a minute.
+  clearContextCache();
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "MEMBER", membership.id, { removedUserId: from, leadsMoved: moved });
+  revalidatePath("/settings");
+  revalidatePath("/");
+  return { ok: true as const, leadsMoved: moved };
+}
+
+type PlacedLead = { id: string; ownerId: string | null; state: string; city: string };
+
+/**
+ * Every lead with its state and city. The city is the one the Leads page shows (leadCity); the state comes
+ * from the discovery source ("gym in Saharsa, Bihar, India"), else from a known state named in the address.
+ */
+async function placedLeads(workspaceId: string): Promise<PlacedLead[]> {
+  const rows = await db
+    .select({
+      id: leads.id,
+      ownerId: leads.ownerId,
+      source: leads.source,
+      location: companies.location,
+      candidateCity: discoveryCandidates.city,
+    })
+    .from(leads)
+    .leftJoin(companies, eq(companies.id, leads.companyId))
+    .leftJoin(discoveryCandidates, and(eq(discoveryCandidates.leadId, leads.id), eq(discoveryCandidates.workspaceId, workspaceId)))
+    .where(eq(leads.workspaceId, workspaceId));
+  const stateOf = (r: (typeof rows)[number]) => r.source?.match(/, ([A-Za-z ]+), India$/)?.[1] ?? null;
+  const known = [...new Set(rows.map(stateOf).filter((x): x is string => Boolean(x)))];
+  const seen = new Set<string>();
+  const out: PlacedLead[] = [];
+  for (const r of rows) {
+    if (seen.has(r.id)) continue; // a lead can match several discovery records
+    seen.add(r.id);
+    const text = `${r.candidateCity ?? ""} ${r.location ?? ""} ${r.source ?? ""}`.toLowerCase();
+    const state = stateOf(r) ?? known.find((k) => text.includes(k.toLowerCase())) ?? "Other";
+    out.push({ id: r.id, ownerId: r.ownerId, state, city: leadCity(r) });
+  }
+  // e.g. "Jalandhar Gym Leads" names no state, but other Jalandhar leads say Punjab.
+  const cityState = new Map(out.filter((o) => o.state !== "Other").map((o) => [o.city, o.state]));
+  for (const o of out) if (o.state === "Other") o.state = cityState.get(o.city) ?? "Other";
+  return out;
+}
+
+type Owners = Record<string, number>;
+const count = (owners: Owners, id: string | null) => {
+  if (id) owners[id] = (owners[id] ?? 0) + 1;
+};
+
+/** Lead counts per state and city and who holds them, for the Team page's assignment tool. Admin-only. */
+export async function getLeadPlacesAction() {
+  const { workspaceId } = await requireAdmin();
+  const states = new Map<string, { state: string; total: number; owners: Owners; cities: Map<string, { city: string; total: number; owners: Owners }> }>();
+  for (const l of await placedLeads(workspaceId)) {
+    const s = states.get(l.state) ?? { state: l.state, total: 0, owners: {}, cities: new Map() };
+    s.total++;
+    count(s.owners, l.ownerId);
+    const c = s.cities.get(l.city) ?? { city: l.city, total: 0, owners: {} };
+    c.total++;
+    count(c.owners, l.ownerId);
+    s.cities.set(l.city, c);
+    states.set(l.state, s);
+  }
+  return [...states.values()]
+    .map((s) => ({ ...s, cities: [...s.cities.values()].sort((a, b) => b.total - a.total) }))
+    .sort((a, b) => (a.state === "Other" ? 1 : b.state === "Other" ? -1 : b.total - a.total));
+}
+
+/**
+ * Gives leads (and the deals on them) to one team member: all leads, one state, or one city in a state.
+ * Admin-only; the member must belong to this workspace. Sales members then see only theirs.
+ */
+export async function assignLeadsAction(place: { state?: string; city?: string }, memberUserId: string) {
+  let ctx;
+  try {
+    ctx = await requireAdmin();
+  } catch (e) {
+    if (e instanceof AdminOnlyError) return { ok: false as const, error: e.message };
+    throw e;
+  }
+  const { workspaceId, userId } = ctx;
+  const state = String(place.state ?? "").trim();
+  const city = String(place.city ?? "").trim();
+  if (city && !state) return { ok: false as const, error: "Pick the state first." };
   const member = await db.query.workspaceMemberships.findFirst({
     where: and(eq(workspaceMemberships.workspaceId, workspaceId), eq(workspaceMemberships.userId, String(memberUserId))),
   });
   if (!member) return { ok: false as const, error: "That person isn't on this team." };
 
-  const moved = await db
-    .update(leads)
-    .set({ ownerId: member.userId, updatedAt: new Date() })
-    .where(and(eq(leads.workspaceId, workspaceId), sql`${LEAD_STATE_SQL} = ${cleanState}`))
-    .returning({ id: leads.id });
-  if (moved.length > 0) {
-    await db
-      .update(deals)
-      .set({ ownerId: member.userId, updatedAt: new Date() })
-      .where(and(eq(deals.workspaceId, workspaceId), inArray(deals.leadId, moved.map((m) => m.id))));
+  const ids = (await placedLeads(workspaceId))
+    .filter((l) => (!state || l.state === state) && (!city || l.city === city))
+    .map((l) => l.id);
+  if (ids.length === 0) return { ok: false as const, error: "No leads in that place." };
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    await db.update(leads).set({ ownerId: member.userId, updatedAt: new Date() }).where(and(eq(leads.workspaceId, workspaceId), inArray(leads.id, chunk)));
+    await db.update(deals).set({ ownerId: member.userId, updatedAt: new Date() }).where(and(eq(deals.workspaceId, workspaceId), inArray(deals.leadId, chunk)));
   }
-  await ActivityService.logAudit(workspaceId, userId, "ASSIGN", "LEAD_BATCH", member.userId, { state: cleanState, leads: moved.length });
+  await ActivityService.logAudit(workspaceId, userId, "ASSIGN", "LEAD_BATCH", member.userId, { state: state || "ALL", city: city || null, leads: ids.length });
   revalidatePath("/settings");
   revalidatePath("/sales/leads");
   revalidatePath("/");
-  return { ok: true as const, assigned: moved.length };
+  return { ok: true as const, assigned: ids.length };
 }

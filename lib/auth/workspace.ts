@@ -28,7 +28,8 @@ type WorkspaceContext = {
  * already hold a workspace membership (created by accepting an invite), or be
  * a configured owner email, which may bootstrap the workspace.
  */
-const OWNER_EMAILS = (process.env.AUTH_OWNER_EMAILS ?? "nirazx30@gmail.com")
+// Founders: always admins, can't be removed or demoted. AUTH_OWNER_EMAILS (comma-separated) replaces this list.
+const OWNER_EMAILS = (process.env.AUTH_OWNER_EMAILS ?? "nirazx30@gmail.com,nirajm863@gmail.com,sameerchoudhury999@gmail.com")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
