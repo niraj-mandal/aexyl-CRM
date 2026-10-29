@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { animate, AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ArrowUpRight, Check, ChevronDown, Copy, MapPin, MessageCircle, Phone, PhoneOff, ScrollText, SkipForward, Sparkles, Timer, X } from "lucide-react";
-import { buildCallScript, buildWhatsApp, suggestedWhatsApp, WHATSAPP_KINDS } from "@/lib/call-script";
+import { buildCallScript, buildWhatsApp, defaultLang, suggestedWhatsApp, WHATSAPP_KINDS, type ScriptLang } from "@/lib/call-script";
 import { DEMO_STYLES, DEMO_TEMPLATES, defaultStyle, defaultTemplate, demoPath, type DemoStyle, type DemoTemplate } from "@/lib/demo";
 import type { OutreachLead } from "@/app/actions/outreach.actions";
 import { markContactedAction } from "@/app/actions/outreach.actions";
@@ -210,6 +210,9 @@ function LeadPanel({
   const tel = lead.phone?.replace(/[^\d+]/g, "");
   const wa = waNumber(lead.phone);
   const suggested = suggestedWhatsApp(lead.status);
+  // Assam gyms get Assamese scripts; a teammate who doesn't speak it can switch to Hinglish.
+  const localLang = defaultLang(lead);
+  const [lang, setLang] = useState<ScriptLang>(localLang);
   // Defaults differ per gym, so neighbouring gyms don't get the same-looking demo.
   const [demoTemplate, setDemoTemplate] = useState<DemoTemplate>(() => defaultTemplate(lead.id));
   const [demoStyle, setDemoStyle] = useState<DemoStyle>(() => defaultStyle(lead.id));
@@ -367,7 +370,7 @@ function LeadPanel({
           {demoPicker}
           {wa ? (
             <a
-              href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp("demo", lead, undefined, demoUrl))}`}
+              href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp("demo", lead, undefined, demoUrl, lang))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-success py-2.5 text-sm font-semibold text-white"
@@ -419,7 +422,24 @@ function LeadPanel({
           <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-open:rotate-180" />
         </summary>
         <div className="max-h-64 space-y-3 overflow-y-auto border-t border-border-subtle px-3 py-3 text-xs leading-relaxed">
-          {buildCallScript(lead).map((s) => (
+          {localLang !== "hinglish" && (
+            <div role="group" aria-label="Script language" className="flex gap-1">
+              {(["assamese", "hinglish"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLang(l)}
+                  aria-pressed={lang === l}
+                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium max-sm:min-h-8 ${
+                    lang === l ? "border-border-strong bg-surface-high text-text-primary" : "border-border-subtle text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  {l === "assamese" ? "Assamese" : "Hinglish"}
+                </button>
+              ))}
+            </div>
+          )}
+          {buildCallScript(lead, undefined, lang).map((s) => (
             <section key={s.title}>
               <h3 className="mb-1 font-semibold text-text-primary">{s.title}</h3>
               <ul className="space-y-1 text-text-secondary">
@@ -445,7 +465,7 @@ function LeadPanel({
                   {WHATSAPP_KINDS.map(({ kind, label }) => (
                     <a
                       key={kind}
-                      href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp(kind, lead, undefined, demoUrl))}`}
+                      href={`https://wa.me/${wa}?text=${encodeURIComponent(buildWhatsApp(kind, lead, undefined, demoUrl, lang))}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs max-sm:min-h-9 font-medium transition-colors ${

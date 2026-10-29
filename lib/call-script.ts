@@ -20,6 +20,11 @@ export function greetingFor(lead: Pick<ScriptLead, "area" | "place">): string {
   return "Namaste ji";
 }
 
+/** Script language. Assam gets Assamese (Roman letters, easy to read aloud); a teammate can switch to Hinglish. */
+export type ScriptLang = "hinglish" | "assamese";
+export const defaultLang = (lead: Pick<ScriptLead, "area" | "place">): ScriptLang =>
+  /\bassam\b/i.test(`${lead.area ?? ""} ${lead.place ?? ""}`) ? "assamese" : "hinglish";
+
 export function parseReviews(notes: string | null | undefined): { rating: number; reviews: number } | null {
   const rating = notes?.match(/(\d(?:\.\d+)?)\s*★/)?.[1];
   const reviews = notes?.match(/(\d+)\s+(?:Google\s+)?reviews/i)?.[1] ?? notes?.match(/Google reviews:\s*(\d+)/i)?.[1];
@@ -56,7 +61,9 @@ export function buildWhatsApp(
   lead: ScriptLead,
   name = senderName(),
   demoLink = "[demo link]",
+  lang: ScriptLang = defaultLang(lead),
 ): string {
+  if (lang === "assamese") return whatsAppAssamese(kind, lead, name, demoLink);
   const gym = lead.businessName;
   const hello = greetingFor(lead);
   const city = lead.city && lead.city !== "Unknown" ? lead.city : "aapke area";
@@ -74,7 +81,8 @@ export function buildWhatsApp(
   }
 }
 
-export function buildCallScript(lead: ScriptLead, name = senderName()): ScriptSection[] {
+export function buildCallScript(lead: ScriptLead, name = senderName(), lang: ScriptLang = defaultLang(lead)): ScriptSection[] {
+  if (lang === "assamese") return callScriptAssamese(lead, name);
   const gym = lead.businessName;
   const hello = greetingFor(lead);
   const city = lead.city && lead.city !== "Unknown" ? lead.city : "aapke area";
@@ -136,6 +144,105 @@ export function buildCallScript(lead: ScriptLead, name = senderName()): ScriptSe
         `"Busy hoon" → "Bilkul. Demo WhatsApp pe bhej doon? Free time mein dekh lena."`,
         `"Soch ke batata hoon" → "Demo dekhe bina sochna mushkil hai. Bhej deta hoon, kal call karoon ya parson?"`,
         `"Beta/bhatija bana dega" → "Achhi baat! Demo bhej deta hoon, unhe bhi idea mil jaayega. Pasand aaye toh ready-made de denge."`,
+      ],
+    },
+  ];
+}
+
+// --- Assamese (Roman letters) -----------------------------------------------------------
+// Same structure and facts as the Hinglish versions above; stage directions stay in English.
+
+const siteOf = (notes: string | null) =>
+  /business\.site/i.test(notes ?? "") ? "googleSite" : /facebook|instagram/i.test(notes ?? "") ? "social" : "none";
+
+function whatsAppAssamese(kind: WhatsAppKind, lead: ScriptLead, name: string, demoLink: string): string {
+  const gym = lead.businessName;
+  const city = lead.city && lead.city !== "Unknown" ? lead.city : "apunar area";
+  const r = parseReviews(lead.notes);
+  const praise = r && r.reviews >= 10 && r.rating >= 4 ? ` Apunar ${r.reviews} ta Google review aru ${r.rating} rating dekhilu, bor bhal!` : "";
+  switch (kind) {
+    case "intro":
+      return `Nomoskar! Moi ${name}, AEXYL-r pora.${praise}
+
+${gym}-r kunu website nai, gotike ${city}-t Google-t gym bisora notun manuh apunar ocholoi ahibo nuwaare.
+
+Moi ${gym}-r babe eta free demo website bonai dekhuwabo paru. Pothiai dim neki?`;
+    case "noAnswer":
+      return `Nomoskar! Moi ${name}, AEXYL-r pora. ${gym}-r bisoye apunak phone korisilu.${praise}
+
+Apunar gym-r eta free demo website bonai dekhuwabo bisarisu. Ketiya kotha hobo pare?`;
+    case "callback":
+      return `Nomoskar! ${name}, AEXYL-r pora. ${gym}-r website-r bisoye kotha hoisil.
+
+Apuni ketiya free thakibo, kobo, tetiya phone korim. 5 minute-r kotha.`;
+    case "demo":
+      return `Nomoskar! ${name}, AEXYL-r pora. Phone-t koisilu dore, ${gym}-r demo website:
+
+${demoLink}
+
+Sai kobo kene lagil. Kaali 5 minute phone kori apunar motamot lom neki?`;
+  }
+}
+
+function callScriptAssamese(lead: ScriptLead, name: string): ScriptSection[] {
+  const gym = lead.businessName;
+  const city = lead.city && lead.city !== "Unknown" ? lead.city : "apunar area";
+  const r = parseReviews(lead.notes);
+  const compliment =
+    r && r.reviews >= 10 && r.rating >= 4
+      ? `Moi apunar gym-r Google review bilak saisilu: ${r.rating} rating, ${r.reviews} ta review. Apuni bor bhal kaam kori ase.`
+      : `Moi ${city}-r gym bilak saisilu aru apunar gym-r Google listing dekhilu.`;
+  const problem = {
+    googleSite: `Apunar purona Google-r free site (business.site) Google-e bondho kori dise, gotike etiya online-t apunar kunu website nedekhi.`,
+    social: `Apunar Facebook/Instagram page ase, kintu kunu website nai. Google-t 'gym near me' search korile page-tu oporot nahe.`,
+    none: `Apunar gym-r kunu website nai.`,
+  }[siteOf(lead.notes)];
+
+  return [
+    {
+      title: "Opener",
+      lines: [
+        `"Nomoskar! Moi ${name} koisu, AEXYL-r pora. ${gym}-r owner-r logot kotha hoise neki?"`,
+        `"Hoi, matro 30 second lom. ${compliment}"`,
+        `Staff picks up: "Owner-k ketiya pam? Teor Google listing-r bisoye kotha patibo lagise." Get their name and number.`,
+      ],
+    },
+    {
+      title: "Hook",
+      lines: [
+        `"Eta kotha mon korilu. Jetia kunubai ${city}-t 'gym near me' bisare, [nearby gym with a website]-r website ole, photo, fees, timing sokolu thake. ${problem} Gotike notun manuhjone compare kori tatei jai."`,
+        `Pause. Let them answer.`,
+      ],
+    },
+    {
+      title: "Question",
+      lines: [
+        `"Etiya notun member apunar ocholoi kenekoi ahe? Beshi bhag manuhe koi-koi ahe, ne Google/Instagram-r pora o ahe?"`,
+        `Word of mouth → "Matlab jibilake apunak nasine, teulok apunar ocholoi ahibo pora nai. Sei gap-tu ami puron kori diu."`,
+        `Instagram → "Instagram-t manuhe scroll kore. Google-t manuhe gym bisari thake, join koribole ready hoi. Duyota lage."`,
+      ],
+    },
+    {
+      title: "Offer",
+      lines: [
+        `"Moi ${gym}-r eta free demo website bonai dekhuam${r && r.reviews >= 10 ? `, apunar ${r.reviews} ta review` : ""}, photo, timing aru WhatsApp button-r logot. Bhal lagile kotha patim, nalagile kunu kotha nai."`,
+      ],
+    },
+    {
+      title: "Close",
+      lines: [
+        `"Moi aji-e demo bonai apunak WhatsApp-t pothiai dim. Ei number-tu WhatsApp-t ase nohoi?"`,
+        `"Kaali [11 bojat] 5 minute phone kori demo-r bisoye apunar motamot lom neki?" Never hang up without a next step.`,
+      ],
+    },
+    {
+      title: "Objections",
+      lines: [
+        `"Gym already full" → "Tetiya website apunar premium image. Aru jetia kunuba member gusi jai, notun jon kot pora ahibo? Website-e 24 ghanta lead ani diye."`,
+        `"Kiman khoros?" → "Prothome demo-tu sai lok. Bhal nalagile price-r kotha-ei nohoi. Bhal lagile option dim."`,
+        `"Busy asu" → "Nischoi. Demo-tu WhatsApp-t pothiai diu? Free hole sai lob."`,
+        `"Bhabi kom" → "Demo nosai bhabibo tan. Pothiai diu, kaali phone koru ne porohi?"`,
+        `"Lora/bhatija-e bonai dibo" → "Bhal kotha! Demo pothiai diu, teuluko idea pabo. Bhal lagile ready-made di dim."`,
       ],
     },
   ];
