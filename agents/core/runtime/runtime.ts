@@ -483,10 +483,12 @@ export class AgentRuntime {
       workspaceId: params.workspaceId,
       exceptUserId: params.userId,
       type: "agent.approval_requested",
-      title: "Agent action needs approval",
-      body: `${params.description.slice(0, 140)}`,   
+      title: "Agent actions need approval",
+      body: `Latest: ${params.description.slice(0, 140)}`,
       link: "/agents/approvals",
-      dedupeKey: `approval:${approval.id}`,
+      // One rolling notice per person: no new one while the last is unread, so a batch of drafts is one ping, not dozens.
+      dedupeKey: "approvals:pending",
+      dedupeWindowMinutes: 7 * 24 * 60,
     });
     return approval;
   }

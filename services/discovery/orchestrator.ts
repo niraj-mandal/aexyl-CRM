@@ -164,6 +164,8 @@ export class DiscoveryOrchestrator {
     const city = config.location.split(",")[0].trim();
     const what = `${config.category} in ${city}`;
     const s = (n: number) => (n === 1 ? "" : "s");
+    // A scheduled run that found nothing isn't worth a ping; manual runs still report back.
+    if (kind === "Daily discovery" && r.created === 0 && r.qualified === 0 && r.status !== "FAILED") return;
 
     let title: string;
     let body: string;
@@ -194,7 +196,9 @@ export class DiscoveryOrchestrator {
       title,
       body,
       link: "/bdr?tab=discovery",
-      dedupeKey: `discovery-${r.runId}`,
+      // Same outcome again (e.g. the same city failing on retries) collapses into the unread notice already there.
+      dedupeKey: `discovery:${title}`,
+      dedupeWindowMinutes: 24 * 60,
     });
   }
 

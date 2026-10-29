@@ -69,6 +69,7 @@ export class NotificationService {
     body?: string;
     link?: string;
     dedupeKey?: string;
+    dedupeWindowMinutes?: number;
   }) {
     try {
       const memberships = await db.query.workspaceMemberships.findMany({
