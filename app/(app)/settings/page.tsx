@@ -4,7 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { requireWorkspace, SALES_ROLE, isOwnerEmail } from "@/lib/auth/workspace";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { auditLogs, workspaceMemberships, workspaceInvites, workspaces } from "@/db/schema";
+import { workspaceMemberships, workspaceInvites, workspaces } from "@/db/schema";
+import { ActivityLogService } from "@/services/activity-log.service";
+import { LOG_GROUPS, type LogGroup } from "@/lib/activity-log";
 import { eq, desc, and } from "drizzle-orm";
 import { InviteForm, PendingInviteRow, JoinRequestRow, MemberRoleSelect, RemoveMemberButton, AssignLeads } from "@/components/crm/InviteManager";
 import { getLeadPlacesAction } from "@/app/actions/invite.actions";
@@ -17,15 +19,18 @@ import { Mail, ShieldCheck, Plug, Clock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["Workspace", "Team", "Automations", "Security", "Integrations"] as const;
+const TABS = ["Workspace", "Team", "Activity", "Integrations"] as const;
+const TAB_LABEL: Partial<Record<(typeof TABS)[number], string>> = { Activity: "Activity log" };
+// Old links: Automations now lives in Workspace, Security became the Activity log.
+const MOVED_TABS: Record<string, (typeof TABS)[number]> = { Automations: "Workspace", Security: "Activity" };
 type SettingsTab = (typeof TABS)[number];
 
-const ACTION_COLORS: Record<string, string> = {
-  CREATE: "text-secondary",
-  UPDATE: "text-tertiary",
-  DELETE: "text-danger",
-  CONVERT: "text-primary",
-  AGENTIC_SWEEP: "text-primary",
+const ACTION_DOT: Record<string, string> = {
+  CREATE: "bg-secondary",
+  UPDATE: "bg-tertiary",
+  DELETE: "bg-danger",
+  ASSIGN: "bg-primary",
+  CONVERT: "bg-primary",
 };
 
 function formatDate(d: Date | string | null) {
@@ -47,17 +52,19 @@ function formatTime(d: Date | string) {
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; log?: string }>;
 }) {
   const { workspaceId, userId, isSales } = await requireWorkspace();
   // Team, automations, integrations and the audit log are admin-only.
   if (isSales) redirect("/");
-  const { tab } = await searchParams;
+  const { tab, log } = await searchParams;
+  if (tab && MOVED_TABS[tab]) redirect(`/settings?tab=${MOVED_TABS[tab]}`);
   const activeTab: SettingsTab = TABS.includes((tab ?? "Workspace") as SettingsTab)
     ? ((tab ?? "Workspace") as SettingsTab)
     : "Workspace";
+  const logGroup: LogGroup = log && Object.hasOwn(LOG_GROUPS, log) ? (log as LogGroup) : "all";
 
-  const [workspace, memberships, auditRows, pendingInvites, clerkUser, joinRequests] = await Promise.all([
+  const [workspace, memberships, activity, pendingInvites, clerkUser, joinRequests] = await Promise.all([
     db.query.workspaces.findFirst({
       where: eq(workspaces.id, workspaceId),
     }),
@@ -68,12 +75,7 @@ export default async function SettingsPage({
         role: { columns: { name: true } },
       },
     }),
-    db.query.auditLogs.findMany({
-      where: eq(auditLogs.workspaceId, workspaceId),
-      orderBy: [desc(auditLogs.createdAt)],
-      limit: 30,
-      with: { actor: { columns: { firstName: true, lastName: true } } },
-    }),
+    activeTab === "Activity" ? ActivityLogService.list(workspaceId, logGroup) : Promise.resolve([]),
     db.query.workspaceInvites.findMany({
       where: and(eq(workspaceInvites.workspaceId, workspaceId), eq(workspaceInvites.status, "PENDING")),
       orderBy: [desc(workspaceInvites.createdAt)],
@@ -105,7 +107,6 @@ export default async function SettingsPage({
 
   const counts = {
     Team: `${memberships.length}${pendingInvites.length > 0 ? ` · ${pendingInvites.length} pending` : ""}`,
-    Security: `${auditRows.length}`,
   };
 
   return (
@@ -130,7 +131,7 @@ export default async function SettingsPage({
               data-active={activeTab === t}
               className="w-full flex items-center justify-between text-left px-4 py-3 rounded-md text-sm font-medium transition-colors text-text-secondary hover:text-text-primary hover:bg-surface-elevated/50 data-[active=true]:bg-surface-elevated data-[active=true]:text-text-primary"
             >
-              <span>{t}</span>
+              <span>{TAB_LABEL[t] ?? t}</span>
               {counts[t as keyof typeof counts] && (
                 <span className="font-mono-code text-xs text-text-muted">{counts[t as keyof typeof counts]}</span>
               )}
@@ -175,6 +176,21 @@ export default async function SettingsPage({
                       Auth via Clerk · signed in as {clerkUser?.firstName ?? "Operator"}
                     </p>
                   </div>
+                </div>
+                <div className="space-y-2 border-t border-border-subtle pt-6">
+                  <SectionTitle>Automatic follow-ups</SectionTitle>
+                  <Body className="text-xs">Used by the follow-up sweep. Changes take effect immediately.</Body>
+                  <AutomationControls
+                    settings={{
+                      id: workspace.id,
+                      name: workspace.name,
+                      slug: workspace.slug,
+                      createdAt: workspace.createdAt.toISOString(),
+                      sweepEnabled: workspace.sweepEnabled,
+                      sweepFollowUpDays: workspace.sweepFollowUpDays,
+                      staleLeadDays: workspace.staleLeadDays,
+                    }}
+                  />
                 </div>
               </div>
             </GlassPanel>
@@ -273,65 +289,45 @@ export default async function SettingsPage({
             </GlassPanel>
           )}
 
-          {activeTab === "Automations" && (
+          {activeTab === "Activity" && (
             <GlassPanel>
-              <div className="mb-6 border-b border-border-subtle pb-4">
-                <PageTitle>Automations</PageTitle>
-                <Body className="mt-1">
-                  Controls the agentic follow-up sweep. Changes take effect immediately.
-                </Body>
+              <div className="mb-5 border-b border-border-subtle pb-4">
+                <PageTitle>Activity log</PageTitle>
+                <Body className="mt-1">Who did what in this workspace, newest first.</Body>
               </div>
-              <AutomationControls
-                settings={{
-                  id: workspace.id,
-                  name: workspace.name,
-                  slug: workspace.slug,
-                  createdAt: workspace.createdAt.toISOString(),
-                  sweepEnabled: workspace.sweepEnabled,
-                  sweepFollowUpDays: workspace.sweepFollowUpDays,
-                  staleLeadDays: workspace.staleLeadDays,
-                }}
-              />
-            </GlassPanel>
-          )}
-
-          {activeTab === "Security" && (
-            <GlassPanel>
-              <div className="mb-6 border-b border-border-subtle pb-4">
-                <PageTitle>Audit Log</PageTitle>
-                <Body className="mt-1">
-                  Last {auditRows.length} recorded action{auditRows.length === 1 ? "" : "s"} in this workspace.
-                </Body>
-              </div>
-              <div className="space-y-1">
-                {auditRows.map((row) => (
-                  <div
-                    key={row.id}
-                    className="flex items-center justify-between gap-4 rounded-md px-3 py-2 hover:bg-surface-elevated/40 transition"
+              <nav aria-label="Filter activity" className="mb-4 flex flex-wrap gap-1.5">
+                {(Object.keys(LOG_GROUPS) as LogGroup[]).map((g) => (
+                  <Link
+                    key={g}
+                    href={`/settings?tab=Activity${g === "all" ? "" : `&log=${g}`}`}
+                    aria-current={g === logGroup ? "page" : undefined}
+                    className={`inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors ${
+                      g === logGroup
+                        ? "border-primary/40 bg-primary/15 text-primary"
+                        : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
+                    }`}
                   >
-                    <div className="min-w-0">
-                      <p className="text-xs">
-                        <span className={`font-mono-code font-semibold ${ACTION_COLORS[row.action] ?? "text-text-secondary"}`}>
-                          {row.action}
-                        </span>{" "}
-                        <span className="text-text-secondary">{row.entity}</span>
-                      </p>
-                      {row.metadata != null && typeof row.metadata === "object" && Object.keys(row.metadata).length > 0 && (
-                        <p className="text-xs font-mono-code text-text-muted truncate">
-                          {JSON.stringify(row.metadata)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs text-text-secondary">
-                        {[row.actor?.firstName, row.actor?.lastName].filter(Boolean).join(" ") || "system"}
-                      </p>
-                      <p className="text-xs text-text-muted">{formatTime(row.createdAt)}</p>
-                    </div>
-                  </div>
+                    {LOG_GROUPS[g]}
+                  </Link>
                 ))}
-                {auditRows.length === 0 && <Body className="text-sm">No audit events yet.</Body>}
-              </div>
+              </nav>
+              <ul className="divide-y divide-border-subtle">
+                {activity.map((row) => (
+                  <li key={row.id} className="flex items-start gap-3 py-2.5">
+                    <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ACTION_DOT[row.action] ?? "bg-text-muted"}`} aria-hidden />
+                    <p className="min-w-0 flex-1 text-sm text-text-secondary">
+                      <span className="font-medium text-text-primary">{row.actor}</span> {row.text}
+                    </p>
+                    <time className="shrink-0 text-xs text-text-muted" dateTime={row.at.toISOString()}>
+                      {formatTime(row.at)}
+                    </time>
+                  </li>
+                ))}
+              </ul>
+              {activity.length === 0 && <Body className="text-sm">Nothing here yet.</Body>}
+              {logGroup === "all" && (
+                <p className="mt-4 text-xs text-text-muted">AI agent background activity is under the AI agents filter.</p>
+              )}
             </GlassPanel>
           )}
 

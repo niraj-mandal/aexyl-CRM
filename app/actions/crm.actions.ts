@@ -82,7 +82,7 @@ export async function updateCompanyAction(companyId: string, data: Partial<Omit<
 export async function deleteCompanyAction(companyId: string) {
   const { userId, workspaceId } = await requireAdmin();
   const company = await CrmService.deleteCompany(workspaceId, companyId);
-  await ActivityService.logAudit(workspaceId, userId, "DELETE", "COMPANY", companyId);
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "COMPANY", companyId, { name: company?.name });
   revalidatePath("/clients");
   revalidatePath("/sales/companies");
   return company;
@@ -111,7 +111,7 @@ export async function updateContactAction(contactId: string, data: Partial<Omit<
 export async function deleteContactAction(contactId: string) {
   const { userId, workspaceId } = await requireAdmin();
   const contact = await CrmService.deleteContact(workspaceId, contactId);
-  await ActivityService.logAudit(workspaceId, userId, "DELETE", "CONTACT", contactId);
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "CONTACT", contactId, { name: [contact?.firstName, contact?.lastName].filter(Boolean).join(" ") || undefined });
   revalidatePath("/sales/contacts");
   return contact;
 }
@@ -162,7 +162,9 @@ export async function updateLeadAction(leadId: string, data: Partial<Omit<typeof
 export async function deleteLeadAction(leadId: string) {
   const { userId, workspaceId } = await requireAdmin();
   const lead = await CrmService.deleteLead(workspaceId, leadId);
-  await ActivityService.logAudit(workspaceId, userId, "DELETE", "LEAD", leadId);
+  // The name lives on the company, which survives the lead: keep it so the activity log can say who.
+  const company = lead?.companyId ? await CrmService.getCompanyById(workspaceId, lead.companyId).catch(() => null) : null;
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "LEAD", leadId, { name: company?.name });
   revalidatePath("/leads");
   revalidatePath("/sales/leads");
   return lead;
@@ -242,7 +244,7 @@ export async function updateDealStageAction(dealId: string, newStage: string) {
 export async function deleteDealAction(dealId: string) {
   const { userId, workspaceId } = await requireAdmin();
   const deal = await CrmService.deleteDeal(workspaceId, dealId);
-  await ActivityService.logAudit(workspaceId, userId, "DELETE", "DEAL", dealId);
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "DEAL", dealId, { name: deal?.name });
   revalidatePath("/pipeline");
   revalidatePath("/sales/deals");
   return deal;
@@ -531,7 +533,7 @@ export async function updateProjectAction(
 export async function deleteProjectAction(projectId: string) {
   const { userId, workspaceId } = await requireAdmin();
   const project = await ProjectService.deleteProject(workspaceId, projectId);
-  await ActivityService.logAudit(workspaceId, userId, "DELETE", "PROJECT", projectId);
+  await ActivityService.logAudit(workspaceId, userId, "DELETE", "PROJECT", projectId, { name: project?.name });
   revalidatePath("/projects");
   return project;
 }

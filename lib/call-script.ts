@@ -10,12 +10,13 @@ type ScriptLead = { businessName: string; city: string | null; notes: string | n
 
 /**
  * Greeting that fits where the gym is: Punjabi in Punjab, "Pranam" in Bihar (and the
- * Hindi-speaking east), "Namaste" anywhere else. Read from the gym's own address.
+ * Hindi-speaking east), Assamese "Nomoskar" in Assam, "Namaste" anywhere else. Read from the gym's own address.
  */
 export function greetingFor(lead: Pick<ScriptLead, "area" | "place">): string {
   const where = `${lead.area ?? ""} ${lead.place ?? ""}`.toLowerCase();
   if (/\bpunjab\b/.test(where)) return "Sat Sri Akal ji";
   if (/\b(bihar|jharkhand)\b/.test(where)) return "Pranam ji";
+  if (/\bassam\b/.test(where)) return "Nomoskar";
   return "Namaste ji";
 }
 
