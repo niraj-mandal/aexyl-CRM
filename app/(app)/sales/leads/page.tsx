@@ -5,6 +5,7 @@ import { CrmService } from "@/services/crm.service";
 import { placeFromLeadSource } from "@/lib/maps";
 import { PageHeader } from "@/components/ui/page-header";
 import { LeadsTable, type LeadRow } from "@/components/crm/LeadsTable";
+import { CitySearch } from "@/components/crm/CitySearch";
 
 const PAGE_SIZE = 50;
 
@@ -101,6 +102,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </>
         }
       />
+
+      {cities.length > 1 && (
+        <CitySearch cities={cities.filter(([name]) => name !== "Unknown").map(([name, count]) => ({ name, count }))} current={city} />
+      )}
 
       {cities.length > 1 && (
         <nav aria-label="Filter by city" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-thin">
