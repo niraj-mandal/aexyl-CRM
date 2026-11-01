@@ -75,7 +75,7 @@ export default async function CalendarPage({
         monthName={MONTH_NAMES[month - 1]}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         {/* Month agenda */}
         <GlassCard>
           <div className="mb-4">
@@ -88,7 +88,7 @@ export default async function CalendarPage({
               body="Follow-ups you set on leads and meetings you schedule show up here and on the grid."
             />
           ) : (
-            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
+            <div className="space-y-4 sm:max-h-[420px] sm:overflow-y-auto sm:pr-1">
               {Array.from(agendaByDay.entries()).map(([day, dayEvents]) => (
                 <div key={day}>
                   <MonoLabel className="text-text-muted mb-1.5 block">
@@ -101,20 +101,21 @@ export default async function CalendarPage({
                           href={e.href ?? "#"}
                           className="flex items-center gap-3 rounded-lg border border-border-subtle/60 bg-surface-lowest/40 px-3 py-2 hover:bg-surface-elevated/60 transition group"
                         >
-                        <span className="font-mono-code text-xs text-text-muted w-12 shrink-0">
+                        {/* Most events are all-day follow-ups: on phones the column only appears for real times. */}
+                        <span className={`font-mono-code text-xs text-text-muted w-12 shrink-0 whitespace-nowrap ${e.allDay ? "max-sm:hidden" : ""}`}>
                           {e.allDay
                             ? "all-day"
                             : format(new Date(e.when), "HH:mm")}
                         </span>
+                        {/* Who first (the gym), then what: the same order as the grid. */}
                         <span className="flex-1 min-w-0 text-sm text-text-primary group-hover:text-primary transition">
-                          <span className="block truncate">{e.title}</span>
-                          {e.context && (
-                            <span className="block truncate text-xs text-text-muted">
-                              {e.context}
-                            </span>
-                          )}
+                          <span className="block truncate font-medium">{e.context ?? e.title}</span>
+                          <span className="block truncate text-xs text-text-muted">
+                            <span className="sm:hidden">{KIND_LABEL[e.kind] ?? e.kind}{e.context ? " · " : ""}</span>
+                            {e.context ? e.title : ""}
+                          </span>
                         </span>
-                        <Badge variant="secondary" className="font-mono-code text-xs shrink-0">
+                        <Badge variant="secondary" className="font-mono-code text-xs shrink-0 max-sm:hidden">
                           {KIND_LABEL[e.kind] ?? e.kind}
                         </Badge>
                         </Link>
@@ -140,14 +141,14 @@ export default async function CalendarPage({
               action={<ScheduleMeetingButton />}
             />
           ) : (
-            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            <div className="space-y-2 sm:max-h-[420px] sm:overflow-y-auto sm:pr-1">
               {upcomingMeetings.map((m) => (
                 <div
                   key={m.id}
                   className="rounded-lg border border-border-subtle/60 bg-surface-lowest/40 px-3 py-2.5"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-text-primary truncate">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+                    <span className="min-w-0 text-sm font-medium text-text-primary truncate">
                       {m.title}
                     </span>
                     <span className="font-mono-code text-xs text-primary shrink-0">
