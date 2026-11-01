@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { activities, agentEvents, companies, contacts, leads, deals, projects, tasks, discoveryCandidates } from "@/db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { leadCity } from "@/lib/maps";
+import { leadCity, leadRegion } from "@/lib/maps";
 import { SALES_ROLE } from "@/lib/auth/roles";
 
 // ---------------------------------------------------------------------------
@@ -339,7 +339,7 @@ export class CrmService {
     const seen = new Set<string>();
     return rows
       .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
-      .map((r) => ({ id: r.id, city: leadCity(r) }));
+      .map((r) => ({ id: r.id, city: leadCity(r), region: leadRegion(r) }));
   }
 
   static async getLeadById(workspaceId: string, leadId: string) {

@@ -8,7 +8,7 @@ import { db } from "@/db";
 import { companies, contacts, deals, discoveryCandidates, leads, projects } from "@/db/schema";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { ActivityService } from "@/services/activity.service";
-import { leadCity, placeFromLeadSource } from "@/lib/maps";
+import { leadCity, leadRegion, placeFromLeadSource } from "@/lib/maps";
 import { normalizePhone } from "@/services/discovery/normalizer";
 import { CrmService, LEAD_POTENTIAL_ORDER, ProjectService, leadHeldBySales } from "@/services/crm.service";
 import {
@@ -32,6 +32,8 @@ export interface OutreachLead {
   /** City to narrow a Google Maps lookup when the lead has no address. */
   place: string | null;
   city: string | null;
+  /** Address + discovery search + discovery city: picks the regional greeting and script language. */
+  region?: string | null;
   /** Import notes (rating, reviews, web presence) that personalise the call script. */
   notes: string | null;
 }
@@ -94,6 +96,7 @@ export async function getOutreachLeadsAction(): Promise<OutreachLead[]> {
       score: r.score,
       place: r.location || c?.address || placeFromLeadSource(r.source),
       city: leadCity(r),
+      region: leadRegion(r),
       notes: r.notes,
     };
   });

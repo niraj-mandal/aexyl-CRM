@@ -49,6 +49,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const hotLeads = leadCounts.hot;
 
   const cityOf = new Map(cityIndex.map((l) => [l.id, l.city]));
+  const regionOf = new Map(cityIndex.map((l) => [l.id, l.region]));
   const rows: LeadRow[] = leads.map((l) => ({
     id: l.id,
     businessName: l.company?.name || "Unknown",
@@ -64,6 +65,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     score: l.score,
     place: l.company?.location || placeFromLeadSource(l.source),
     city: cityOf.get(l.id) ?? null,
+    region: regionOf.get(l.id) ?? null,
     notes: l.notes,
     // Auto-created contacts are named "Team <gym>"; they add nothing.
     contactName: l.contact && !/^team\b/i.test(l.contact.firstName) ? `${l.contact.firstName} ${l.contact.lastName ?? ""}`.trim() : null,

@@ -22,6 +22,14 @@ export function leadCity(l: { candidateCity?: string | null; source?: string | n
   return raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : raw;
 }
 
+/**
+ * Everything that says where a lead is (address, discovery search, discovery city), for picking the
+ * region's greeting and script language: many addresses ("…Road, Guwahati, 781022") name no state.
+ */
+export function leadRegion(l: { candidateCity?: string | null; source?: string | null; location?: string | null }): string | null {
+  return [l.location, placeFromLeadSource(l.source), l.candidateCity].filter(Boolean).join(" · ") || null;
+}
+
 /** "AI Discovery: gym in Guwahati, Assam, India" → "Guwahati, Assam, India" */
 export function placeFromLeadSource(source: string | null | undefined): string | null {
   const match = source?.match(/\bin\s+(.+)$/i);

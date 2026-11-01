@@ -5,15 +5,29 @@
  */
 export type ScriptSection = { title: string; lines: string[] };
 
-/** The lead fields the scripts read. `area`/`place` (address or "City, State, India") pick the greeting. */
-type ScriptLead = { businessName: string; city: string | null; notes: string | null; area?: string | null; place?: string | null };
+/**
+ * The lead fields the scripts read. `area`/`place`/`region` (address, "City, State, India", discovery city)
+ * pick the greeting and language; `region` matters when the address names no state.
+ */
+type ScriptLead = { businessName: string; city: string | null; notes: string | null; area?: string | null; place?: string | null; region?: string | null };
+type Where = Pick<ScriptLead, "area" | "place" | "region">;
+/** The state from an Indian PIN code, for addresses that name none ("…Jalandhar, 144008"). */
+const STATE_BY_PIN: [RegExp, string][] = [
+  [/\b1[45]\d{4}\b/, "punjab"],
+  [/\b78\d{4}\b/, "assam"],
+  [/\b8[0-5]\d{4}\b/, "bihar"],
+];
+const whereOf = (lead: Where) => {
+  const text = `${lead.area ?? ""} ${lead.place ?? ""} ${lead.region ?? ""}`.toLowerCase();
+  return `${text} ${STATE_BY_PIN.filter(([pin]) => pin.test(text)).map(([, state]) => state).join(" ")}`;
+};
 
 /**
  * Greeting that fits where the gym is: Punjabi in Punjab, "Pranam" in Bihar (and the
- * Hindi-speaking east), Assamese "Nomoskar" in Assam, "Namaste" anywhere else. Read from the gym's own address.
+ * Hindi-speaking east), Assamese "Nomoskar" in Assam, "Namaste" anywhere else.
  */
-export function greetingFor(lead: Pick<ScriptLead, "area" | "place">): string {
-  const where = `${lead.area ?? ""} ${lead.place ?? ""}`.toLowerCase();
+export function greetingFor(lead: Where): string {
+  const where = whereOf(lead);
   if (/\bpunjab\b/.test(where)) return "Sat Sri Akal ji";
   if (/\b(bihar|jharkhand)\b/.test(where)) return "Pranam ji";
   if (/\bassam\b/.test(where)) return "Nomoskar";
@@ -22,8 +36,7 @@ export function greetingFor(lead: Pick<ScriptLead, "area" | "place">): string {
 
 /** Script language. Assam gets Assamese (Roman letters, easy to read aloud); a teammate can switch to Hinglish. */
 export type ScriptLang = "hinglish" | "assamese";
-export const defaultLang = (lead: Pick<ScriptLead, "area" | "place">): ScriptLang =>
-  /\bassam\b/i.test(`${lead.area ?? ""} ${lead.place ?? ""}`) ? "assamese" : "hinglish";
+export const defaultLang = (lead: Where): ScriptLang => (/\bassam\b/.test(whereOf(lead)) ? "assamese" : "hinglish");
 
 export function parseReviews(notes: string | null | undefined): { rating: number; reviews: number } | null {
   const rating = notes?.match(/(\d(?:\.\d+)?)\s*★/)?.[1];

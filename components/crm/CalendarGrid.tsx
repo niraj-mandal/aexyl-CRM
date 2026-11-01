@@ -104,12 +104,22 @@ export function CalendarGrid({
   }, [year, month]);
 
   const todayKey = localDayKey(new Date().toISOString());
+  // Phones show dots in the grid and the tapped day's events as a list below it.
+  const [picked, setPicked] = useState<string | null>(null);
+  const inThisMonth = todayKey.startsWith(`${year}-${String(month).padStart(2, "0")}`);
+  const selectedKey = picked ?? (inThisMonth ? todayKey : localDayKey(new Date(year, month - 1, 1).toISOString()));
+  const selectedEvents = byDay.get(selectedKey) ?? [];
+  const hhmm = (iso: string) => {
+    const t = new Date(iso);
+    return `${t.getHours().toString().padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}`;
+  };
 
   const navigate = (delta: number) => {
     const d = new Date(year, month - 1 + delta, 1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("y", String(d.getFullYear()));
     params.set("m", String(d.getMonth() + 1));
+    setPicked(null);
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -132,24 +142,24 @@ export function CalendarGrid({
           <button
             onClick={() => navigate(-1)}
             aria-label="Previous month"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-strong text-text-secondary hover:bg-surface-elevated transition"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border-strong text-text-secondary hover:bg-surface-elevated transition sm:h-8 sm:w-8"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary min-w-[150px] text-center">
+          <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary min-w-[140px] text-center">
             {monthName} {year}
           </h2>
           <button
             onClick={() => navigate(1)}
             aria-label="Next month"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-strong text-text-secondary hover:bg-surface-elevated transition"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border-strong text-text-secondary hover:bg-surface-elevated transition sm:h-8 sm:w-8"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
         {/* Kind filters */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="-mx-4 flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {KIND_ORDER.map((kind) => {
             const style = KIND_STYLES[kind];
             const active = !hidden.has(kind);
@@ -159,12 +169,13 @@ export function CalendarGrid({
                 key={kind}
                 onClick={() => toggleKind(kind)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition max-sm:min-h-9",
                   active
                     ? style.pill
                     : "border-border-subtle text-text-muted opacity-50 hover:opacity-80"
                 )}
                 title={active ? "Hide" : "Show"}
+                aria-pressed={active}
               >
                 <span className={cn("h-1.5 w-1.5 rounded-full", active ? style.dot : "bg-text-muted")} />
                 {style.label}
@@ -182,7 +193,8 @@ export function CalendarGrid({
             key={d}
             className="text-center text-xs font-mono-code uppercase tracking-wider text-text-muted py-1"
           >
-            {d}
+            <span className="sm:hidden">{d[0]}</span>
+            <span className="max-sm:hidden">{d}</span>
           </div>
         ))}
       </div>
@@ -194,11 +206,13 @@ export function CalendarGrid({
           const dayEvents = byDay.get(key) ?? [];
           const isToday = key === todayKey;
           const isPast = date < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const isSelected = key === selectedKey;
           return (
             <div
               key={i}
               className={cn(
-                "min-h-[96px] sm:min-h-[124px] rounded-lg border p-1.5 flex flex-col gap-1 transition",
+                "relative min-h-[52px] sm:min-h-[124px] rounded-lg border p-1.5 flex flex-col gap-1 transition",
+                isSelected && "max-sm:bg-primary/15 max-sm:border-primary/50",
                 inMonth
                   ? "border-border-subtle/60 bg-surface-lowest/40"
                   : "border-transparent bg-transparent opacity-35",
@@ -206,19 +220,32 @@ export function CalendarGrid({
               )}
             >
               <div className="flex items-center justify-between">
-                <span
+                {/* On phones the whole cell is this button (after:inset-0): tap a day to list its events. */}
+                <button
+                  type="button"
+                  onClick={() => setPicked(key)}
+                  aria-label={`${date.toDateString()}, ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}`}
+                  aria-pressed={isSelected}
                   className={cn(
-                    "text-xs font-mono-code",
+                    "text-xs font-mono-code max-sm:after:absolute max-sm:after:inset-0 sm:cursor-default",
                     isToday ? "text-primary font-semibold" : isPast ? "text-text-muted" : "text-text-secondary"
                   )}
                 >
                   {date.getDate()}
-                </span>
+                </button>
                 {isToday && (
-                  <span className="text-[11px] font-mono-code uppercase text-primary">today</span>
+                  <span className="text-[11px] font-mono-code uppercase text-primary max-sm:hidden">today</span>
                 )}
               </div>
-              <div className="flex flex-col gap-0.5 overflow-hidden">
+              {/* Phone: one dot per kind of event that day. */}
+              {dayEvents.length > 0 && (
+                <div className="mt-auto flex flex-wrap gap-0.5 sm:hidden" aria-hidden>
+                  {KIND_ORDER.filter((k) => dayEvents.some((e) => e.kind === k)).map((k) => (
+                    <span key={k} className={cn("h-1.5 w-1.5 rounded-full", KIND_STYLES[k].dot)} />
+                  ))}
+                </div>
+              )}
+              <div className="hidden flex-col gap-0.5 overflow-hidden sm:flex">
                 {dayEvents.slice(0, 3).map((e) => {
                   const style = KIND_STYLES[e.kind];
                   const time = new Date(e.when);
@@ -257,6 +284,36 @@ export function CalendarGrid({
           );
         })}
       </div>
+
+      {/* Phone agenda for the selected day */}
+      <section aria-label="Events on the selected day" className="mt-4 sm:hidden">
+        <h3 className="mb-2 text-sm font-semibold text-text-primary">
+          {selectedKey === todayKey ? "Today" : new Date(`${selectedKey}T12:00:00`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}
+          <span className="ml-2 text-xs font-normal text-text-muted">{selectedEvents.length} event{selectedEvents.length === 1 ? "" : "s"}</span>
+        </h3>
+        {selectedEvents.length === 0 ? (
+          <p className="rounded-lg bg-surface-lowest/40 px-3 py-4 text-center text-xs text-text-muted">Nothing on this day.</p>
+        ) : (
+          <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg bg-surface-lowest/40">
+            {selectedEvents.map((e) => (
+              <li key={e.id}>
+                <Link href={e.href ?? "#"} className="flex min-h-12 items-center gap-3 px-3 py-2.5 active:bg-[var(--fill-hover)]">
+                  <span className={cn("h-2 w-2 shrink-0 rounded-full", KIND_STYLES[e.kind].dot)} aria-hidden />
+                  <span className="num w-11 shrink-0 text-xs text-text-muted">{e.allDay ? "All day" : hhmm(e.when)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-text-primary">{e.context ?? e.title}</span>
+                    <span className="block truncate text-xs text-text-muted">
+                      {KIND_STYLES[e.kind].label}
+                      {e.context ? ` · ${e.title}` : ""}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
